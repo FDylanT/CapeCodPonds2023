@@ -1,0 +1,112 @@
+---
+title: "BarnstablePonds"
+author: "Dylan Titmuss"
+date: "2023-07-27"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+
+setwd("~/Desktop/Repos/BarnstablePonds2023")
+```
+
+## Load data
+```{r}
+ponds_full <- read.csv("072523_CC_AllPonds_WQ.csv") %>%
+  
+  # remove non-data rows
+  filter(Station.name != "") %>%
+  
+  # remove unneeded columns
+  select(-Station.name, -Long.lat.coordinates, -Sample.number) %>%
+  select(-Quality.code, -Quality.code.1, -Quality.code.2, -Quality.code.3, -Quality.code.4, -Quality.code.5,
+         -Quality.code.6, -Quality.code.7, -Quality.code.8, -Quality.code.9, -Quality.code.10,
+         -Quality.code.11, -Quality.code.12, -Quality.code.13, -Quality.code.14, -Quality.code.15,
+         -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
+         -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25) %>%
+  
+  # extract year from date-time column & create new column
+  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+")) %>%
+  
+  # extract year from date-time column & create new column
+  mutate(Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = "")) %>%
+  
+  # convert year column from character to numeric
+  mutate(Year = as.numeric(Year)) #%>%
+
+  # convert null datapoints to NA
+
+```
+
+## Summarize data
+```{r}
+count(ponds, Station.number) # 221 ponds
+min(count(ponds, Station.number)$n)
+max(count(ponds, Station.number)$n) # 1-420 observations per pond
+median(count(ponds, Station.number)$n) # median of 57 observations per pond
+
+hist(count(ponds, Station.number)$n)
+
+pond_years <- ponds %>%
+  group_by(Station.number) %>%
+  summarise(num_years = n_distinct(Year))
+
+min(pond_years$num_years)
+max(pond_years$num_years) # 1-18 total years of data
+median(pond_years$num_years) # median of 10 years per pond
+
+hist(pond_years$num_years)
+
+pond_obs <- ponds %>%
+  group_by(Station.number, Year) %>%
+  summarize(num_obs = n())
+
+min(pond_obs$num_obs)
+max(pond_obs$num_obs) # 1-54 observations per year
+median(pond_obs$num_obs)
+
+pond_dates <- ponds %>%
+  group_by(Station.number, Year) %>%
+  summarize(num_dates = n_distinct(Date))
+
+min(pond_dates$num_dates)
+max(pond_dates$num_dates) # 1-5 days sampled per year
+
+pond_profiles <- ponds %>%
+  group_by(Station.number, Year) %>%
+  summarise(num_depths = n_distinct(Depth))
+
+hist(pond_profiles$num_depths)
+```
+
+## Merge same-parameter columns
+```{r}
+ponds <- ponds_full %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
+        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "")
+
+# convert all empty cells to NA
+ponds[ponds == ""] <- NA
+```
+
+## Create some prelim visualizations
+```{r}
+ponds_filt <- ponds %>%
+  group_by(Station.number) %>%
+  filter(n_distinct(Year) >= 10) %>%
+  ungroup()
+
+ggplot(ponds_filt, aes(Year, DO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 12)
+```
