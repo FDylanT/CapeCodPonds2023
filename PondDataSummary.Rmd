@@ -38,10 +38,47 @@ ponds_full <- read.csv("072523_CC_AllPonds_WQ.csv") %>%
   mutate(Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = "")) %>%
   
   # convert year column from character to numeric
-  mutate(Year = as.numeric(Year)) #%>%
+  mutate(Year = as.numeric(Year))
+```
 
-  # convert null datapoints to NA
+## Merge same-parameter columns
+```{r}
+ponds <- ponds_full %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
+        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "")
 
+# convert all empty cells to NA
+ponds[ponds == ""] <- NA
+
+# convert null datapoints to NA
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
+ponds[ponds == "<MDL 0.00"] <- NA
+
+# fix non-numeric datapoints
+ponds[ponds == "> 15.50"] <- 15.50
+ponds[ponds == "< 0.05"] <- 0.05
+ponds[ponds == "< 1.50"] <- 1.50
+ponds[ponds == "< 0.10"] <- 0.10
+
+# temporarily remove problematic row
+ponds <- ponds[-12083, ]
+
+# convert all numerical cols to numeric
+is_all_numeric <- function(x) {
+  !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
+}
+ponds <- ponds %>% 
+  mutate_if(is_all_numeric, as.numeric)
+
+str(ponds)
+
+# ponds <- ponds %>%
+#   mutate_at(c("Depth", "Chlorophyll...CHLA", "DO", "Temp", ), as.numeric)
 ```
 
 ## Summarize data
@@ -85,28 +122,50 @@ pond_profiles <- ponds %>%
 hist(pond_profiles$num_depths)
 ```
 
-## Merge same-parameter columns
-```{r}
-ponds <- ponds_full %>%
-  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
-  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
-  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
-  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
-        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
-  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "")
-
-# convert all empty cells to NA
-ponds[ponds == ""] <- NA
-```
-
 ## Create some prelim visualizations
 ```{r}
-ponds_filt <- ponds %>%
-  group_by(Station.number) %>%
-  filter(n_distinct(Year) >= 10) %>%
-  ungroup()
+# ponds_filt <- ponds %>%
+#   group_by(Station.number) %>%
+#   filter(n_distinct(Year) >= 10) %>%
+#   ungroup()
 
-ggplot(ponds_filt, aes(Year, DO)) +
+ponds1 <- ponds %>%
+  filter(Station.number <= "CH-396-01")
+ponds2 <- ponds %>%
+  filter(Station.number > "CH-396-01" & Station.number <= "MA-808-01")
+ponds3 <- ponds %>%
+  filter(Station.number > "MA-808-01")
+
+# Temp
+ggplot(ponds1, aes(Year, Temp)) +
   geom_point() +
-  facet_wrap(~ Station.number, ncol = 12)
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Temp)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Temp)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+
+# DO
+ggplot(ponds1, aes(Year, DO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, DO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, DO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+
+# Sal
+ggplot(ponds1, aes(Year, Sal)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Sal)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Sal)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
 ```
