@@ -1,0 +1,336 @@
+---
+title: "BarnstablePonds"
+author: "Dylan Titmuss"
+date: "2023-07-27"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load packages
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(sf)
+
+setwd("~/Desktop/Repos/BarnstablePonds2023")
+```
+
+## Load data
+```{r}
+ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
+  
+  # remove non-data rows
+  filter(Station.name != "") %>%
+  
+  # remove unneeded columns
+  select(-Station.name, -Sample.number) %>%
+  select(-Quality.code, -Quality.code.1, -Quality.code.2, -Quality.code.3, -Quality.code.4, -Quality.code.5,
+         -Quality.code.6, -Quality.code.7, -Quality.code.8, -Quality.code.9, -Quality.code.10,
+         -Quality.code.11, -Quality.code.12, -Quality.code.13, -Quality.code.14, -Quality.code.15,
+         -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
+         -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25) %>%
+  
+  # extract year from date-time column & create new column
+  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+")) %>%
+  
+  # extract year from date-time column & create new column
+  mutate(Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = "")) %>%
+  
+  # convert year column from character to numeric
+  mutate(Year = as.numeric(Year))
+```
+
+## Merge same-parameter columns
+```{r}
+ponds <- ponds_full %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
+        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
+  # split long/lat coordinates
+  separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start")
+
+# convert all empty cells to NA
+ponds[ponds == ""] <- NA
+
+# convert null datapoints to NA
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
+ponds[ponds == "<MDL 0.00"] <- NA
+
+# temporarily fix non-numeric datapoints
+ponds[ponds == "> 15.50"] <- "15.50"
+ponds[ponds == "< 0.05"] <- "0.05"
+ponds[ponds == "< 1.50"] <- "1.50"
+ponds[ponds == "< 0.10"] <- "0.10"
+ponds[ponds == "207"] <- "20.7"
+
+# temporarily remove problematic row
+ponds <- ponds[-12083, ]
+
+# convert all numerical cols to numeric
+is_all_numeric <- function(x) {
+  !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
+}
+ponds <- ponds %>% 
+  mutate_if(is_all_numeric, as.numeric)
+
+str(ponds)
+
+# ponds <- ponds %>%
+#   mutate_at(c("Depth", "Chlorophyll...CHLA", "DO", "Temp"), as.numeric)
+```
+
+## Summarize data
+```{r}
+count(ponds, Station.number) # 221 ponds
+# min(count(ponds, Station.number)$n)
+# max(count(ponds, Station.number)$n) # 1-420 observations per pond
+# median(count(ponds, Station.number)$n) # median of 57 observations per pond
+# 
+# hist(count(ponds, Station.number)$n, breaks = 20, main = "Observations per pond")
+
+pond_years <- ponds %>%
+  group_by(Station.number, Lat, Long) %>%
+  summarise(num_years = n_distinct(Year))
+
+min(pond_years$num_years)
+max(pond_years$num_years) # 1-18 total years of data
+median(pond_years$num_years) # median of 10 years per pond
+
+hist(pond_years$num_years, breaks = 20, main = "Years of data per pond")
+
+pond_dates <- ponds %>%
+  group_by(Station.number, Lat, Long, Year) %>%
+  summarize(num_dates = n_distinct(Date))
+
+min(pond_dates$num_dates)
+max(pond_dates$num_dates) # 1-5 days sampled per year
+median(pond_dates$num_dates) # median of 1 day sampled per year
+
+hist(pond_dates$num_dates, breaks = 20, main = "Days sampled per year")
+
+pond_profiles <- ponds %>%
+  group_by(Station.number, Lat, Long, Date) %>%
+  summarise(num_depths = n_distinct(Depth)) %>%
+  mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE))
+
+hist(pond_profiles$num_depths, main = "Number of depths per sampling event")
+
+nrow(filter(pond_profiles, num_depths > 2)) # 1910 sampling events w/ > 2 depths (1910 / 2215 = 86%)
+
+pond_profiles2 <- pond_profiles %>%
+  group_by(Station.number, Lat, Long) %>%
+  summarise(num_dates = n_distinct(Date), num_profiles = sum(Profiles))
+
+pond_profiles3 <- ponds %>%
+  group_by(Station.number, Lat, Long, Year, Date) %>%
+  summarise(num_depths = n_distinct(Depth)) %>%
+  group_by(Station.number, Lat, Long, Year) %>%
+  summarise(num_depths = max(num_depths)) %>%
+  mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE)) %>%
+  group_by(Station.number, Lat, Long) %>%
+  summarise(num_years = n_distinct(Year), num_years_profiles = sum(Profiles))
+```
+
+## Map ponds
+```{r}
+# define GPS limits
+min(ponds$Long, na.rm = TRUE) # -70.64806
+max(ponds$Long, na.rm = TRUE) # -69.95501
+min(ponds$Lat, na.rm = TRUE) # 41.55522
+max(ponds$Lat, na.rm = TRUE) # 42.06855
+
+# turn off spherical geometry to avoid "duplicate" errors
+sf_use_s2(FALSE)
+
+# get Massachusetts outline
+mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+  st_make_valid() %>%
+  st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
+
+# create map of years sampled
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = pond_years, aes(x = Long, y = Lat, col = num_years)) +
+  scale_color_gradientn(colors = parula(100)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of number of profiles
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = num_profiles)) +
+  scale_color_gradientn(colors = parula(100), name = "num_total_\nprofiles") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of number of years of profiles
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = pond_profiles3, aes(x = Long, y = Lat, col = num_years_profiles)) +
+  scale_color_gradientn(colors = parula(100), name = "num_years\n_profiles") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+```
+
+## Create some prelim visualizations
+```{r}
+# ponds_filt <- ponds %>%
+#   group_by(Station.number) %>%
+#   filter(n_distinct(Year) >= 10) %>%
+#   ungroup()
+
+ponds1 <- ponds %>%
+  filter(Station.number <= "CH-396-01")
+ponds2 <- ponds %>%
+  filter(Station.number > "CH-396-01" & Station.number <= "MA-808-01")
+ponds3 <- ponds %>%
+  filter(Station.number > "MA-808-01")
+
+# Temp
+ggplot(ponds1, aes(Year, Temp)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Temp)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Temp)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# DO
+ggplot(ponds1, aes(Year, DO)) +
+  geom_point() +
+  ylim(0, 20) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, DO)) +
+  ylim(0, 20) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, DO)) +
+  ylim(0, 20) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# Chl-a
+ggplot(ponds1, aes(Year, Chlorophyll...CHLA)) +
+  geom_point() +
+  ylim(0, 50) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Chlorophyll...CHLA)) +
+  ylim(0, 50) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Chlorophyll...CHLA)) +
+  ylim(0, 50) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# Secchi
+ggplot(ponds1, aes(Year, Secchi.Depth...SECCHI)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Secchi.Depth...SECCHI)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Secchi.Depth...SECCHI)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# TP
+ggplot(ponds1, aes(Year, Total.Phosphorus...TP)) +
+  geom_point() +
+  ylim(0, 15) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Total.Phosphorus...TP)) +
+  geom_point() +
+  ylim(0, 15) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Total.Phosphorus...TP)) +
+  geom_point() +
+  ylim(0, 15) +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# TN
+ggplot(ponds1, aes(Year, Total.Nitrogen...Reported...TN)) +
+  geom_point() +
+  ylim(0, 100) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Total.Nitrogen...Reported...TN)) +
+  geom_point() +
+  ylim(0, 100) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Total.Nitrogen...Reported...TN)) +
+  geom_point() +
+  ylim(0, 100) +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# Alk
+ggplot(ponds1, aes(Year, Alkalinity...ALK)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Alkalinity...ALK)) +
+  geom_point() +
+  ylim(0, 200) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Alkalinity...ALK)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# pH
+ggplot(ponds1, aes(Year, pH)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, pH)) +
+  geom_point() +
+  ylim(0, 10) +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, pH)) +
+  geom_point() +
+  ylim(0, 10) +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# Sal
+ggplot(ponds1, aes(Year, Sal)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Sal)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Sal)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# Phaeophytin
+ggplot(ponds1, aes(Year, Phaeophytin...PHAEO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Phaeophytin...PHAEO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Phaeophytin...PHAEO)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+
+# Total Pigments
+ggplot(ponds1, aes(Year, Total.Pigments...TOTAL_PIGMENTS)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds2, aes(Year, Total.Pigments...TOTAL_PIGMENTS)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 8)
+ggplot(ponds3, aes(Year, Total.Pigments...TOTAL_PIGMENTS)) +
+  geom_point() +
+  facet_wrap(~ Station.number, ncol = 9)
+```
