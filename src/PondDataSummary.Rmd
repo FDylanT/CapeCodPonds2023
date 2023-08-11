@@ -13,6 +13,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(sf)
+library(pals)
 
 setwd("~/Desktop/Repos/BarnstablePonds2023")
 ```
@@ -22,7 +23,18 @@ setwd("~/Desktop/Repos/BarnstablePonds2023")
 ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
   
   # remove non-data rows
-  filter(Station.name != "") %>%
+  filter(Station.name != "")
+```
+
+## Merge same-parameter columns & reorganize data frame
+```{r}
+ponds <- ponds_full %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
+        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
   
   # remove unneeded columns
   select(-Station.name, -Sample.number) %>%
@@ -32,27 +44,44 @@ ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
          -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
          -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25) %>%
   
-  # extract year from date-time column & create new column
-  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+")) %>%
-  
-  # extract year from date-time column & create new column
-  mutate(Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = "")) %>%
-  
-  # convert year column from character to numeric
-  mutate(Year = as.numeric(Year))
-```
-
-## Merge same-parameter columns
-```{r}
-ponds <- ponds_full %>%
-  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
-  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
-  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
-  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
-        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
-  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
   # split long/lat coordinates
-  separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start")
+  separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
+  
+  # rename columns with redundant headers
+  rename(Chlorophyll = Chlorophyll...CHLA,
+         Secchi = Secchi.Depth...SECCHI,
+         TP = Total.Phosphorus...TP,
+         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL,
+         TN = Total.Nitrogen...Reported...TN,
+         CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
+         CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
+         CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
+         Alkalinity = Alkalinity...ALK,
+         ORP = Oxidation.Reduction.Potential...ORP,
+         Phaeophytin = Phaeophytin...PHAEO,
+         Wind = Qualitative.Wind.Description...WIND,
+         Conductivity = Specific.Conductivity...COND,
+         Total.Dissolved.Solids = Total.Dissolved.Solids...TDS,
+         Total.Pigments = Total.Pigments...TOTAL_PIGMENTS) %>%
+  
+  # reorder columns
+  relocate(Temp, .before = DO) %>%
+  relocate(DO_sat, .after = DO) %>%
+  relocate(pH, .after = DO_sat) %>%
+  relocate(Alkalinity, .after = pH) %>%
+  relocate(Chlorophyll, .after = TN) %>%
+  relocate(Phaeophytin, .after = Chlorophyll) %>%
+  relocate(Total.Pigments, .after = Phaeophytin) %>%
+  relocate(Sal, .before = Wind) %>%
+  relocate(c(ORP, Conductivity), .after = last_col()) %>%
+  
+  # extract date from date-time column & create new column
+  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
+         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}")) %>%
+  
+  # extract month and year from date-time column & create new column
+  mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
+         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""))
 
 # convert all empty cells to NA
 ponds[ponds == ""] <- NA
@@ -79,10 +108,7 @@ is_all_numeric <- function(x) {
 ponds <- ponds %>% 
   mutate_if(is_all_numeric, as.numeric)
 
-str(ponds)
-
-# ponds <- ponds %>%
-#   mutate_at(c("Depth", "Chlorophyll...CHLA", "DO", "Temp"), as.numeric)
+#str(ponds)
 ```
 
 ## Summarize data
@@ -114,8 +140,11 @@ median(pond_dates$num_dates) # median of 1 day sampled per year
 
 hist(pond_dates$num_dates, breaks = 20, main = "Days sampled per year")
 
+# pond_months
+hist(ponds$Month, main = "Month of sampling event")
+
 pond_profiles <- ponds %>%
-  group_by(Station.number, Lat, Long, Date) %>%
+  group_by(Station.number, Lat, Long, Year, Date) %>%
   summarise(num_depths = n_distinct(Depth)) %>%
   mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE))
 
@@ -125,7 +154,11 @@ nrow(filter(pond_profiles, num_depths > 2)) # 1910 sampling events w/ > 2 depths
 
 pond_profiles2 <- pond_profiles %>%
   group_by(Station.number, Lat, Long) %>%
-  summarise(num_dates = n_distinct(Date), num_profiles = sum(Profiles))
+  summarise(num_dates = n_distinct(Date),
+            num_years = n_distinct(Year),
+            num_profiles = sum(Profiles)) %>%
+  mutate(Years = ifelse(num_years > 1, TRUE, FALSE),
+         Profiles = ifelse(num_profiles > 0, TRUE, FALSE))
 
 pond_profiles3 <- ponds %>%
   group_by(Station.number, Lat, Long, Year, Date) %>%
@@ -134,12 +167,13 @@ pond_profiles3 <- ponds %>%
   summarise(num_depths = max(num_depths)) %>%
   mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE)) %>%
   group_by(Station.number, Lat, Long) %>%
-  summarise(num_years = n_distinct(Year), num_years_profiles = sum(Profiles))
+  summarise(num_years = n_distinct(Year),
+            num_years_profiles = sum(Profiles))
 ```
 
 ## Map ponds
 ```{r}
-# define GPS limits
+# identify GPS limits
 min(ponds$Long, na.rm = TRUE) # -70.64806
 max(ponds$Long, na.rm = TRUE) # -69.95501
 min(ponds$Lat, na.rm = TRUE) # 41.55522
@@ -152,6 +186,26 @@ sf_use_s2(FALSE)
 mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
   st_make_valid() %>%
   st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
+
+# create a true/false map of multiple years
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = Years)) +
+  scale_color_discrete(name = ">1 year?") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create a true/false map of profiles
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = Profiles)) +
+  scale_color_discrete(name = "profiles?") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
 
 # create map of years sampled
 ggplot() +
@@ -184,7 +238,289 @@ ggplot() +
   theme(axis.title = element_blank())
 ```
 
-## Create some prelim visualizations
+## Create summary table
+```{r}
+# filter out months other than Aug & Sept
+ponds <- ponds %>%
+  filter(Month == 8 | Month == 9)
+
+# column 1: pond ID
+# column 2: pond name
+# column 3: most recent year measured
+# column 4: years of data
+# column 5: years of profiles
+# column 6: all years sampled
+# column 7: all parameters measured
+# column 8: years of each parameter
+# column 9: most recent avg of each parameter @ discrete sampling depth
+
+# column 1
+pondID <- unique(ponds$Station.number)
+
+# column 2
+pond_name <- c()
+
+for(i in 1:length(pondID)) {
+  pond_name[i] <- ponds$Site[ponds$Station.number == pondID[i]][1]
+}
+
+# column 3
+last_year <- c()
+
+for(i in 1:length(pondID)) {
+  last_year[i] <- max(ponds$Year[ponds$Station.number == pondID[i]])
+}
+
+# column 4
+years_data <- c()
+
+for(i in 1:length(pondID)) {
+  years_data[i] <- n_distinct(ponds$Year[ponds$Station.number == pondID[i]])
+}
+
+# column 5
+years_profiles <- c()
+
+ponds_temp <- ponds %>%
+  group_by(Station.number, Year, Date) %>%
+  summarise(num_depths = n_distinct(Depth)) %>%
+  group_by(Station.number, Year) %>%
+  summarise(num_depths = max(num_depths)) %>%
+  mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE)) %>%
+  group_by(Station.number) %>%
+  summarise(num_years_profiles = sum(Profiles))
+
+for(i in 1:length(pondID)) {
+  years_profiles[i] <- ponds_temp$num_years_profiles[ponds_temp$Station.number == pondID[i]]
+}
+
+# column 6
+all_years <- c()
+
+for(i in 1:length(pondID)) {
+  string <- c()
+  for(j in 1:n_distinct(ponds$Year[ponds$Station.number == pondID[i]])) {
+    year <- unique(ponds$Year[ponds$Station.number == pondID[i]])[j]
+    if(is.null(string)) {
+      string <- year
+    } else {
+      string <- paste(string, year, sep = ", ")
+    }
+  }
+  all_years[i] <- string
+}
+
+# column 7
+params <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- ponds[ponds$Station.number == pondID[i], ]
+  string <- c()
+  for(j in 9:(ncol(temp_frame) - 4)) {
+    if(sum(!is.na(temp_frame[j])) > 0) {
+      if(is.null(string)) {
+        string = colnames(temp_frame)[j]
+      } else {
+        string = paste(string, colnames(temp_frame)[j], sep = ", ")
+      }
+    }
+  }
+  params[i] <- string
+}
+
+# column 8
+param_years <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- ponds[ponds$Station.number == pondID[i], ]
+  string <- c()
+  p_list <- str_split(params[i], ", ")[[1]]
+  for(j in 1:length(p_list)) {
+    colname = p_list[j]
+    if(sum(!is.na(temp_frame[[paste0(colname)]])) > 0) {
+      if(is.null(string)) {
+        string = n_distinct(temp_frame$Year[!is.na(temp_frame[[paste0(colname)]])])
+      } else {
+        string = paste(string, n_distinct(temp_frame$Year[!is.na(temp_frame[[paste0(colname)]])]), sep = ", ")
+      }
+    }
+  }
+  param_years[i] <- string
+}
+
+# column 9
+surface_depths <- ponds %>%
+  group_by(Station.number, Year) %>%
+  summarise(min_depth = min(Depth))
+
+# use 1m as cutoff for "surface" measurements?
+
+# temporarily deal with NA depths
+ponds$Depth[is.na(ponds$Depth) & ponds$Station.number != "DE-281-01"] <- 0.5
+
+surface <- as.data.frame(c())
+
+for(i in 1:length(pondID)) {
+  temp_frame <- ponds[ponds$Station.number == pondID[i], ] %>%
+    # temporarily deal with NA depths
+    filter(!is.na(Depth)) %>%
+    # deal with replicate rows
+    group_by(Station.number, Year, Depth) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  for(j in 1:length(unique(temp_frame$Year))) {
+    year = unique(temp_frame$Year)[j]
+    for(k in 1:nrow(temp_frame[temp_frame$Year == year, ])) {
+      depth = sort(temp_frame$Depth[temp_frame$Year == year])[k]
+      if(nrow(temp_frame[temp_frame$Year == year, ]) == 1) {
+        break
+      }
+      if(k == nrow(temp_frame[temp_frame$Year == year, ])) {
+        depth = sort(temp_frame$Depth[temp_frame$Year == year])[1]
+      }
+      if(!is.na(temp_frame$Total.Depth...DTB[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth] <-
+          temp_frame$Temp[temp_frame$Year == year &
+                          temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year])[k + 1]]
+      }
+      if(!is.na(temp_frame$Total.Depth...DTB[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         is.na(temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth] <-
+          temp_frame$DO[temp_frame$Year == year &
+                        temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year])[k + 1]]
+      }
+      if(!is.na(temp_frame$Total.Depth...DTB[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         !is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        break
+      }
+    }
+    surface <- rbind(surface, temp_frame[temp_frame$Year == year & temp_frame$Depth == depth, ])
+  }
+}
+
+param_last_values <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- surface[surface$Station.number == pondID[i], ]
+  string <- c()
+  y_list <- str_split(all_years[i], ", ")[[1]]
+  p_list <- str_split(params[i], ", ")[[1]]
+  for(j in 1:length(p_list)) {
+    colname = p_list[j]
+    if(sum(!is.na(temp_frame[[paste0(colname)]])) == 0) {
+      val <- NA
+    } else {
+      for(k in 1:length(y_list)) {
+        val <- round(temp_frame[[paste0(colname)]][temp_frame$Year == tail(y_list, k)[1]], 2)
+        if(!is.na(val)) {
+          break
+        }
+      }
+    }
+    if(is.null(string)) {
+      string = val
+    } else {
+      string = paste(string, val, sep = ", ")
+    }
+  }
+  param_last_values[i] <- string
+}
+
+# create data frame
+pond_summary <- as.data.frame(cbind(pondID, pond_name, years_data, years_profiles,
+                      params, param_years, last_year, param_last_values)) %>%
+  mutate_if(is_all_numeric, as.numeric)
+```
+
+## Create depth plots
+```{r}
+ggplot(surface[(surface$Station.number == "BA-411-01" & !is.na(surface$Secchi)), ], aes(x = Year, y = Secchi, group = Station.number)) +
+  geom_line() +
+  scale_y_reverse() +
+  #scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+# ggplot(surface[!is.na(surface$Secchi), ], aes(x = Year, y = Secchi, group = Station.number)) +
+#   geom_line() +
+#   scale_y_reverse() +
+#   theme_bw()
+
+ggplot(ponds, aes(x = Temp, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(ponds, aes(x = DO, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  xlim(0, 25) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(ponds, aes(x = pH, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  xlim(3, 10) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(ponds, aes(x = Alkalinity, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  xlim(0, 200) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(ponds, aes(x = TP, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  xlim(0, 75) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(ponds, aes(x = TN, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  xlim(0, 450) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(ponds, aes(x = Chlorophyll, y = Depth, group = interaction(Station.number, Year), col = Year)) +
+  geom_line() +
+  scale_y_reverse() +
+  xlim(0, 300) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+```
+
+## Create property-property plots
+```{r}
+ggplot(surface, aes(x = TP, y = TN, col = Year)) +
+  geom_point() +
+  xlim(0, 14) +
+  ylim(0, 280) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(surface, aes(x = Chlorophyll, y = TP, col = Year)) +
+  geom_point() +
+  ylim(0, 14) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
+ggplot(surface, aes(x = Chlorophyll, y = TN, col = Year)) +
+  geom_point() +
+  #geom_smooth(se = FALSE) +
+  ylim(0, 280) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+```
+
+
+
+## Create prelim visualizations of data presence/absence
 ```{r}
 # ponds_filt <- ponds %>%
 #   group_by(Station.number) %>%
