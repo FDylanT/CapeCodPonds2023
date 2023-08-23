@@ -108,6 +108,10 @@ is_all_numeric <- function(x) {
 ponds <- ponds %>% 
   mutate_if(is_all_numeric, as.numeric)
 
+# filter out months other than Aug & Sept
+ponds <- ponds %>%
+  filter(Month == 8 | Month == 9)
+
 #str(ponds)
 ```
 
@@ -190,7 +194,7 @@ mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/li
 # create a true/false map of multiple years
 ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = Years)) +
+  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = Years), size = 2.5) +
   scale_color_discrete(name = ">1 year?") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -200,7 +204,7 @@ ggplot() +
 # create a true/false map of profiles
 ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = Profiles)) +
+  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = Profiles), size = 2.5) +
   scale_color_discrete(name = "profiles?") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -210,7 +214,7 @@ ggplot() +
 # create map of years sampled
 ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = pond_years, aes(x = Long, y = Lat, col = num_years)) +
+  geom_point(data = pond_years, aes(x = Long, y = Lat, col = num_years), size = 2.5) +
   scale_color_gradientn(colors = parula(100)) +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -220,7 +224,7 @@ ggplot() +
 # create map of number of profiles
 ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = num_profiles)) +
+  geom_point(data = pond_profiles2, aes(x = Long, y = Lat, col = num_profiles), size = 2.5) +
   scale_color_gradientn(colors = parula(100), name = "num_total_\nprofiles") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -230,7 +234,7 @@ ggplot() +
 # create map of number of years of profiles
 ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = pond_profiles3, aes(x = Long, y = Lat, col = num_years_profiles)) +
+  geom_point(data = pond_profiles3, aes(x = Long, y = Lat, col = num_years_profiles), size = 2.5) +
   scale_color_gradientn(colors = parula(100), name = "num_years\n_profiles") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -240,10 +244,6 @@ ggplot() +
 
 ## Create summary table
 ```{r}
-# filter out months other than Aug & Sept
-ponds <- ponds %>%
-  filter(Month == 8 | Month == 9)
-
 # column 1: pond ID
 # column 2: pond name
 # column 3: most recent year measured
@@ -431,6 +431,9 @@ for(i in 1:length(pondID)) {
 pond_summary <- as.data.frame(cbind(pondID, pond_name, years_data, years_profiles,
                       params, param_years, last_year, param_last_values)) %>%
   mutate_if(is_all_numeric, as.numeric)
+
+# write csv
+write.csv(pond_summary, "data/PondsSummary.csv", row.names = FALSE)
 ```
 
 ## Create depth plots
@@ -497,26 +500,150 @@ ggplot(ponds, aes(x = Chlorophyll, y = Depth, group = interaction(Station.number
 
 ## Create property-property plots
 ```{r}
+ggplot(surface, aes(x = Temp, y = DO, col = Year)) +
+  geom_point() +
+  geom_smooth(aes(group = Year), method = "lm", se = FALSE) +
+  xlim(9, 29.5) +
+  ylim(0, 15) +
+  scale_color_gradientn(colors = parula(100)) +
+  theme_bw()
+
 ggplot(surface, aes(x = TP, y = TN, col = Year)) +
   geom_point() +
+  geom_smooth(aes(group = Year), method = "lm", se = FALSE) +
   xlim(0, 14) +
   ylim(0, 280) +
   scale_color_gradientn(colors = parula(100)) +
   theme_bw()
 
-ggplot(surface, aes(x = Chlorophyll, y = TP, col = Year)) +
+ggplot(surface, aes(x = TP, y = Chlorophyll, col = Year)) +
   geom_point() +
-  ylim(0, 14) +
+  geom_smooth(aes(group = Year), method = "lm", se = FALSE) +
+  xlim(0, 14) +
+  ylim(-4, 264) +
   scale_color_gradientn(colors = parula(100)) +
   theme_bw()
 
-ggplot(surface, aes(x = Chlorophyll, y = TN, col = Year)) +
+ggplot(surface, aes(x = TN, y = Chlorophyll, col = Year)) +
   geom_point() +
-  #geom_smooth(se = FALSE) +
-  ylim(0, 280) +
+  geom_smooth(aes(group = Year), method = "lm", se = FALSE) +
+  xlim(0, 280) +
+  ylim(-12, 264) +
   scale_color_gradientn(colors = parula(100)) +
   theme_bw()
 ```
+
+## Map properties
+```{r}
+# create dataframe of most recent values from each pond
+surface_recent <- surface %>%
+  group_by(Station.number) %>%
+  filter(Year == max(Year))
+
+# create map of most recent Secchi depth data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$Secchi), ], aes(x = Long, y = Lat,
+                                                                         col = Secchi),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent temp data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$Temp), ], aes(x = Long, y = Lat, col = Temp),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent DO data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$DO), ], aes(x = Long, y = Lat, col = DO),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100), limits = c(1, 14)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent pH data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$pH), ], aes(x = Long, y = Lat, col = pH),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent alkalinity data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$Alkalinity), ], aes(x = Long, y = Lat,
+                                                                             col = Alkalinity),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100), limits = c(0, 40)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent TP data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat, col = TP),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100), limits = c(0, 3)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent TN data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$TN), ], aes(x = Long, y = Lat, col = TN),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100), limits = c(0, 133)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
+# create map of most recent chlorophyll data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$Chlorophyll), ], aes(x = Long, y = Lat,
+                                                                              col = Chlorophyll),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100), limits = c(0, 30)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+```
+
+
+## Single-pond analysis
+```{r}
+# prop-prop plots of param pairs for single pond
+# time-series of params for single pond
+```
+
+
+
+
+
+
 
 
 
