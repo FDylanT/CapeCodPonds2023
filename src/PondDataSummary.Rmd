@@ -14,16 +14,28 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(sf)
 library(pals)
+library(trend)
 
 setwd("~/Desktop/Repos/BarnstablePonds2023")
 ```
 
 ## Load data
 ```{r}
-ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
   
   # remove non-data rows
-  filter(Station.name != "")
+  filter(Station.name != "") %>%
+  
+  # remove quality code columns for easier visualization
+  dplyr::select(-Quality.code, -Quality.code.1, -Quality.code.2, -Quality.code.3, -Quality.code.4, -Quality.code.5,
+         -Quality.code.6, -Quality.code.7, -Quality.code.8, -Quality.code.9, -Quality.code.10,
+         -Quality.code.11, -Quality.code.12, -Quality.code.13, -Quality.code.14, -Quality.code.15,
+         -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
+         -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25,
+         -Quality.code.26, -Quality.code.27, -Quality.code.28, -Quality.code.29, -Quality.code.30,
+         -Quality.code.31, -Quality.code.32, -Quality.code.33, -Quality.code.34, -Quality.code.35,
+         -Quality.code.36, -Quality.code.37, -Quality.code.38)
 ```
 
 ## Merge same-parameter columns & reorganize data frame
@@ -31,24 +43,20 @@ ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
 ponds <- ponds_full %>%
   unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
   unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
-  unite(pH, pH...PH, pH...PH.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, pH...PH.2, sep = "") %>%
   unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
         Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
   unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
   
   # remove unneeded columns
-  select(-Station.name, -Sample.number) %>%
-  select(-Quality.code, -Quality.code.1, -Quality.code.2, -Quality.code.3, -Quality.code.4, -Quality.code.5,
-         -Quality.code.6, -Quality.code.7, -Quality.code.8, -Quality.code.9, -Quality.code.10,
-         -Quality.code.11, -Quality.code.12, -Quality.code.13, -Quality.code.14, -Quality.code.15,
-         -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
-         -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25) %>%
+  dplyr::select(-Station.name, -Sample.number) %>%
   
   # split long/lat coordinates
   separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
   
   # rename columns with redundant headers
-  rename(Chlorophyll = Chlorophyll...CHLA,
+  rename(Total.Depth = Total.Depth...DTB,
+         Chlorophyll = Chlorophyll...CHLA,
          Secchi = Secchi.Depth...SECCHI,
          TP = Total.Phosphorus...TP,
          TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL,
@@ -99,7 +107,7 @@ ponds[ponds == "< 0.10"] <- "0.10"
 ponds[ponds == "207"] <- "20.7"
 
 # temporarily remove problematic row
-ponds <- ponds[-12083, ]
+ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
 
 # convert all numerical cols to numeric
 is_all_numeric <- function(x) {
@@ -108,16 +116,15 @@ is_all_numeric <- function(x) {
 ponds <- ponds %>% 
   mutate_if(is_all_numeric, as.numeric)
 
-# filter out months other than Aug & Sept
-ponds <- ponds %>%
-  filter(Month == 8 | Month == 9)
-
 #str(ponds)
+
+# remove impossible pH values
+ponds$pH[ponds$pH > 14] <- NA
 ```
 
 ## Summarize data
 ```{r}
-count(ponds, Station.number) # 221 ponds
+count(ponds, Station.number) # 229 ponds
 # min(count(ponds, Station.number)$n)
 # max(count(ponds, Station.number)$n) # 1-420 observations per pond
 # median(count(ponds, Station.number)$n) # median of 57 observations per pond
@@ -129,8 +136,8 @@ pond_years <- ponds %>%
   summarise(num_years = n_distinct(Year))
 
 min(pond_years$num_years)
-max(pond_years$num_years) # 1-18 total years of data
-median(pond_years$num_years) # median of 10 years per pond
+max(pond_years$num_years) # 1-19 total years of data
+median(pond_years$num_years) # median of 9 years per pond
 
 hist(pond_years$num_years, breaks = 20, main = "Years of data per pond")
 
@@ -154,7 +161,7 @@ pond_profiles <- ponds %>%
 
 hist(pond_profiles$num_depths, main = "Number of depths per sampling event")
 
-nrow(filter(pond_profiles, num_depths > 2)) # 1910 sampling events w/ > 2 depths (1910 / 2215 = 86%)
+nrow(filter(pond_profiles, num_depths > 2)) # 1975 sampling events w/ > 2 depths (1975 / 2284 = 86.5%)
 
 pond_profiles2 <- pond_profiles %>%
   group_by(Station.number, Lat, Long) %>%
@@ -173,6 +180,243 @@ pond_profiles3 <- ponds %>%
   group_by(Station.number, Lat, Long) %>%
   summarise(num_years = n_distinct(Year),
             num_years_profiles = sum(Profiles))
+```
+
+## Create summary table
+```{r}
+# column 1: pond ID
+# column 2: pond name
+# column 3: years of data
+# column 4: years of profiles
+# column 5: max samples per year
+# column 6: avg samples per year
+# column 7: all years sampled
+# column 8: all parameters measured
+# column 9: years of each parameter
+# column 10: most recent year measured
+# column 11: most recent avg of each parameter @ discrete sampling depth
+# column 12: measuring program(s)
+
+# column 1
+pondID <- unique(ponds$Station.number)
+
+# column 2
+pond_name <- c()
+
+for(i in 1:length(pondID)) {
+  pond_name[i] <- ponds$Site[ponds$Station.number == pondID[i]][1]
+}
+
+# column 3
+years_data <- c()
+
+for(i in 1:length(pondID)) {
+  years_data[i] <- n_distinct(ponds$Year[ponds$Station.number == pondID[i]])
+}
+
+# column 4
+years_profiles <- c()
+
+ponds_temp <- ponds %>%
+  group_by(Station.number, Year, Date) %>%
+  summarise(num_depths = n_distinct(Depth)) %>%
+  group_by(Station.number, Year) %>%
+  summarise(num_depths = max(num_depths)) %>%
+  mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE)) %>%
+  group_by(Station.number) %>%
+  summarise(num_years_profiles = sum(Profiles))
+
+for(i in 1:length(pondID)) {
+  years_profiles[i] <- ponds_temp$num_years_profiles[ponds_temp$Station.number == pondID[i]]
+}
+
+# column 5
+max_per_year <- c()
+
+temp_frame <- ponds %>%
+  group_by(Station.number, Year) %>%
+  summarize(perYear = n_distinct(Date))
+
+for(i in 1:length(pondID)) {
+  max_per_year[i] <- max(temp_frame$perYear[temp_frame$Station.number == pondID[i]])
+}
+
+# column 6
+avg_per_year <- c()
+
+for(i in 1:length(pondID)) {
+  avg_per_year[i] <- round(mean(temp_frame$perYear[temp_frame$Station.number == pondID[i]]),
+                           2)
+}
+
+# column 7
+all_years <- c()
+
+for(i in 1:length(pondID)) {
+  string <- c()
+  for(j in 1:n_distinct(ponds$Year[ponds$Station.number == pondID[i]])) {
+    year <- unique(ponds$Year[ponds$Station.number == pondID[i]])[j]
+    if(is.null(string)) {
+      string <- year
+    } else {
+      string <- paste(string, year, sep = ", ")
+    }
+  }
+  all_years[i] <- string
+}
+
+# column 8
+params <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- ponds[ponds$Station.number == pondID[i], ]
+  string <- c()
+  for(j in 9:(ncol(temp_frame) - 4)) {
+    if(sum(!is.na(temp_frame[j])) > 0) {
+      if(is.null(string)) {
+        string = colnames(temp_frame)[j]
+      } else {
+        string = paste(string, colnames(temp_frame)[j], sep = ", ")
+      }
+    }
+  }
+  params[i] <- string
+}
+
+# column 9
+param_years <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- ponds[ponds$Station.number == pondID[i], ]
+  string <- c()
+  p_list <- str_split(params[i], ", ")[[1]]
+  for(j in 1:length(p_list)) {
+    colname = p_list[j]
+    if(sum(!is.na(temp_frame[[paste0(colname)]])) > 0) {
+      if(is.null(string)) {
+        string = n_distinct(temp_frame$Year[!is.na(temp_frame[[paste0(colname)]])])
+      } else {
+        string = paste(string, n_distinct(temp_frame$Year[!is.na(temp_frame[[paste0(colname)]])]), sep = ", ")
+      }
+    }
+  }
+  param_years[i] <- string
+}
+
+# column 10
+last_year <- c()
+
+for(i in 1:length(pondID)) {
+  last_year[i] <- max(ponds$Year[ponds$Station.number == pondID[i]])
+}
+
+# column 11
+surface_depths <- ponds %>%
+  group_by(Station.number, Year) %>%
+  summarise(min_depth = min(Depth))
+
+# use 1m as cutoff for "surface" measurements?
+
+# temporarily deal with NA depths
+ponds$Depth[is.na(ponds$Depth) &
+              ponds$Station.number != "DE-281-01" &
+              ponds$Year != 2023] <- 0.5
+
+surface <- as.data.frame(c())
+
+for(i in 1:length(pondID)) {
+  temp_frame <- ponds[ponds$Station.number == pondID[i], ] %>%
+    # temporarily deal with NA depths
+    filter(!is.na(Depth)) %>%
+    # deal with replicate rows
+    group_by(Station.number, Year, Depth) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  for(j in 1:length(unique(temp_frame$Year))) {
+    year = unique(temp_frame$Year)[j]
+    for(k in 1:nrow(temp_frame[temp_frame$Year == year, ])) {
+      depth = sort(temp_frame$Depth[temp_frame$Year == year])[k]
+      if(nrow(temp_frame[temp_frame$Year == year, ]) == 1) {
+        break
+      }
+      if(k == nrow(temp_frame[temp_frame$Year == year, ])) {
+        depth = sort(temp_frame$Depth[temp_frame$Year == year])[1]
+      }
+      if(!is.na(temp_frame$Total.Depth[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth] <-
+          temp_frame$Temp[temp_frame$Year == year &
+                          temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year])[k + 1]]
+      }
+      if(!is.na(temp_frame$Total.Depth[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         is.na(temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth] <-
+          temp_frame$DO[temp_frame$Year == year &
+                        temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year])[k + 1]]
+      }
+      if(!is.na(temp_frame$Total.Depth[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         !is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        break
+      }
+    }
+    surface <- rbind(surface, temp_frame[temp_frame$Year == year & temp_frame$Depth == depth, ])
+  }
+}
+
+param_last_values <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- surface[surface$Station.number == pondID[i], ]
+  string <- c()
+  y_list <- str_split(all_years[i], ", ")[[1]]
+  p_list <- str_split(params[i], ", ")[[1]]
+  for(j in 1:length(p_list)) {
+    colname = p_list[j]
+    if(sum(!is.na(temp_frame[[paste0(colname)]])) == 0) {
+      val <- NA
+    } else {
+      for(k in 1:length(y_list)) {
+        val <- round(temp_frame[[paste0(colname)]][temp_frame$Year == tail(y_list, k)[1]], 2)
+        if(!is.na(val)) {
+          break
+        }
+      }
+    }
+    if(is.null(string)) {
+      string = val
+    } else {
+      string = paste(string, val, sep = ", ")
+    }
+  }
+  param_last_values[i] <- string
+}
+
+# column 12
+
+program <- c()
+
+for(i in 1:length(pondID)) {
+  programs <- unique(ponds$Measuring.program.name[ponds$Station.number == pondID[i]])
+  program[i] <- paste(programs, collapse = ", ")
+}
+
+# create data frame
+pond_summary <- as.data.frame(cbind(pondID, pond_name, years_data, years_profiles,
+                                    max_per_year, avg_per_year, all_years, params, 
+                                    param_years, last_year, param_last_values,
+                                    program)) %>%
+  mutate_if(is_all_numeric, as.numeric)
+```
+
+## Write csv
+```{r}
+write.csv(pond_summary, "data/PondsSummary09142023.csv", row.names = FALSE)
+```
+
+## Filter out months other than Aug & Sept
+```{r}
+ponds <- ponds %>%
+  filter(Month == 8 | Month == 9)
 ```
 
 ## Map ponds
@@ -240,200 +484,6 @@ ggplot() +
   ylim(41.55, 42.07) +
   theme_bw() +
   theme(axis.title = element_blank())
-```
-
-## Create summary table
-```{r}
-# column 1: pond ID
-# column 2: pond name
-# column 3: most recent year measured
-# column 4: years of data
-# column 5: years of profiles
-# column 6: all years sampled
-# column 7: all parameters measured
-# column 8: years of each parameter
-# column 9: most recent avg of each parameter @ discrete sampling depth
-
-# column 1
-pondID <- unique(ponds$Station.number)
-
-# column 2
-pond_name <- c()
-
-for(i in 1:length(pondID)) {
-  pond_name[i] <- ponds$Site[ponds$Station.number == pondID[i]][1]
-}
-
-# column 3
-last_year <- c()
-
-for(i in 1:length(pondID)) {
-  last_year[i] <- max(ponds$Year[ponds$Station.number == pondID[i]])
-}
-
-# column 4
-years_data <- c()
-
-for(i in 1:length(pondID)) {
-  years_data[i] <- n_distinct(ponds$Year[ponds$Station.number == pondID[i]])
-}
-
-# column 5
-years_profiles <- c()
-
-ponds_temp <- ponds %>%
-  group_by(Station.number, Year, Date) %>%
-  summarise(num_depths = n_distinct(Depth)) %>%
-  group_by(Station.number, Year) %>%
-  summarise(num_depths = max(num_depths)) %>%
-  mutate(Profiles = ifelse(num_depths > 2, TRUE, FALSE)) %>%
-  group_by(Station.number) %>%
-  summarise(num_years_profiles = sum(Profiles))
-
-for(i in 1:length(pondID)) {
-  years_profiles[i] <- ponds_temp$num_years_profiles[ponds_temp$Station.number == pondID[i]]
-}
-
-# column 6
-all_years <- c()
-
-for(i in 1:length(pondID)) {
-  string <- c()
-  for(j in 1:n_distinct(ponds$Year[ponds$Station.number == pondID[i]])) {
-    year <- unique(ponds$Year[ponds$Station.number == pondID[i]])[j]
-    if(is.null(string)) {
-      string <- year
-    } else {
-      string <- paste(string, year, sep = ", ")
-    }
-  }
-  all_years[i] <- string
-}
-
-# column 7
-params <- c()
-
-for(i in 1:length(pondID)) {
-  temp_frame <- ponds[ponds$Station.number == pondID[i], ]
-  string <- c()
-  for(j in 9:(ncol(temp_frame) - 4)) {
-    if(sum(!is.na(temp_frame[j])) > 0) {
-      if(is.null(string)) {
-        string = colnames(temp_frame)[j]
-      } else {
-        string = paste(string, colnames(temp_frame)[j], sep = ", ")
-      }
-    }
-  }
-  params[i] <- string
-}
-
-# column 8
-param_years <- c()
-
-for(i in 1:length(pondID)) {
-  temp_frame <- ponds[ponds$Station.number == pondID[i], ]
-  string <- c()
-  p_list <- str_split(params[i], ", ")[[1]]
-  for(j in 1:length(p_list)) {
-    colname = p_list[j]
-    if(sum(!is.na(temp_frame[[paste0(colname)]])) > 0) {
-      if(is.null(string)) {
-        string = n_distinct(temp_frame$Year[!is.na(temp_frame[[paste0(colname)]])])
-      } else {
-        string = paste(string, n_distinct(temp_frame$Year[!is.na(temp_frame[[paste0(colname)]])]), sep = ", ")
-      }
-    }
-  }
-  param_years[i] <- string
-}
-
-# column 9
-surface_depths <- ponds %>%
-  group_by(Station.number, Year) %>%
-  summarise(min_depth = min(Depth))
-
-# use 1m as cutoff for "surface" measurements?
-
-# temporarily deal with NA depths
-ponds$Depth[is.na(ponds$Depth) & ponds$Station.number != "DE-281-01"] <- 0.5
-
-surface <- as.data.frame(c())
-
-for(i in 1:length(pondID)) {
-  temp_frame <- ponds[ponds$Station.number == pondID[i], ] %>%
-    # temporarily deal with NA depths
-    filter(!is.na(Depth)) %>%
-    # deal with replicate rows
-    group_by(Station.number, Year, Depth) %>%
-    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
-    mutate(across(everything(), ~ replace_na(.x, NA)))
-  for(j in 1:length(unique(temp_frame$Year))) {
-    year = unique(temp_frame$Year)[j]
-    for(k in 1:nrow(temp_frame[temp_frame$Year == year, ])) {
-      depth = sort(temp_frame$Depth[temp_frame$Year == year])[k]
-      if(nrow(temp_frame[temp_frame$Year == year, ]) == 1) {
-        break
-      }
-      if(k == nrow(temp_frame[temp_frame$Year == year, ])) {
-        depth = sort(temp_frame$Depth[temp_frame$Year == year])[1]
-      }
-      if(!is.na(temp_frame$Total.Depth...DTB[temp_frame$Year == year & temp_frame$Depth == depth]) &
-         is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
-        temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth] <-
-          temp_frame$Temp[temp_frame$Year == year &
-                          temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year])[k + 1]]
-      }
-      if(!is.na(temp_frame$Total.Depth...DTB[temp_frame$Year == year & temp_frame$Depth == depth]) &
-         is.na(temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth])) {
-        temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth] <-
-          temp_frame$DO[temp_frame$Year == year &
-                        temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year])[k + 1]]
-      }
-      if(!is.na(temp_frame$Total.Depth...DTB[temp_frame$Year == year & temp_frame$Depth == depth]) &
-         !is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
-        break
-      }
-    }
-    surface <- rbind(surface, temp_frame[temp_frame$Year == year & temp_frame$Depth == depth, ])
-  }
-}
-
-param_last_values <- c()
-
-for(i in 1:length(pondID)) {
-  temp_frame <- surface[surface$Station.number == pondID[i], ]
-  string <- c()
-  y_list <- str_split(all_years[i], ", ")[[1]]
-  p_list <- str_split(params[i], ", ")[[1]]
-  for(j in 1:length(p_list)) {
-    colname = p_list[j]
-    if(sum(!is.na(temp_frame[[paste0(colname)]])) == 0) {
-      val <- NA
-    } else {
-      for(k in 1:length(y_list)) {
-        val <- round(temp_frame[[paste0(colname)]][temp_frame$Year == tail(y_list, k)[1]], 2)
-        if(!is.na(val)) {
-          break
-        }
-      }
-    }
-    if(is.null(string)) {
-      string = val
-    } else {
-      string = paste(string, val, sep = ", ")
-    }
-  }
-  param_last_values[i] <- string
-}
-
-# create data frame
-pond_summary <- as.data.frame(cbind(pondID, pond_name, years_data, years_profiles,
-                      params, param_years, last_year, param_last_values)) %>%
-  mutate_if(is_all_numeric, as.numeric)
-
-# write csv
-write.csv(pond_summary, "data/PondsSummary.csv", row.names = FALSE)
 ```
 
 ## Create depth plots
@@ -535,10 +585,19 @@ ggplot(surface, aes(x = TN, y = Chlorophyll, col = Year)) +
 
 ## Map properties
 ```{r}
+# turn off spherical geometry to avoid "duplicate" errors
+sf_use_s2(FALSE)
+
+# get Massachusetts outline
+mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+  st_make_valid() %>%
+  st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
+
 # create dataframe of most recent values from each pond
 surface_recent <- surface %>%
   group_by(Station.number) %>%
-  filter(Year == max(Year))
+  filter(Year == max(Year)) %>%
+  mutate(ratioNP = TN / TP)
 
 # create map of most recent Secchi depth data
 ggplot() +
@@ -619,6 +678,19 @@ ggplot() +
   theme_bw() +
   theme(axis.title = element_blank())
 
+# create map of most recent TN:TP data
+ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
+                                                                     col = log10(TN / TP)),
+             size = 2.5) +
+  scale_color_gradientn(colors = parula(100), name = "TN:TP", trans = "log10",
+                        limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(axis.title = element_blank())
+
 # create map of most recent chlorophyll data
 ggplot() +
   geom_sf(data = mass) +
@@ -632,11 +704,759 @@ ggplot() +
   theme(axis.title = element_blank())
 ```
 
-
-## Single-pond analysis
+## Choose single pond for focus
 ```{r}
+# outlier detection: distribution of parameter per pond; flag obs > mean +/- 3 SD
 # prop-prop plots of param pairs for single pond
 # time-series of params for single pond
+# calculate annual MLD using ocean calcs
+
+summ <- ponds %>%
+  group_by(Station.number) %>%
+  summarize(count = n())
+
+which(summ$count == max(summ$count)) # pond index 137
+summ$Station.number[137]             # MA-1039-01: Mashpee-Wakeby Pond
+
+MWP <- ponds %>%
+  filter(Station.number == "MA-1039-01") %>%
+  dplyr::select(-DO_sat)
+
+ggplot(MWP, aes(x = Temp)) +
+  geom_histogram() +
+  theme_bw()
+
+ggplot(MWP, aes(x = DO)) +
+  geom_histogram() +
+  theme_bw()
+
+MWP_surface <- surface %>%
+  filter(Station.number == "MA-1039-01")
+
+ggplot(MWP_surface, aes(x = Temp)) +
+  geom_histogram() +
+  theme_bw()
+
+# flag overall outliers
+
+# for(i in 7:ncol(MWP)) {
+#   param <- colnames(MWP)[i]
+#   m <- mean(MWP[[param]], na.rm = TRUE)
+#   sd <- sd(MWP[[param]], na.rm = TRUE)
+#   sd <- ifelse(is.na(sd), 0, sd)
+#   flag_name <- paste(param, "_flag", sep = "")
+#   for(j in 1:nrow(MWP)) {
+#     if(is.na(MWP[[param]][j])) {
+#       MWP[[flag_name]][j] <- 4
+#     } else if(MWP[[param]][j] > m - 3*sd & MWP[[param]][j] < m + 3*sd) {
+#       MWP[[flag_name]][j] <- 2
+#     } else {
+#       MWP[[flag_name]][j] <- 3
+#     }
+#   }
+# }
+
+# property-property plots
+
+ggplot(MWP, aes(x = Temp, y = DO, col = Depth)) +
+  geom_point() +
+  scale_color_gradientn(colors = rev(parula(100)), name = "Depth (m)") +
+  scale_y_continuous(limits = c(0, mean(MWP$DO, na.rm = TRUE) + 3 * sd(MWP$DO, na.rm = TRUE))) +
+  xlim(8, 27.5) +
+  labs(x = "Temp (°C)", y = "DO (mg/L)") +
+  guides(colour = guide_colourbar(reverse = TRUE)) +
+  theme_bw()
+
+ggplot(MWP[MWP$Depth <= 12, ], aes(x = pH, y = Alkalinity, col = Depth)) +
+  geom_point() +
+  scale_color_gradientn(colors = rev(parula(100)), name = "Depth (m)", limits = c(0, 30)) +
+  #scale_x_continuous(limits = c(mean(MWP$pH, na.rm = TRUE) - 3 * sd(MWP$pH, na.rm = TRUE),
+  #                              mean(MWP$pH, na.rm = TRUE) + 3 * sd(MWP$pH, na.rm = TRUE))) +
+  xlim(6, 7.5) +
+  labs(x = "pH", y = "Alkalinity (mg/L)") +
+  guides(colour = guide_colourbar(reverse = TRUE)) +
+  theme_bw()
+
+ggplot(MWP[MWP$Depth <= 12, ], aes(x = TP, y = TN, col = Depth)) +
+  geom_point() +
+  scale_color_gradientn(colors = rev(parula(100)), name = "Depth (m)", limits = c(0, 30)) +
+  #scale_x_continuous(limits = c(0, mean(MWP$TP, na.rm = TRUE) + 3 * sd(MWP$TP, na.rm = TRUE))) +
+  xlim(0, 2.65) +
+  #scale_y_continuous(limits = c(0, mean(MWP$TN, na.rm = TRUE) + 3 * sd(MWP$TN, na.rm = TRUE))) +
+  ylim(0, 55) +
+  labs(x = "TP (μM)", y = "TN (μM)") +
+  guides(colour = guide_colourbar(reverse = TRUE)) +
+  theme_bw()
+
+ggplot(MWP[MWP$Depth <= 12, ], aes(x = TP, y = Chlorophyll, col = Depth)) +
+  geom_point() +
+  scale_color_gradientn(colors = rev(parula(100)), name = "Depth (m)", limits = c(0, 30)) +
+  #scale_x_continuous(limits = c(0, mean(MWP$TP, na.rm = TRUE) + 3 * sd(MWP$TP, na.rm = TRUE))) +
+  xlim(0, 26) +
+  #scale_y_continuous(limits = c(0, mean(MWP$Chlorophyll, na.rm = TRUE) +
+  #                                  3 * sd(MWP$Chlorophyll, na.rm = TRUE))) +
+  ylim(0, 15) +
+  labs(x = "TP (μM)", y = "Chlorophyll (μg/L)") +
+  guides(colour = guide_colourbar(reverse = TRUE)) +
+  theme_bw()
+
+ggplot(MWP[MWP$Depth <= 12, ], aes(x = TN, y = Chlorophyll, col = Depth)) +
+  geom_point() +
+  scale_color_gradientn(colors = rev(parula(100)), name = "Depth (m)", limits = c(0, 30)) +
+  #scale_x_continuous(limits = c(0, mean(MWP$TN, na.rm = TRUE) + 3 * sd(MWP$TN, na.rm = TRUE))) +
+  xlim(0, 53) +
+  #scale_y_continuous(limits = c(0, mean(MWP$Chlorophyll, na.rm = TRUE) +
+  #                                  3 * sd(MWP$Chlorophyll, na.rm = TRUE))) +
+  ylim(0, 15) +
+  labs(x = "TN (μM)", y = "Chlorophyll (μg/L)") +
+  guides(colour = guide_colourbar(reverse = TRUE)) +
+  theme_bw()
+
+ggplot(MWP, aes(x = Chlorophyll, y = Secchi)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  #scale_color_gradientn(colors = rev(parula(100)), name = "Depth (m)") +
+  xlim(0, 8) +
+  scale_y_reverse() +
+  labs(x = "Surface Chlorophyll (μg/L)", y = "Secchi Depth (m)") +
+  guides(colour = guide_colourbar(reverse = TRUE)) +
+  theme_bw()
+
+# flag surface outliers
+
+for(i in 7:ncol(MWP_surface)) {
+  param <- colnames(MWP_surface)[i]
+  m <- mean(MWP_surface[[param]], na.rm = TRUE)
+  sd <- sd(MWP_surface[[param]], na.rm = TRUE)
+  sd <- ifelse(is.na(sd), 0, sd)
+  flag_name <- paste(param, "_flag", sep = "")
+  for(j in 1:nrow(MWP_surface)) {
+    if(is.na(MWP_surface[[param]][j])) {
+      MWP_surface[[flag_name]][j] <- 4
+    } else if(MWP_surface[[param]][j] > m - 3*sd & MWP_surface[[param]][j] < m + 3*sd) {
+      MWP_surface[[flag_name]][j] <- 2
+    } else {
+      MWP_surface[[flag_name]][j] <- 3
+    }
+  }
+}
+```
+
+## Continue w/ single pond; make time-series plots
+```{r}
+model <- lm(Secchi ~ Year, MWP_surface[MWP_surface$Secchi_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$Secchi[MWP_surface$Secchi_flag == 2]) # p = 0.444
+slope <- sens.slope(MWP_surface$Secchi[MWP_surface$Secchi_flag == 2])$estimates # slope = -0.04057692
+intercept <- median(MWP_surface$Secchi[MWP_surface$Secchi_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$Secchi_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$Secchi_flag == 2, ], aes(x = Year, y = Secchi)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 2.1,
+           label = paste0("y = ", round(summary(model)$coefficients[1], 3), " + ",
+                          round(summary(model)$coefficients[2], 3), "x"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 1.9,
+           label = bquote(R^2 == .(round(summary(model)$r.squared, 3))),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 1.7,
+           label = paste0("p = ", round(summary(model)$coefficients[2, 4], 3)),
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2003, y = 2.1,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2003, y = 1.9,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Secchi Depth (m)") +
+  theme_bw()
+
+model <- lm(Temp ~ Year, MWP_surface[MWP_surface$Temp_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$Temp[MWP_surface$Temp_flag == 2]) # p = 0.09507, tau = 0.319
+slope <- sens.slope(MWP_surface$Temp[MWP_surface$Temp_flag == 2])$estimates
+intercept <- median(MWP_surface$Temp[MWP_surface$Temp_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$Temp_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$Temp_flag == 2, ], aes(x = Year, y = Temp)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 19.75,
+           label = "y = -219.80 + 0.121x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 19.3,
+           label = expression("R"^2*" = 0.09078"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 18.75,
+           label = "p = 0.257",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2003, y = 19.75,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2003, y = 19.3,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Temp (°C)") +
+  theme_bw()
+
+model <- lm(DO ~ Year, MWP_surface[MWP_surface$DO_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$DO[MWP_surface$DO_flag == 2]) # p = 0.3923
+slope <- sens.slope(MWP_surface$DO[MWP_surface$DO_flag == 2])$estimates
+intercept <- median(MWP_surface$DO[MWP_surface$DO_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$DO_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$DO_flag == 2, ], aes(x = Year, y = DO)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2015, y = 13.5,
+           label = "y = -71.653 + 0.040x",
+           col = "royalblue") +
+  annotate("text", x = 2015, y = 13.15,
+           label = expression("R"^2*" = 0.02878"),
+           col = "royalblue") +
+  annotate("text", x = 2015, y = 12.7,
+           label = "p = 0.530",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2003, y = 13.5,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2003, y = 13.15,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "DO (mg/L)") +
+  theme_bw()
+
+model <- lm(pH ~ Year, MWP_surface[MWP_surface$pH_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$pH[MWP_surface$pH_flag == 2]) # p = 0.6853
+slope <- sens.slope(MWP_surface$pH[MWP_surface$pH_flag == 2])$estimates
+intercept <- median(MWP_surface$pH[MWP_surface$pH_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$pH_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$pH_flag == 2, ], aes(x = Year, y = pH)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 6.5,
+           label = "y = -5.150 + 0.006x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 6.45,
+           label = expression("R"^2*" = 0.01643"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 6.4,
+           label = "p = 0.636",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 6.5,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 6.45,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  theme_bw()
+
+model <- lm(Alkalinity ~ Year, MWP_surface[MWP_surface$Alkalinity_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$Alkalinity[MWP_surface$Alkalinity_flag == 2]) # p = 0.9343
+slope <- sens.slope(MWP_surface$Alkalinity[MWP_surface$Alkalinity_flag == 2])$estimates
+intercept <- median(MWP_surface$Alkalinity[MWP_surface$Alkalinity_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$Alkalinity_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$Alkalinity_flag == 2, ], aes(x = Year, y = Alkalinity)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 5,
+           label = "y = 146.48 - 0.066x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 3.8,
+           label = expression("R"^2*" = 0.003154"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 2.5,
+           label = "p = 0.831",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 5,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 3.8,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Alkalinity (mg/L)") +
+  theme_bw()
+
+model <- lm(TP ~ Year, MWP_surface[MWP_surface$TP_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$TP[MWP_surface$TP_flag == 2]) # p = 0.0372 *, tau = 0.413
+slope <- sens.slope(MWP_surface$TP[MWP_surface$TP_flag == 2])$estimates
+intercept <- median(MWP_surface$TP[MWP_surface$TP_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$TP_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$TP_flag == 2, ], aes(x = Year, y = TP)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 0.15,
+           label = "y = -70.644 + 0.045x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 0.08,
+           label = expression("R"^2*" = 0.3891"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 0,
+           label = "p = 0.013",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2008, y = 0.15,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2008, y = 0.08,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "TP (μM)") +
+  theme_bw()
+
+model <- lm(TN ~ Year, MWP_surface[MWP_surface$TN_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$TN[MWP_surface$TN_flag == 2]) # p = 0.7665
+slope <- sens.slope(MWP_surface$TN[MWP_surface$TN_flag == 2])$estimates
+intercept <- median(MWP_surface$TN[MWP_surface$TN_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$TN_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$TN_flag == 2, ], aes(x = Year, y = TN)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 38.5,
+           label = "y = -242.22 + 0.133x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 37.1,
+           label = expression("R"^2*" = 0.01403"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 35.5,
+           label = "p = 0.674",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2010, y = 38.5,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2010, y = 37.1,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "TN (μM)") +
+  theme_bw()
+
+model <- lm(Chlorophyll ~ Year, MWP_surface[MWP_surface$Chlorophyll_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$Chlorophyll[MWP_surface$Chlorophyll_flag == 2]) # p = 0.9641
+slope <- sens.slope(MWP_surface$Chlorophyll[MWP_surface$Chlorophyll_flag == 2])$estimates
+intercept <- median(MWP_surface$Chlorophyll[MWP_surface$Chlorophyll_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$Chlorophyll_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$Chlorophyll_flag == 2, ], aes(x = Year, y = Chlorophyll)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2017, y = 1.75,
+           label = "y = -90.67 + 0.047x",
+           col = "royalblue") +
+  annotate("text", x = 2017, y = 1.4,
+           label = expression("R"^2*" = 0.01177"),
+           col = "royalblue") +
+  annotate("text", x = 2017, y = 1,
+           label = "p = 0.689",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 1.75,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 1.4,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Chlorophyll (μg/L)") +
+  theme_bw()
+
+model <- lm(Phaeophytin ~ Year, MWP_surface[MWP_surface$Phaeophytin_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_surface$Phaeophytin[MWP_surface$Phaeophytin_flag == 2]) # p = 0.3465
+slope <- sens.slope(MWP_surface$Phaeophytin[MWP_surface$Phaeophytin_flag == 2])$estimates
+intercept <- median(MWP_surface$Phaeophytin[MWP_surface$Phaeophytin_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$Phaeophytin_flag == 2]) * slope
+
+ggplot(MWP_surface[MWP_surface$Phaeophytin_flag == 2, ], aes(x = Year, y = Phaeophytin)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 1.95,
+           label = "y = 70.50 - 0.035x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 1.84,
+           label = expression("R"^2*" = 0.07562"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 1.7,
+           label = "p = 0.321",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 1.95,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 1.84,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Phaeophytin (μM)") +
+  theme_bw()
+```
+
+## Continue w/ single pond; make tiled profile time-series
+```{r}
+MWP %>%
+  filter(Depth != 0.5, Depth != 25.3) %>%
+ggplot(aes(x = Year, y = Depth, fill = Temp)) +
+  geom_tile() +
+  scale_fill_gradientn(colors = parula(100), limits = c(8, 27.5), name = "Temp (°C)", na.value = "white") +
+  scale_y_reverse() +
+  labs(y = "Depth (m)") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+MWP %>%
+  filter(Depth != 0.5, Depth != 25.3, Year != 2011) %>%
+ggplot(aes(x = Year, y = Depth, fill = DO)) +
+  geom_tile() +
+  scale_fill_gradientn(colors = parula(100), name = "DO (mg/L)", na.value = "white") +
+  scale_y_reverse() +
+  labs(y = "Depth (m)") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+## Continue w/ single pond; isolate bottom data
+```{r}
+# temporary
+temp_frame <- MWP
+
+bottom <- as.data.frame(c())
+
+temp_frame <- ponds[ponds$Station.number == pondID[i], ] %>%
+    # temporarily deal with NA depths
+    filter(!is.na(Depth)) %>%
+    # deal with replicate rows
+    group_by(Station.number, Year, Depth) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  for(j in 1:length(unique(temp_frame$Year))) {
+    year = unique(temp_frame$Year)[j]
+    for(k in 1:nrow(temp_frame[temp_frame$Year == year, ])) {
+      depth = sort(temp_frame$Depth[temp_frame$Year == year], decreasing = TRUE)[k]
+      if(nrow(temp_frame[temp_frame$Year == year, ]) == 1) {
+        break
+      }
+      if(k == nrow(temp_frame[temp_frame$Year == year, ])) {
+        depth = sort(temp_frame$Depth[temp_frame$Year == year])[1]
+      }
+      if(is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth] <-
+          temp_frame$Temp[temp_frame$Year == year &
+                          temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year],
+                                                   decreasing = TRUE)[k + 1]]
+      }
+      if(is.na(temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth] <-
+          temp_frame$DO[temp_frame$Year == year &
+                        temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year],
+                                                 decreasing = TRUE)[k + 1]]
+      }
+      if(!is.na(temp_frame$Temp[temp_frame$Year == year & temp_frame$Depth == depth]) &
+         !is.na(temp_frame$DO[temp_frame$Year == year & temp_frame$Depth == depth])) {
+        for(col in names(temp_frame)[14:length(names(temp_frame))]) {
+          if(is.na(temp_frame[[col]][temp_frame$Year == year & temp_frame$Depth == depth])) {
+            temp_frame[[col]][temp_frame$Year == year & temp_frame$Depth == depth] <-
+              temp_frame[[col]][temp_frame$Year == year &
+                              temp_frame$Depth == sort(temp_frame$Depth[temp_frame$Year == year],
+                                                       decreasing = TRUE)[k + 1]]
+          }
+        }
+        break
+      }
+    }
+    bottom <- rbind(bottom, temp_frame[temp_frame$Year == year & temp_frame$Depth == depth, ])
+  }
+
+MWP_bottom <- bottom %>%
+  filter(Station.number == "MA-1039-01")
+
+# flag bottom outliers
+
+for(param in colnames(MWP_bottom)[12:ncol(MWP_bottom)-4]) {
+  m <- mean(MWP_bottom[[param]], na.rm = TRUE)
+  sd <- sd(MWP_bottom[[param]], na.rm = TRUE)
+  sd <- ifelse(is.na(sd), 0, sd)
+  flag_name <- paste(param, "_flag", sep = "")
+  for(j in 1:nrow(MWP_bottom)) {
+    if(is.na(MWP_bottom[[param]][j])) {
+      MWP_bottom[[flag_name]][j] <- 4
+    } else if(MWP_bottom[[param]][j] > m - 3*sd & MWP_bottom[[param]][j] < m + 3*sd) {
+      MWP_bottom[[flag_name]][j] <- 2
+    } else {
+      MWP_bottom[[flag_name]][j] <- 3
+    }
+  }
+}
+```
+
+## Continue w/ single pond; visualize bottom water trends
+```{r}
+model <- lm(Temp ~ Year, MWP_bottom[MWP_bottom$Temp_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$Temp[MWP_bottom$Temp_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$Temp[MWP_bottom$Temp_flag == 2])$estimates
+intercept <- median(MWP_bottom$Temp[MWP_bottom$Temp_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$Temp_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$Temp_flag == 2, ], aes(x = Year, y = Temp)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7.9,
+           label = "y = -328.808 + 0.169x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7.5,
+           label = expression("R"^2*" = 0.2888"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7.1,
+           label = "p = 0.026",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2003, y = 7.9,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2003, y = 7.5,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Temp (°C)") +
+  theme_bw()
+
+model <- lm(DO ~ Year, MWP_bottom[MWP_bottom$DO_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$DO[MWP_bottom$DO_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$DO[MWP_bottom$DO_flag == 2])$estimates
+intercept <- median(MWP_bottom$DO[MWP_bottom$DO_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$DO_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$DO_flag == 2, ], aes(x = Year, y = DO)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2015, y = 1.2,
+           label = "y = -15.865 + 0.008x",
+           col = "royalblue") +
+  annotate("text", x = 2015, y = 1.15,
+           label = expression("R"^2*" = 0.02667"),
+           col = "royalblue") +
+  annotate("text", x = 2015, y = 1.1,
+           label = "p = 0.546",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2003, y = 1.2,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2003, y = 1.15,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "DO (mg/L)") +
+  theme_bw()
+
+model <- lm(pH ~ Year, MWP_bottom[MWP_bottom$pH_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$pH[MWP_bottom$pH_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$pH[MWP_bottom$pH_flag == 2])$estimates
+intercept <- median(MWP_bottom$pH[MWP_bottom$pH_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$pH_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$pH_flag == 2, ], aes(x = Year, y = pH)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7.1,
+           label = "y = -9.943 + 0.008x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7.05,
+           label = expression("R"^2*" = 0.03779"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7,
+           label = "p = 0.488",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 7.1,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 7.05,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  theme_bw()
+
+model <- lm(Alkalinity ~ Year, MWP_bottom[MWP_bottom$Alkalinity_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$Alkalinity[MWP_bottom$Alkalinity_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$Alkalinity[MWP_bottom$Alkalinity_flag == 2])$estimates
+intercept <- median(MWP_bottom$Alkalinity[MWP_bottom$Alkalinity_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$Alkalinity_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$Alkalinity_flag == 2, ], aes(x = Year, y = Alkalinity)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 7.5,
+           label = "y = -1887.556 - 0.953x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 4.5,
+           label = expression("R"^2*" = 0.08572"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 1.5,
+           label = "p = 0.271",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 7.5,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 4.5,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Alkalinity (mg/L)") +
+  theme_bw()
+
+model <- lm(TP ~ Year, MWP_bottom[MWP_bottom$TP_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$TP[MWP_bottom$TP_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$TP[MWP_bottom$TP_flag == 2])$estimates
+intercept <- median(MWP_bottom$TP[MWP_bottom$TP_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$TP_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$TP_flag == 2, ], aes(x = Year, y = TP)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 40,
+           label = "y = 2975.392 + -1.473x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 35,
+           label = expression("R"^2*" = 0.1666"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 30,
+           label = "p = 0.131",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 40,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 35,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "TP (μM)") +
+  theme_bw()
+
+model <- lm(TN ~ Year, MWP_bottom[MWP_bottom$TN_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$TN[MWP_bottom$TN_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$TN[MWP_bottom$TN_flag == 2])$estimates
+intercept <- median(MWP_bottom$TN[MWP_bottom$TN_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$TN_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$TN_flag == 2, ], aes(x = Year, y = TN)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 175,
+           label = "y = -4127.024 + 2.097x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 165,
+           label = expression("R"^2*" = 0.08526"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 155,
+           label = "p = 0.311",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 175,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 165,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "TN (μM)") +
+  theme_bw()
+
+model <- lm(Chlorophyll ~ Year, MWP_bottom[MWP_bottom$Chlorophyll_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$Chlorophyll[MWP_bottom$Chlorophyll_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$Chlorophyll[MWP_bottom$Chlorophyll_flag == 2])$estimates
+intercept <- median(MWP_bottom$Chlorophyll[MWP_bottom$Chlorophyll_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$Chlorophyll_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$Chlorophyll_flag == 2, ], aes(x = Year, y = Chlorophyll)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2017, y = 21,
+           label = "y = -408.804 + 0.206x",
+           col = "royalblue") +
+  annotate("text", x = 2017, y = 19.5,
+           label = expression("R"^2*" = 0.03102"),
+           col = "royalblue") +
+  annotate("text", x = 2017, y = 18,
+           label = "p = 0.514",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 21,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 19.5,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Chlorophyll (μg/L)") +
+  theme_bw()
+
+model <- lm(Phaeophytin ~ Year, MWP_bottom[MWP_bottom$Phaeophytin_flag == 2, ])
+summary(model)
+mk <- mk.test(MWP_bottom$Phaeophytin[MWP_bottom$Phaeophytin_flag == 2]) # p = 
+slope <- sens.slope(MWP_bottom$Phaeophytin[MWP_bottom$Phaeophytin_flag == 2])$estimates
+intercept <- median(MWP_bottom$Phaeophytin[MWP_bottom$Phaeophytin_flag == 2]) - 
+  median(MWP_bottom$Year[MWP_bottom$Phaeophytin_flag == 2]) * slope
+
+ggplot(MWP_bottom[MWP_bottom$Phaeophytin_flag == 2, ], aes(x = Year, y = Phaeophytin)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 36,
+           label = "y = -210.477 + 0.111x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 34,
+           label = expression("R"^2*" = 0.003197"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 32,
+           label = "p = 0.841",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 36,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 34,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "Phaeophytin (μM)") +
+  theme_bw()
+```
+
+## Continue w/ single pond; calculate MLDs over time
+```{r}
+MWP_MLD <- data.frame(Year = unique(MWP$Year),
+                      MLD = NA)
+
+for(i in 1:n_distinct(MWP$Year)) {
+  # subset temporary data frame
+  MWP_temp <- MWP[MWP$Year == unique(MWP$Year)[i], ]
+  for(j in 2:n_distinct(MWP_temp$Depth)) {
+    if(is.na(MWP_temp$Temp[j])) {
+      next
+    }
+    for(k in 1:length(MWP_temp$Temp)) {
+      if(!is.na(MWP_temp$Temp[j-k])) {
+        break
+      }
+    }
+    depth_diff <- MWP_temp$Depth[j] - MWP_temp$Depth[j-k]
+    temp_diff <- MWP_temp$Temp[j] - MWP_temp$Temp[j-k]
+    delta_temp <- temp_diff / depth_diff
+    if(abs(delta_temp) >= 1) {
+      MWP_MLD$MLD[i] <- MWP_temp$Depth[j-1]
+      break
+    }
+  }
+}
+
+# plot MLD over time
+model <- lm(MLD ~ Year, MWP_MLD[!is.na(MWP_MLD$MLD), ])
+summary(model)
+mk <- mk.test(MWP_MLD$MLD[!is.na(MWP_MLD$MLD)])
+slope <- sens.slope(MWP_MLD$MLD[!is.na(MWP_MLD$MLD)])$estimates
+intercept <- median(MWP_MLD$MLD[!is.na(MWP_MLD$MLD)]) - 
+  median(MWP_MLD$Year[!is.na(MWP_MLD$MLD)]) * slope
+
+ggplot(MWP_MLD[!is.na(MWP_MLD$MLD), ], aes(x = Year, y = MLD)) +
+  geom_point(size = 2.5) +
+  geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
+  annotate("text", x = 2018.5, y = 11.9,
+           label = "y = 187.71 - 0.09x",
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 11.5,
+           label = expression("R"^2*" = 0.0864"),
+           col = "royalblue") +
+  annotate("text", x = 2018.5, y = 11.1,
+           label = "p = 0.27",
+           col = "royalblue") +
+  geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
+  annotate("text", x = 2005, y = 11.9,
+           label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
+  annotate("text", x = 2005, y = 11.5,
+           label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
+  labs(y = "MLD (m)") +
+  theme_bw()
 ```
 
 
