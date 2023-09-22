@@ -1,0 +1,176 @@
+---
+title: "PondSplit"
+author: "Dylan Titmuss"
+date: "2023-09-21"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Calculate outliers
+```{r include = FALSE}
+ponds <- ponds %>%
+  filter(Month == 8 | Month == 9) %>%
+  arrange(Station.number)
+
+pondName <- unique(ponds$Station.name)
+
+outlier_frame <- data.frame(matrix(ncol = 24-9, nrow = 100))
+colnames(outlier_frame) <- colnames(ponds)[10:24]
+
+outlier_frame[["pH"]][seq_along(which(ponds$pH > 14))] <- ponds$Sampling.number[which(ponds$pH > 14)]
+ponds$pH[ponds$pH > 14] <- NA
+outlier_frame[["Temp"]][seq_along(which(ponds$Temp > 35 | ponds$Temp < 5))] <-
+  ponds$Sampling.number[which(ponds$Temp > 35 | ponds$Temp < 5)]
+ponds$Temp[ponds$Temp == 207] <- 20.7
+ponds$Temp[ponds$Temp < 5] <- NA
+
+# determine total depth & Secchi depth outliers
+for(pond in pondName) {
+  onePond <- ponds %>%
+    filter(Station.name == pond)
+  for(param in colnames(onePond)[10:11]) {
+    m <- mean(onePond[[param]], na.rm = TRUE)
+    sd <- sd(onePond[[param]], na.rm = TRUE)
+    sd <- ifelse(is.na(sd), 0, sd)
+    flag_name <- paste0(param, "_flag")
+    outliers <- vector()
+    for(j in 1:nrow(onePond)) {
+      if(is.na(onePond[[param]][j])) {
+        onePond[[flag_name]][j] <- 4
+      } else if(onePond[[param]][j] >= m - 3*sd & onePond[[param]][j] <= m + 3*sd) {
+        onePond[[flag_name]][j] <- 2
+      } else {
+        onePond[[flag_name]][j] <- 3
+        outliers <- c(outliers, onePond$Sampling.number[j])
+      }
+    }
+    if(length(outliers) > 0) {
+      outlier_frame[[param]][sum(!is.na(outlier_frame[[param]])) + 1:length(outliers)] <- outliers
+    }
+  }
+}
+
+allSurface <- data.frame()
+
+# determine other parameter outliers @ surface
+for(pond in pondName) {
+  onePond <- ponds %>%
+    filter(Station.name == pond) %>%
+    # temporarily deal with NA depths
+    filter(!is.na(Depth)) %>%
+    # deal with replicate year samples
+    group_by(Station.name, Year, Depth) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  
+  oneSurface <- data.frame()
+  
+  for(year in unique(onePond$Year)) {
+    for(j in 1:nrow(onePond[onePond$Year == year, ])) {
+      depth = sort(onePond$Depth[onePond$Year == year])[j]
+      if(nrow(onePond[onePond$Year == year, ]) == 1) {
+        break
+      }
+      if(j == nrow(onePond[onePond$Year == year, ])) {
+        depth = sort(onePond$Depth[onePond$Year == year])[1]
+        break
+      }
+      if(is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth])) {
+        onePond$Temp[onePond$Year == year & onePond$Depth == depth] <-
+          onePond$Temp[onePond$Year == year &
+                          onePond$Depth == sort(onePond$Depth[onePond$Year == year])[j + 1]]
+      }
+      if(is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
+        onePond$DO[onePond$Year == year & onePond$Depth == depth] <-
+          onePond$DO[onePond$Year == year &
+                        onePond$Depth == sort(onePond$Depth[onePond$Year == year])[j + 1]]
+      }
+      if(!is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth]) &
+         !is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
+        for(k in 12:(ncol(onePond)-1)) {
+          param <- colnames(onePond)[k]
+          for(l in 1:(nrow(onePond[onePond$Year == year, ])-1)) {
+            depth2 = sort(onePond$Depth[onePond$Year == year])[j + l]
+            if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth2])) {
+              next
+            }
+            if(depth <= 1) {
+              if(!is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth2])) {
+                onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                  onePond[[param]][onePond$Year == year & onePond$Depth == depth2]
+                break
+              }
+            }
+          }
+        }
+        break
+      }
+    }
+    oneSurface <- rbind(oneSurface, onePond[onePond$Year == year & onePond$Depth == depth, ])
+  }
+  for(i in 7:(ncol(oneSurface)-1)) {
+    param <- colnames(oneSurface)[i]
+    flag_name <- paste0(param, "_flag")
+    if(sum(!is.na(oneSurface[[param]])) != 0) {
+      m <- mean(oneSurface[[param]], na.rm = TRUE)
+      sd <- sd(oneSurface[[param]], na.rm = TRUE)
+      sd <- ifelse(is.na(sd), 0, sd)
+    }
+    outliers <- vector()
+    for(j in 1:nrow(oneSurface)) {
+      if(is.na(oneSurface[[param]][j])) {
+        oneSurface[[flag_name]][j] <- 4
+      } else if(oneSurface[[param]][j] >= m - 3*sd & oneSurface[[param]][j] <= m + 3*sd) {
+        oneSurface[[flag_name]][j] <- 2
+      } else {
+        oneSurface[[flag_name]][j] <- 3
+        outliers <- c(outliers, onePond$Sampling.number[j])
+      }
+    }
+    if(length(outliers) > 0 & i != 7 & i!= 8) {
+      outlier_frame[[param]][sum(!is.na(outlier_frame[[param]])) + 1:length(outliers)] <- outliers
+    }
+  }
+  allSurface <- rbind(allSurface, oneSurface)
+}
+
+# determine other parameter outliers @ bottom
+# oneBottom <- data.frame()
+# 
+# for(year in unique(onePond$Year)) {
+#   for(j in 1:nrow(onePond[onePond$Year == year, ])) {
+#     depth = sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[j]
+#     if(nrow(onePond[onePond$Year == year, ]) == 1) {
+#       break
+#     }
+#     if(j == nrow(onePond[onePond$Year == year, ])) {
+#       depth = sort(onePond$Depth[onePond$Year == year])[1]
+#     }
+#     if(is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth])) {
+#       onePond$Temp[onePond$Year == year & onePond$Depth == depth] <-
+#         onePond$Temp[onePond$Year == year &
+#                         onePond$Depth == sort(onePond$Depth[onePond$Year == year])[j + 1]]
+#     }
+#     if(is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
+#       onePond$DO[onePond$Year == year & onePond$Depth == depth] <-
+#         onePond$DO[onePond$Year == year &
+#                       onePond$Depth == sort(onePond$Depth[onePond$Year == year])[j + 1]]
+#     }
+#     if(!is.na(onePond$Total.Depth[onePond$Year == year & onePond$Depth == depth]) &
+#        !is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth])) {
+#       break
+#     }
+#   }
+#   oneBottom <- rbind(oneBottom, onePond[onePond$Year == year & onePond$Depth == depth, ])
+# }
+
+
+write.csv(allSurface, "data/AllPonds_Surface.csv", row.names = FALSE)
+
+outlier_frame <- outlier_frame %>%
+  filter(rowSums(is.na(.)) != ncol(.)) %>%
+  select(where(~!all(is.na(.x))))
+
+write.csv(outlier_frame, "data/outliers.csv", row.names = FALSE)
+```
