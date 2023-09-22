@@ -16,12 +16,12 @@ library(sf)
 library(ggmap)
 library(pals)
 library(trend)
-
-setwd("~/Desktop/Repos/BarnstablePonds2023")
 ```
 
 ## Load data
 ```{r}
+setwd("~/Desktop/Repos/BarnstablePonds2023")
+
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
 ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
   
@@ -121,6 +121,32 @@ ponds <- ponds %>%
 
 # remove impossible pH values
 ponds$pH[ponds$pH > 14] <- NA
+```
+
+## Identify missing & non-numeric data
+```{r}
+non_num <- c(ponds$Sampling.number[which(ponds$pH == "n.m. 6.83")],
+             ponds$Sampling.number[which(ponds$Total.Depth == "> 15.50")],
+             ponds$Sampling.number[which(ponds$Chla == "< 0.05" |
+                                         ponds$Phaeo == "< 0.05")],
+             ponds$Sampling.number[which(ponds$TP == "< 0.10")],
+             ponds$Sampling.number[which(ponds$DO == "< 1.50")])
+
+## Collect problematic values
+miss_coords <- sort(unique(ponds$Sampling.number[which(is.na(ponds$Long))]))
+miss_depths <- sort(unique(ponds$Sampling.number[which(is.na(ponds$Depth))]))
+miss_DO <- sort(unique(ponds$Sampling.number[which(
+  ponds_full$Dissolved.Oxygen...Reported...DO.1 != "" &
+  ponds_full$Dissolved.Oxygen.Concentration...Final...DO_FINAL == ""
+)]))
+
+miss_depths <- c(miss_depths, rep(NA, (length(miss_coords) - length(miss_depths))))
+miss_DO <- c(miss_DO, rep(NA, (length(miss_coords) - length(miss_DO))))
+non_num <- c(non_num, rep(NA, (length(miss_coords) - length(non_num))))
+
+missing <- as.data.frame(cbind(miss_coords, miss_depths, miss_DO, non_num))
+
+write.csv(missing, "missing.csv", row.names = FALSE)
 ```
 
 ## Summarize data
@@ -1051,14 +1077,14 @@ ggplot(MWP_surface[MWP_surface$TN_flag == 2, ], aes(x = Year, y = TN)) +
   labs(y = "TN (μM)") +
   theme_bw()
 
-model <- lm(Chlorophyll ~ Year, MWP_surface[MWP_surface$Chlorophyll_flag == 2, ])
+model <- lm(Chla ~ Year, MWP_surface[MWP_surface$Chlorophyll_flag == 2, ])
 summary(model)
-mk <- mk.test(MWP_surface$Chlorophyll[MWP_surface$Chlorophyll_flag == 2]) # p = 0.9641
-slope <- sens.slope(MWP_surface$Chlorophyll[MWP_surface$Chlorophyll_flag == 2])$estimates
-intercept <- median(MWP_surface$Chlorophyll[MWP_surface$Chlorophyll_flag == 2]) - 
-  median(MWP_surface$Year[MWP_surface$Chlorophyll_flag == 2]) * slope
+mk <- mk.test(MWP_surface$Chla[MWP_surface$Chla_flag == 2]) # p = 0.9641
+slope <- sens.slope(MWP_surface$Chla[MWP_surface$Chla_flag == 2])$estimates
+intercept <- median(MWP_surface$Chla[MWP_surface$Chla_flag == 2]) - 
+  median(MWP_surface$Year[MWP_surface$Chla_flag == 2]) * slope
 
-ggplot(MWP_surface[MWP_surface$Chlorophyll_flag == 2, ], aes(x = Year, y = Chlorophyll)) +
+ggplot(MWP_surface[MWP_surface$Chla_flag == 2, ], aes(x = Year, y = Chla)) +
   geom_point(size = 2.5) +
   geom_smooth(method = "lm", se = FALSE, col = "royalblue") +
   annotate("text", x = 2017, y = 1.75,
