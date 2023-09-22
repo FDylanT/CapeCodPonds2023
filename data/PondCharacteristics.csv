@@ -1,0 +1,884 @@
+CCC_GIS_ID,Name,Alt_Name,Great_Pond,Acres,Town,Aquifer Lens,Volume__cubic_meters_,Final Depth,Depth Class,% 100ft buffer developed,buffer development class
+DE-706,Kelleys Pond,Kellys Pond,Yes - not on State List,31.62393668,Dennis,Monomoy,,30,deep,49%,High
+FA-1027,Nobska Pond, ,No,8.88474529,Falmouth,Sagamore,,#N/A,#N/A,12%,Medium
+MA-987,Flat Pond,Great Flat Pond,Yes - on State List,39.63867124,Mashpee,Sagamore,,6,shallow,24%,Medium
+FA-933,Fresh Pond, ,No,7.601830932,Falmouth,Sagamore,,11.81088,shallow,27%,High
+FA-1008,Palmers Pond, ,No,3.622280101,Falmouth,Sagamore,,#N/A,#N/A,51%,Very High
+MA-992,Lily Pond,Salt Pond,No,1.139897063,Mashpee,Sagamore,,#N/A,#N/A,61%,Very High
+MA-982,Beccas Pond, ,No,1.353883163,Mashpee,Sagamore,,#N/A,#N/A,,#N/A
+FA-832,Dam Pond, ,No,6.693697831,Falmouth,Sagamore,,6.5616,shallow,13%,Medium
+YA-630,Labans Pond, ,No,5.415366219,Yarmouth,Sagamore,,20,deep,19%,Medium
+BO-239,Bourne Pond, ,Yes - not on State List,10.89270032,Bourne,Plymouth-Carver,,#N/A,#N/A,56%,Very High
+FA-996,Shivericks Pond, ,Yes - on State List,7.660038581,Falmouth,Sagamore,,#N/A,#N/A,46%,High
+BA-802,Bog Pond, ,No,7.414511902,Barnstable,Sagamore,,3.2808,shallow,7%,Low
+WE-62,Perch Pond, ,No,3.302313454,Wellfleet,Chequesset,,#N/A,#N/A,0%,Very Low
+FA-990,Weeks Pond, ,No,4.694247524,Falmouth,Sagamore,,#N/A,#N/A,37%,High
+BA-878,Crystal Lake, ,Yes - not on State List,11.01207033,Barnstable,Sagamore,,40.02576,deep,27%,High
+BA-875,Parker Pond, ,Yes - not on State List,12.31543189,Barnstable,Sagamore,,31.1676,deep,38%,High
+BA-764,West Pond, ,No,7.445987293,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+CH-582,Meadow View Pond, ,No,0.675619526,Chatham,Monomoy,,8.333232,shallow,42%,High
+CH-341,Fox Pond, ,No,4.734509775,Chatham,Monomoy,,#N/A,#N/A,29%,High
+BO-212,Queen Sewell Pond,Sewells Pond,Yes - not on State List,17.96699363,Bourne,Plymouth-Carver,333308.592,28,deep,46%,High
+OR-122,Cedar Pond, ,Yes - on State List,16.14321444,Orleans,Nauset,166999.8472,14,deep,20%,Medium
+WE-73,Hawes Pond, ,No,0.884039428,Wellfleet,Chequesset,,#N/A,#N/A,47%,High
+PR-34,Shank Painter Pond, ,Yes - on State List,22.82965138,Provincetown,Pilgrim,,3,shallow,3%,Very Low
+FA-988,Morse Pond, ,Yes - on State List,14.41631424,Falmouth,Sagamore,,#N/A,#N/A,18%,Medium
+MA-960,Jim Pond,Fells Pond,Yes - not on State List,10.44681656,Mashpee,Sagamore,,65,deep,29%,High
+MA-954,Witch Pond, ,No,1.128188613,Mashpee,Sagamore,,65,deep,1%,Very Low
+FA-944,Bog Pond, ,No,3.115375988,Falmouth,Sagamore,,#N/A,#N/A,9%,Low
+FA-941,Bournes Pond, ,Yes - on State List,11.21703447,Falmouth,Sagamore,,18,deep,8%,Low
+BA-874,Neck Pond, ,Yes - not on State List,14.21782565,Barnstable,Sagamore,,37.7292,deep,35%,High
+DE-714,The Plashes, ,No,2.351605892,Dennis,Monomoy,,#N/A,#N/A,1%,Very Low
+DE-705,Great Pond Plash, ,No,1.815468774,Dennis,Monomoy,,#N/A,#N/A,2%,Very Low
+OR-256,Meadow Bog Pond,Quanset Pond Bog,No,2.543706854,Orleans,Nauset,,6.430368,shallow,27%,High
+WE-69,Squires Pond, ,No,1.209458317,Wellfleet,Chequesset,,#N/A,#N/A,7%,Low
+WE-60,Doanes Bog Pond, ,No,0.844442493,Wellfleet,Chequesset,,6.5616,shallow,,#N/A
+TR-39,Great Swamp Pond, ,No,7.767030578,Truro,Pamet,170833.4591,35,deep,3%,Very Low
+TR-38,Village Pond, ,No,2.767300846,Truro,Pamet,,5,shallow,37%,High
+PR-28,Clapps Pond, ,Yes - on State List,42.78414191,Provincetown,Pilgrim,,3,shallow,0%,Very Low
+PR-1,Grassy Pond, ,No,6.12402819,Provincetown,Pilgrim,,3,shallow,,#N/A
+FA-995,Nyes Pond, ,No,6.128546577,Falmouth,Sagamore,,#N/A,#N/A,36%,High
+BA-799, , ,No,3.785855901,Barnstable,Sagamore,,#N/A,#N/A,38%,High
+BA-795,Lake Elizabeth, ,Yes - on State List,7.147024698,Barnstable,Sagamore,13555.82517,4,shallow,46%,High
+YA-722,Mill Pond, ,No,4.198299731,Yarmouth,Sagamore,,5,shallow,19%,Medium
+HA-629,Skinequit Pond, ,Yes - on State List,18.06080064,Harwich,Monomoy,380328.1786,32,deep,29%,High
+HA-530,West Reservoir, ,Yes - not on State List,72.77042562,Harwich,Monomoy,167864.9895,6,shallow,3%,Very Low
+DE-201,Coles Pond, ,Yes - not on State List,11.37375256,Dennis,Monomoy,,5.199999809,shallow,1%,Very Low
+PR-26,Duck Pond, ,No,3.715795931,Provincetown,Pilgrim,,3,shallow,5%,Low
+PR-25,Clapps Round Pond, ,No,1.667590405,Provincetown,Pilgrim,,3,shallow,,#N/A
+PR-20,Little Bennet Pond, ,No,2.584663651,Provincetown,Pilgrim,,3,shallow,1%,Very Low
+PR-16,Pasture Pond, ,Yes - not on State List,11.52456044,Provincetown,Pilgrim,,3,shallow,2%,Very Low
+FA-981, , ,No,0.437286347,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+FA-1018, , ,No,2.257367139,Falmouth,Sagamore,,#N/A,#N/A,60%,Very High
+FA-950, , ,No,0.709499852,Falmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-905, , ,No,0.287499734,Barnstable,Sagamore,,#N/A,#N/A,75%,Very High
+BA-1039,,,No,0.436617712,Barnstable,Sagamore,,#N/A,#N/A,65%,Very High
+FA-803, , ,No,0.902296961,Falmouth,Sagamore,,#N/A,#N/A,7%,Low
+FA-1015, , ,No,2.302400469,Falmouth,Sagamore,,#N/A,#N/A,16%,Medium
+FA-1013, , ,No,3.730784807,Falmouth,Sagamore,,#N/A,#N/A,23%,Medium
+FA-1040,,,No,0.421594388,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+FA-1006, , ,No,0.519933462,Falmouth,Sagamore,,#N/A,#N/A,50%,Very High
+MA-1041,,,No,0.258745584,Mashpee,Sagamore,,#N/A,#N/A,87%,Very High
+FA-955, , ,No,0.471877141,Falmouth,Sagamore,,#N/A,#N/A,45%,High
+FA-930, , ,No,0.241636111,Falmouth,Sagamore,,#N/A,#N/A,9%,Low
+FA-923, , ,No,3.289414183,Falmouth,Sagamore,,#N/A,#N/A,15%,Medium
+BA-917, , ,No,0.788260261,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BA-862, , ,No,1.483553854,Barnstable,Sagamore,,#N/A,#N/A,75%,Very High
+BA-1042,,,No,0.442142082,Barnstable,Sagamore,,#N/A,#N/A,49%,High
+DE-1043,,,No,0.515976647,Dennis,Monomoy,,#N/A,#N/A,3%,Very Low
+HA-645, , ,No,0.890119963,Harwich,Monomoy,,#N/A,#N/A,14%,Medium
+BO-417, , ,No,1.050758102,Bourne,Sagamore,,#N/A,#N/A,,#N/A
+CH-378,Bassing Pond, ,No,5.475387817,Chatham,Monomoy,,#N/A,#N/A,1%,Very Low
+BO-1044,,,No,0.326018004,Bourne,Plymouth-Carver,,#N/A,#N/A,19%,Medium
+FA-1026, , ,No,0.539407182,Falmouth,Sagamore,,#N/A,#N/A,39%,High
+FA-1045,,,No,0.775340176,Falmouth,Sagamore,,#N/A,#N/A,66%,Very High
+FA-1023, , ,No,0.558793818,Falmouth,Sagamore,,#N/A,#N/A,36%,High
+FA-915, , ,No,0.79421738,Falmouth,Sagamore,,#N/A,#N/A,6%,Low
+BA-912, , ,No,0.362983901,Barnstable,Sagamore,,#N/A,#N/A,25%,Medium
+YA-865, , ,No,3.092285853,Yarmouth,Sagamore,,#N/A,#N/A,15%,Medium
+YA-861, , ,No,2.116782625,Yarmouth,Sagamore,,#N/A,#N/A,25%,Medium
+DE-713, , ,No,1.169731188,Dennis,Monomoy,,#N/A,#N/A,53%,Very High
+DE-702, , ,No,0.276847311,Dennis,Monomoy,,#N/A,#N/A,11%,Medium
+CH-1046,,,No,1.67896564,Chatham,Monomoy,,#N/A,#N/A,24%,Medium
+BO-1047,,,No,0.999748879,Bourne,Sagamore,,#N/A,#N/A,18%,Medium
+OR-291, , ,No,0.27701969,Orleans,Nauset,,#N/A,#N/A,74%,Very High
+BO-290, , ,No,0.265807127,Bourne,Plymouth-Carver,,#N/A,#N/A,8%,Low
+SA-231, , ,No,1.078643249,Sandwich,Sagamore,,#N/A,#N/A,0%,Very Low
+WE-58, , ,No,0.497878629,Wellfleet,Chequesset,,#N/A,#N/A,5%,Very Low
+TR-1048,,,No,0.268481028,Truro,Pamet,,#N/A,#N/A,0%,Very Low
+TR-44, , ,No,2.179404095,Truro,Pamet,,#N/A,#N/A,,#N/A
+FA-1016, , ,No,0.241606453,Falmouth,Sagamore,,#N/A,#N/A,13%,Medium
+FA-984, , ,No,1.21514399,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+FA-956, , ,No,4.052857092,Falmouth,Sagamore,,#N/A,#N/A,16%,Medium
+FA-943, , ,No,1.123269663,Falmouth,Sagamore,,#N/A,#N/A,11%,Medium
+FA-1049,,,No,0.291908531,Falmouth,Sagamore,,#N/A,#N/A,4%,Very Low
+FA-898, , ,No,0.694124943,Falmouth,Sagamore,,#N/A,#N/A,26%,High
+BA-1050,,,No,0.393269271,Barnstable,Sagamore,,#N/A,#N/A,43%,High
+BA-791, , ,No,1.287701265,Barnstable,Sagamore,,#N/A,#N/A,17%,Medium
+FA-783,Trout Pond, ,No,2.879127838,Falmouth,Sagamore,,#N/A,#N/A,20%,Medium
+DE-725, , ,No,1.521471327,Dennis,Monomoy,,#N/A,#N/A,15%,Medium
+DE-1051,,,No,0.565495995,Dennis,Monomoy,,#N/A,#N/A,4%,Very Low
+CH-648, , ,No,1.968826609,Chatham,Monomoy,,#N/A,#N/A,12%,Medium
+BO-388, , ,No,0.450387275,Bourne,Sagamore,,#N/A,#N/A,43%,High
+SA-222, , ,No,0.609982342,Sandwich,Sagamore,,#N/A,#N/A,5%,Low
+PR-30, , ,No,1.932154123,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+MA-980, , ,No,0.602655437,Mashpee,Sagamore,,#N/A,#N/A,66%,Very High
+MA-953, , ,No,3.807426908,Mashpee,Sagamore,,#N/A,#N/A,13%,Medium
+MA-951, , ,No,3.215106006,Mashpee,Sagamore,,#N/A,#N/A,6%,Low
+FA-872, , ,No,2.430478885,Falmouth,Sagamore,,#N/A,#N/A,17%,Medium
+BA-813, , ,No,2.059370203,Barnstable,Sagamore,,#N/A,#N/A,30%,High
+YA-766, , ,No,1.620731015,Yarmouth,Sagamore,,#N/A,#N/A,72%,Very High
+YA-763, , ,No,1.455716442,Yarmouth,Sagamore,,#N/A,#N/A,0%,Very Low
+DE-724, , ,No,0.582375013,Dennis,Monomoy,,#N/A,#N/A,16%,Medium
+CH-656, , ,No,0.328786294,Chatham,Monomoy,,#N/A,#N/A,2%,Very Low
+YA-427, , ,No,0.265498612,Yarmouth,Sagamore,,#N/A,#N/A,34%,High
+BO-292, , ,No,0.305841046,Bourne,Plymouth-Carver,,#N/A,#N/A,20%,Medium
+SA-1052,,,No,0.935548531,Sandwich,Sagamore,,#N/A,#N/A,11%,Medium
+SA-1053,,,No,1.942295655,Sandwich,Sagamore,,#N/A,#N/A,1%,Very Low
+DE-217, , ,No,0.544276291,Dennis,Monomoy,,#N/A,#N/A,30%,High
+OR-114, , ,No,0.343222803,Orleans,Nauset,,#N/A,#N/A,15%,Medium
+TR-1054,,,No,0.909392033,Truro,Pamet,,#N/A,#N/A,,#N/A
+TR-40, , ,No,0.752835105,Truro,Pamet,,#N/A,#N/A,,#N/A
+PR-1055,,,No,0.286340995,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-37, , ,No,6.554268802,Provincetown,Pilgrim,,#N/A,#N/A,2%,Very Low
+PR-33, , ,No,0.542173339,Provincetown,Pilgrim,,#N/A,#N/A,40%,High
+PR-32, , ,No,1.007725546,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-1056,,,No,1.526258413,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-15, , ,No,0.62957554,Provincetown,Pilgrim,,#N/A,#N/A,16%,Medium
+FA-1024, , ,No,0.254936674,Falmouth,Sagamore,,#N/A,#N/A,68%,Very High
+MA-965, , ,No,0.315168598,Mashpee,Sagamore,,#N/A,#N/A,100%,Very High
+MA-964, , ,No,0.948078366,Mashpee,Sagamore,,#N/A,#N/A,80%,Very High
+YA-887, , ,No,0.68294465,Yarmouth,Sagamore,,#N/A,#N/A,19%,Medium
+DE-704, , ,No,0.606772334,Dennis,Monomoy,,#N/A,#N/A,8%,Low
+YA-423, , ,No,6.935123355,Yarmouth,Sagamore,,#N/A,#N/A,21%,Medium
+BA-349, , ,No,0.483584293,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BO-309, , ,No,0.453472574,Bourne,Plymouth-Carver,,#N/A,#N/A,64%,Very High
+BO-288, , ,No,0.587444167,Bourne,Plymouth-Carver,,#N/A,#N/A,5%,Very Low
+DE-215, , ,No,1.723462802,Dennis,Monomoy,,#N/A,#N/A,1%,Very Low
+BO-1057,,,No,1.411135727,Bourne,Plymouth-Carver,,#N/A,#N/A,26%,High
+TR-1058,,,No,0.558200016,Truro,Pamet,,#N/A,#N/A,,#N/A
+PR-1059,,,No,0.326484536,Provincetown,Pilgrim,,#N/A,#N/A,1%,Very Low
+PR-1060,,,No,0.35300272,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-27, , ,No,1.296936375,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-24, , ,No,1.870823403,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-17, , ,No,3.456317788,Provincetown,Pilgrim,,#N/A,#N/A,1%,Very Low
+PR-1061,,,No,0.518149678,Provincetown,Pilgrim,,#N/A,#N/A,7%,Low
+PR-14, , ,No,2.620046501,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-9,Great Pond, ,Yes - on State List,12.03462273,Provincetown,Pilgrim,,3,shallow,0%,Very Low
+BA-881,Lewis Pond, ,No,4.866888614,Barnstable,Sagamore,,13.648128,deep,10%,Low
+MA-876,Trout Pond, ,No,5.323852609,Mashpee,Sagamore,,3.543264,shallow,,#N/A
+BA-819,Coleman Pond, ,No,9.672669611,Barnstable,Sagamore,,10.17048,shallow,9%,Low
+BA-806,Schoolhouse Pond, ,No,3.885844675,Barnstable,Sagamore,,7.87392,shallow,20%,Medium
+FA-780,Flax Pond,,No,4.482913168,Falmouth,Sagamore,,4.59312,shallow,27%,High
+YA-657,Long Pond, ,Yes - on State List,61.7266997,Yarmouth,Sagamore,1609476.253,30,deep,63%,Very High
+DE-597,Fresh Pond, ,Yes - on State List,31.65598701,Dennis,Monomoy,159565.7075,9.199999809,shallow,3%,Very Low
+CH-396,Stillwater Pond, ,Yes - on State List,19.52891896,Chatham,Monomoy,709398.6347,51,deep,15%,Medium
+YA-371,Tom Matthews Pond,Matthews Pond,Yes - not on State List,35.72861602,Yarmouth,Sagamore,,5,shallow,3%,Very Low
+OR-249,Sarahs Pond, ,No,5.904865964,Orleans,Nauset,205621.739,57,deep,7%,Low
+BO-219,Nightingale Pond, ,No,7.257302725,Bourne,Plymouth-Carver,,11,shallow,10%,Medium
+DE-198,Little Coles Pond, ,No,3.905948286,Dennis,Monomoy,,#N/A,#N/A,7%,Low
+EA-103,Herring Pond,Coles Pond,Yes - on State List,45.65358628,Eastham,Nauset,1023240.963,35,deep,31%,High
+WE-59,Gull Pond, ,Yes - on State List,108.0520088,Wellfleet,Chequesset,3879403.08,64,deep,9%,Low
+WE-57,Higgins Pond, ,Yes - on State List,26.71461643,Wellfleet,Chequesset,,20,deep,2%,Very Low
+WE-56,Herring Pond, ,Yes - on State List,18.9254984,Wellfleet,Chequesset,,7,shallow,3%,Very Low
+WE-55,Williams Pond, ,No,8.576873307,Wellfleet,Chequesset,,7,shallow,2%,Very Low
+TR-53,Slough Pond,Newcombs Pond,Yes - not on State List,30.96160995,Truro,Pamet,456526.9099,25,deep,5%,Low
+TR-51,Horseleech Pond,Long Pond,Yes - on State List,24.99594634,Truro,Pamet,,16,deep,5%,Low
+PR-22,Bennett Pond, ,No,5.018886417,Provincetown,Pilgrim,,6,shallow,,#N/A
+PR-2,Blackwater Pond,Beech Forest,No,5.667715253,Provincetown,Pilgrim,,4,shallow,4%,Very Low
+FA-975,Jones Pond, ,Yes - on State List,13.36013475,Falmouth,Sagamore,,#N/A,#N/A,39%,High
+FA-845,Wing Pond, ,Yes - on State List,26.99225371,Falmouth,Sagamore,,#N/A,#N/A,20%,Medium
+BA-816,North Pond, ,No,4.974345422,Barnstable,Sagamore,,#N/A,#N/A,7%,Low
+BA-789,Simmons Pond, ,No,8.082399317,Barnstable,Sagamore,,#N/A,#N/A,16%,Medium
+FA-761,Cedar Lake, ,Yes - on State List,20.81775296,Falmouth,Sagamore,,10,shallow,16%,Medium
+YA-693,James Pond, ,No,4.899806749,Yarmouth,Sagamore,,30,deep,54%,Very High
+OR-176,Pilgrim Lake, ,Yes - on State List,43.74530629,Orleans,Nauset,858471.7557,30,deep,14%,Medium
+EA-98,Bridge Pond, ,No,6.726410754,Eastham,Nauset,71336.43316,20,deep,4%,Very Low
+EA-95,Great Pond, ,Yes - on State List,113.3504785,Eastham,Nauset,3364266.777,36,deep,20%,Medium
+WE-64,Spectacle Pond, ,No,1.685207079,Wellfleet,Chequesset,,25,deep,0%,Very Low
+WE-61,Kinnicum Pond,Kinnicums Pond,No,2.776969589,Wellfleet,Chequesset,32836.13156,15,deep,1%,Very Low
+TR-54,Ryder Pond,Newcombs Pond,Yes - not on State List,20.48125873,Truro,Pamet,517414.2821,35,deep,8%,Low
+TR-52,Snow Pond, ,No,7.439522609,Truro,Pamet,,26,deep,3%,Very Low
+TR-50,Round Pond (West), ,No,2.722271892,Truro,Pamet,52701.45029,30,deep,,#N/A
+TR-49,Round Pond (East), ,No,7.186092649,Truro,Pamet,96391.75035,34,deep,1%,Very Low
+TR-48,Great Pond, ,Yes - on State List,17.64330119,Truro,Pamet,463236.0924,35,deep,7%,Low
+FA-970,Sols Pond, ,No,4.413671287,Falmouth,Sagamore,,#N/A,#N/A,27%,High
+FA-962,Grews Pond, ,Yes - on State List,14.75585032,Falmouth,Sagamore,328200.414,42,deep,11%,Medium
+FA-948,Mill Pond,Robinsons Mill Pond,Yes - on State List,15.49553614,Falmouth,Sagamore,,#N/A,#N/A,33%,High
+FA-942,Long Pond, ,Yes - on State List,150.5119078,Falmouth,Sagamore,,11,shallow,3%,Very Low
+YA-572,Lily Pond, ,No,3.007021946,Yarmouth,Sagamore,,24,deep,29%,High
+YA-540,Cat Swamp Pond, ,No,2.447024706,Yarmouth,Sagamore,,#N/A,#N/A,82%,Very High
+YA-478,Miss Thachers Pond, ,No,3.990728868,Yarmouth,Sagamore,,8,shallow,2%,Very Low
+BA-391,Mill Pond, ,Yes - not on State List,15.69160317,Barnstable,Sagamore,,5,shallow,1%,Very Low
+EA-86,Pennys Pond, ,No,0.781545393,Eastham,Nauset,,#N/A,#N/A,28%,High
+FA-993,Miles Pond, ,No,7.112502906,Falmouth,Sagamore,,11.97492,shallow,10%,Medium
+BA-820,Sam Pond, ,No,5.665905442,Barnstable,Sagamore,,#N/A,#N/A,24%,Medium
+BA-807,Joshua Pond, ,Yes - not on State List,15.56588697,Barnstable,Sagamore,222500.9224,25,deep,8%,Low
+YA-700,West Sandy Pond,Little Sandy Pond,Yes - on State List,14.39645255,Yarmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+HA-579,Grass Pond, ,Yes - not on State List,28.46228674,Harwich,Monomoy,,3,shallow,1%,Very Low
+DE-236,Scargo Lake, ,Yes - on State List,60.95044662,Dennis,Monomoy,2101996.502,48,deep,27%,High
+OR-142,Uncle Harveys Pond, ,No,6.671347546,Orleans,Nauset,,22.30944,deep,20%,Medium
+EA-101,Widow Harding Pond, ,No,9.0894921,Eastham,Nauset,55234.68762,13,deep,8%,Low
+EA-100,Jemima Pond, ,No,6.526847918,Eastham,Nauset,57279.05127,15,deep,25%,Medium
+EA-97,Deborahs Pond, ,No,3.562653287,Eastham,Nauset,,7.87392,shallow,16%,Medium
+WE-68,Southeast Pond, ,No,2.785830005,Wellfleet,Chequesset,,13,deep,2%,Very Low
+WE-67,Great Pond, ,Yes - on State List,43.99957843,Wellfleet,Chequesset,,56,deep,4%,Very Low
+FA-958,Angel Mirror Pond, ,No,2.895502808,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+FA-893,Crocker Pond, ,No,8.059256379,Falmouth,Sagamore,,29.5272,deep,37%,High
+BA-797,Micah Pond, ,Yes - not on State List,15.94814222,Barnstable,Sagamore,402238.4551,41,deep,2%,Very Low
+YA-569,Flax Pond, ,Yes - on State List,9.513300007,Yarmouth,Sagamore,,20,deep,4%,Very Low
+CH-428,Lovers Lake, ,Yes - on State List,37.64982032,Chatham,Monomoy,704003.2654,36,deep,24%,Medium
+BR-179,Cobbs Pond, ,Yes - on State List,23.41537473,Brewster,Monomoy,,12,shallow,15%,Medium
+EA-102,Muddy Pond, ,Yes - not on State List,10.24263523,Eastham,Nauset,18623.81466,5,shallow,12%,Medium
+EA-99,Little Depot Pond, ,No,2.131939306,Eastham,Nauset,,10,shallow,13%,Medium
+EA-96,Depot Pond, ,Yes - on State List,28.83805327,Eastham,Nauset,614726.4621,35,deep,28%,High
+WE-76,Duck Pond, ,Yes - on State List,12.95285416,Wellfleet,Chequesset,575313.2473,56,deep,2%,Very Low
+WE-74,Grass Pond, ,No,0.957915063,Wellfleet,Chequesset,,0.65616,shallow,,#N/A
+WE-71,Dyer Pond, ,Yes - not on State List,11.77403477,Wellfleet,Chequesset,260836.7358,36,deep,3%,Very Low
+WE-70,Turtle Pond, ,No,3.900807359,Wellfleet,Chequesset,,7,shallow,3%,Very Low
+WE-66,Northeast Pond, ,No,3.984534268,Wellfleet,Chequesset,,11.81088,shallow,1%,Very Low
+WE-65,Long Pond, ,Yes - on State List,36.88476503,Wellfleet,Chequesset,1578677.743,50,deep,10%,Low
+YA-716,Jabez Neds Pond,Seine Pond,No,7.760847171,Yarmouth,Sagamore,,20,deep,37%,High
+BO-644,Red Brook Pond, ,Yes - not on State List,17.46777807,Bourne,Sagamore,,10,shallow,20%,Medium
+PR-1062,,,No,0.38267089,Provincetown,Pilgrim,,#N/A,#N/A,1%,Very Low
+PR-7, , ,No,1.20987796,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-6, , ,No,4.381478949,Provincetown,Pilgrim,,#N/A,#N/A,2%,Very Low
+PR-5, , ,No,2.401232044,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-3, , ,No,1.303410197,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-1063,,,No,2.756584543,Provincetown,Pilgrim,,#N/A,#N/A,0%,Very Low
+PR-1064,,,No,0.399326057,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+FA-997, , ,No,0.262484716,Falmouth,Sagamore,,#N/A,#N/A,34%,High
+MA-1065,,,No,0.254128225,Mashpee,Sagamore,,#N/A,#N/A,68%,Very High
+MA-961, , ,No,0.284085509,Mashpee,Sagamore,,#N/A,#N/A,59%,Very High
+MA-1066,,,No,0.280363295,Mashpee,Sagamore,,#N/A,#N/A,66%,Very High
+BA-1067,,,No,0.809639621,Barnstable,Sagamore,,#N/A,#N/A,4%,Very Low
+YA-889, , ,No,0.7594834,Yarmouth,Sagamore,,#N/A,#N/A,14%,Medium
+FA-776, , ,No,0.63160484,Falmouth,Sagamore,,#N/A,#N/A,14%,Medium
+HA-1068,,,No,0.763046448,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+YA-505, , ,No,2.207914368,Yarmouth,Sagamore,,#N/A,#N/A,22%,Medium
+BA-410, , ,No,0.347420968,Barnstable,Sagamore,,#N/A,#N/A,19%,Medium
+SA-1069,,,No,0.959255886,Sandwich,Sagamore,,#N/A,#N/A,25%,Medium
+SA-1070,,,No,0.336804313,Sandwich,Sagamore,,#N/A,#N/A,36%,High
+BO-220, , ,No,0.434614573,Bourne,Plymouth-Carver,,#N/A,#N/A,42%,High
+OR-199, , ,No,0.245605127,Orleans,Nauset,,#N/A,#N/A,69%,Very High
+BR-195, , ,No,0.381832081,Brewster,Monomoy,,#N/A,#N/A,0%,Very Low
+PR-12, , ,No,1.860037543,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+PR-10, , ,No,1.313431495,Provincetown,Pilgrim,,#N/A,#N/A,2%,Very Low
+PR-11, , ,No,0.966274789,Provincetown,Pilgrim,,#N/A,#N/A,1%,Very Low
+FA-1012, , ,No,2.033147996,Falmouth,Sagamore,,#N/A,#N/A,24%,Medium
+FA-1071,,,No,0.430147109,Falmouth,Sagamore,,#N/A,#N/A,14%,Medium
+FA-934, , ,No,0.552455054,Falmouth,Sagamore,,#N/A,#N/A,60%,Very High
+FA-1072,,,No,0.323137452,Falmouth,Sagamore,,#N/A,#N/A,46%,High
+FA-921, , ,No,0.819644279,Falmouth,Sagamore,,#N/A,#N/A,41%,High
+SA-216, , ,No,1.634290774,Sandwich,Sagamore,,#N/A,#N/A,5%,Very Low
+BO-190, , ,No,4.849269989,Bourne,Plymouth-Carver,,#N/A,#N/A,26%,High
+OR-152, , ,No,0.729902192,Orleans,Nauset,,#N/A,#N/A,0%,Very Low
+OR-1073,,,No,1.095025073,Orleans,Nauset,,#N/A,#N/A,22%,Medium
+WE-79, , ,No,1.018457745,Wellfleet,Chequesset,,#N/A,#N/A,1%,Very Low
+WE-63, , ,No,0.476159718,Wellfleet,Chequesset,,#N/A,#N/A,,#N/A
+TR-46, , ,No,1.178420001,Truro,Pamet,,#N/A,#N/A,67%,Very High
+PR-1074,,,No,3.66513597,Provincetown,Pilgrim,,#N/A,#N/A,2%,Very Low
+BA-825, , ,No,2.299601214,Barnstable,Sagamore,,#N/A,#N/A,27%,High
+YA-729, , ,No,0.363293329,Yarmouth,Sagamore,,#N/A,#N/A,29%,High
+YA-721, , ,No,0.655718653,Yarmouth,Sagamore,,#N/A,#N/A,,#N/A
+YA-698, , ,No,0.833854373,Yarmouth,Sagamore,,#N/A,#N/A,29%,High
+BO-674, , ,No,0.5911121,Bourne,Sagamore,,#N/A,#N/A,6%,Low
+CH-563, , ,No,0.817612024,Chatham,Monomoy,,#N/A,#N/A,82%,Very High
+YA-468, , ,No,2.020204945,Yarmouth,Sagamore,,#N/A,#N/A,11%,Medium
+YA-385,Perera Pond, ,No,0.518712405,Yarmouth,Sagamore,,#N/A,#N/A,69%,Very High
+HA-1075,,,No,0.268106691,Harwich,Monomoy,,#N/A,#N/A,4%,Very Low
+BR-252, , ,No,3.529131862,Brewster,Monomoy,,#N/A,#N/A,14%,Medium
+FA-1022, , ,No,9.478076972,Falmouth,Sagamore,,#N/A,#N/A,18%,Medium
+MA-1076,,,No,0.270685952,Mashpee,Sagamore,,#N/A,#N/A,54%,Very High
+FA-978, , ,No,0.340489876,Falmouth,Sagamore,,#N/A,#N/A,71%,Very High
+MA-1077,,,No,0.580688755,Mashpee,Sagamore,,#N/A,#N/A,70%,Very High
+MA-1078,,,No,0.816761397,Mashpee,Sagamore,,#N/A,#N/A,44%,High
+BA-750,Filends Pond, ,No,5.45210336,Barnstable,Sagamore,,#N/A,#N/A,9%,Low
+YA-1079,,,No,0.507602205,Yarmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+YA-728, , ,No,4.20826436,Yarmouth,Sagamore,,#N/A,#N/A,20%,Medium
+CH-589, , ,No,2.032399213,Chatham,Monomoy,,#N/A,#N/A,10%,Medium
+BA-426, , ,No,1.351535901,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+BO-1080,,,No,1.965935588,Bourne,Plymouth-Carver,,#N/A,#N/A,38%,High
+WE-1081,,,No,0.351602239,Wellfleet,Chequesset,,#N/A,#N/A,1%,Very Low
+FA-1020, , ,No,3.163058917,Falmouth,Sagamore,,#N/A,#N/A,10%,Low
+FA-1001, , ,No,0.230383175,Falmouth,Sagamore,,#N/A,#N/A,34%,High
+FA-1000, , ,No,1.197808146,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+FA-952, , ,No,3.31373741,Falmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+FA-1082,,,No,0.244518511,Falmouth,Sagamore,,#N/A,#N/A,5%,Low
+MA-919, , ,No,0.637060655,Mashpee,Sagamore,,#N/A,#N/A,,#N/A
+MA-890, , ,No,0.579615949,Mashpee,Sagamore,,#N/A,#N/A,47%,High
+EA-106, , ,No,0.666313968,Eastham,Nauset,,#N/A,#N/A,51%,Very High
+WE-78, , ,No,0.467395232,Wellfleet,Chequesset,,#N/A,#N/A,33%,High
+WE-75, , ,No,0.445369929,Wellfleet,Chequesset,,#N/A,#N/A,,#N/A
+FA-945, , ,No,0.800131479,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+FA-940, , ,No,1.896884451,Falmouth,Sagamore,,#N/A,#N/A,5%,Low
+YA-886, , ,No,1.253745677,Yarmouth,Sagamore,,#N/A,#N/A,6%,Low
+BA-785, , ,No,0.421862704,Barnstable,Sagamore,,#N/A,#N/A,75%,Very High
+BA-778, , ,No,0.402514853,Barnstable,Sagamore,,#N/A,#N/A,24%,Medium
+HA-525,Sand Pond, ,Yes - on State List,23.39379979,Harwich,Monomoy,391923.7256,25,deep,11%,Medium
+CH-425,Trout Pond, ,No,4.926853411,Chatham,Monomoy,,16.469616,deep,24%,Medium
+FA-937,Flax Pond, ,Yes - on State List,22.8234587,Falmouth,Sagamore,,30,deep,17%,Medium
+YA-711,Big Sandy Pond,Flax Pond,Yes - on State List,20.06687636,Yarmouth,Sagamore,,20,deep,36%,High
+CH-481,Ryders Pond, ,No,4.974758932,Chatham,Monomoy,34485.11016,15,deep,14%,Medium
+CH-463,Schoolhouse Pond, ,Yes - on State List,22.54165716,Chatham,Monomoy,750382.5254,47,deep,9%,Low
+CH-439,Minister Pond, ,No,2.712428238,Chatham,Monomoy,,14.369904,deep,21%,Medium
+CH-436,Pickerel Pond, ,No,4.911220757,Chatham,Monomoy,,#N/A,#N/A,15%,Medium
+BA-411,Hinckley Pond,Coggins Pond,Yes - not on State List,10.50648471,Barnstable,Sagamore,,21.3252,deep,21%,Medium
+BA-782,Red Lily Pond, ,No,4.822389774,Barnstable,Sagamore,15250.02256,6,shallow,27%,High
+BA-731,Pattys Pond, ,No,8.198231546,Barnstable,Sagamore,,#N/A,#N/A,4%,Very Low
+CH-554,Bearses Pond, ,No,2.377432302,Chatham,Monomoy,,#N/A,#N/A,6%,Low
+BO-515,Mill Pond, ,No,0.987006939,Bourne,Sagamore,,#N/A,#N/A,40%,High
+CH-484,Marys Pond, ,No,4.128174485,Chatham,Monomoy,,11.97492,shallow,3%,Very Low
+CH-479,Barclay Pond, ,No,2.988790917,Chatham,Monomoy,,27.72276,deep,0%,Very Low
+CH-458,Goose Pond, ,Yes - on State List,40.88393269,Chatham,Monomoy,1324424.473,52,deep,5%,Very Low
+FA-938,Mares Pond, ,Yes - on State List,28.62498059,Falmouth,Sagamore,1076019.032,55,deep,20%,Medium
+BA-756,Aunt Bettys Pond, ,No,7.296972184,Barnstable,Sagamore,,3.2808,shallow,46%,High
+YA-692,Horse Pond,Horn Pond,Yes - on State List,30.91325804,Yarmouth,Sagamore,,19,deep,10%,Low
+HA-562,Paddocks Pond, ,Yes - on State List,12.11514006,Harwich,Monomoy,,#N/A,#N/A,24%,Medium
+HA-557,Okers Pond, ,No,0.707614256,Harwich,Monomoy,,#N/A,#N/A,1%,Very Low
+OR-153,Crystal Lake,Fresh Pond,Yes - on State List,39.3415911,Orleans,Nauset,1202490.437,45,deep,37%,High
+EA-91,Molls Pond, ,No,3.582242148,Eastham,Nauset,28879.44291,12,shallow,23%,Medium
+FA-1004,Flax Pond, ,No,3.57461213,Falmouth,Sagamore,,#N/A,#N/A,4%,Very Low
+FA-939,Spectacle Pond, ,Yes - on State List,19.28205964,Falmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-746,Mill Pond, ,No,5.972060486,Barnstable,Sagamore,,3.2808,shallow,24%,Medium
+YA-653,Plashes Pond,Plashes,Yes - not on State List,51.74017583,Yarmouth,Sagamore,,6,shallow,6%,Low
+CH-550,Black Pond, ,No,1.741586058,Chatham,Monomoy,,11.4828,shallow,3%,Very Low
+CH-516,White Pond, ,Yes - on State List,42.977305,Chatham,Monomoy,1618735.848,59,deep,18%,Medium
+SA-295,Hoxies Pond, ,No,8.725192808,Sandwich,Sagamore,229643.5716,37,deep,15%,Medium
+BR-177,Myricks Pond, ,No,4.43099732,Brewster,Monomoy,,16.404,deep,7%,Low
+OR-174,Gould Pond, ,No,4.200630463,Orleans,Nauset,,15.25572,deep,1%,Very Low
+EA-92,Ministers Pond,Meetinghouse Pond,Yes - on State List,22.41980703,Eastham,Nauset,249504.5874,16,deep,22%,Medium
+EA-90,Krogmans Pond, ,No,2.28130942,Eastham,Nauset,,#N/A,#N/A,14%,Medium
+FA-920,Parker Road Pond, ,Yes - not on State List,16.63595101,Falmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-815,Eagle Pond, ,No,8.567396489,Barnstable,Sagamore,96699.83935,18,deep,,#N/A
+YA-686,Bassetts Lot Pond, ,No,7.263551219,Yarmouth,Sagamore,,20,deep,1%,Very Low
+CH-491,Emery Pond, ,Yes - on State List,14.09533661,Chatham,Monomoy,188582.7633,21,deep,26%,High
+CH-421,Pinkwink Pond, ,No,1.515391319,Chatham,Monomoy,,#N/A,#N/A,9%,Low
+EA-89,Higgins Pond, ,No,1.321372691,Eastham,Nauset,,#N/A,#N/A,23%,Medium
+EA-87,Bakers Pond, ,No,3.664856079,Eastham,Nauset,,#N/A,#N/A,10%,Medium
+SA-682,Lily Pond, ,No,5.249505926,Sandwich,Sagamore,,#N/A,#N/A,,#N/A
+CH-517,Archies Pond, ,No,1.948634105,Chatham,Monomoy,,#N/A,#N/A,,#N/A
+BO-511,Shop Pond, ,No,2.15038239,Bourne,Sagamore,,5.052432,shallow,31%,High
+OR-247,Twinings Pond, ,No,9.202089665,Orleans,Nauset,82278.24198,14,deep,4%,Very Low
+DE-246,Jonathans Pond, ,No,0.340932785,Dennis,Monomoy,,#N/A,#N/A,67%,Very High
+BO-165,Foundry Pond, ,No,5.674199314,Bourne,Plymouth-Carver,,4,shallow,24%,Medium
+FA-925,Deer Pond, ,No,8.714192832,Falmouth,Sagamore,,#N/A,#N/A,9%,Low
+BA-733,Flowing Pond, ,No,7.805886123,Barnstable,Sagamore,,#N/A,#N/A,2%,Very Low
+YA-637,Halfway Pond, ,No,4.020560954,Yarmouth,Sagamore,,#N/A,#N/A,46%,High
+CH-506,South Pond, ,No,3.380978978,Chatham,Monomoy,,#N/A,#N/A,13%,Medium
+YA-493,Elishas Pond,Flax Pond,Yes - on State List,10.31813921,Yarmouth,Sagamore,,20,deep,28%,High
+CH-490,Duane Pond, ,No,2.839566245,Chatham,Monomoy,,#N/A,#N/A,3%,Very Low
+OR-136,Bolands Pond, ,No,7.360432363,Orleans,Nauset,135037.903,21,deep,18%,Medium
+BA-748,Fawcetts Pond, ,Yes - not on State List,13.31731111,Barnstable,Sagamore,,4.26504,shallow,29%,High
+SA-504,Triangle Pond, ,Yes - on State List,86.27722604,Sandwich,Sagamore,,30,deep,10%,Medium
+YA-483,Perch Pond, ,No,4.86225814,Yarmouth,Sagamore,,20,deep,10%,Medium
+DE-369,Whittemores Pond, ,No,2.683860982,Dennis,Monomoy,,#N/A,#N/A,24%,Medium
+DE-347,Clay Pond, ,No,3.761086557,Dennis,Monomoy,,#N/A,#N/A,2%,Very Low
+DE-325,Northern Simmons Pond, ,No,4.793787165,Dennis,Monomoy,,21.29999924,deep,,#N/A
+OR-228,Uncle Israels Pond, ,No,1.933537347,Orleans,Nauset,,5.90544,shallow,25%,Medium
+BO-144,Black Pond, ,No,4.948865963,Bourne,Plymouth-Carver,,#N/A,#N/A,2%,Very Low
+FA-826,Crowell Pond, ,No,1.472739143,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+BA-675,Long Pond, ,Yes - on State List,56.63349542,Barnstable,Sagamore,509115.3804,22,deep,10%,Low
+CH-440,Mill Pond, ,Yes - on State List,22.98050455,Chatham,Monomoy,274861.2573,16,deep,7%,Low
+SA-409,Spectacle Pond, ,Yes - on State List,106.1890499,Sandwich,Sagamore,3082629.854,43,deep,6%,Low
+DE-352,Grassy Pond, ,Yes - on State List,11.94745069,Dennis,Monomoy,,#N/A,#N/A,4%,Very Low
+DE-332,Southern Simmons Pond, ,No,5.588576694,Dennis,Monomoy,,#N/A,#N/A,8%,Low
+BO-326,Mill Pond, ,No,0.615166907,Bourne,Plymouth-Carver,,#N/A,#N/A,25%,Medium
+OR-262,Deep Pond, ,No,4.887802021,Orleans,Nauset,,20.01288,deep,13%,Medium
+OR-253,Shoal Pond, ,Yes - not on State List,11.16414256,Orleans,Nauset,,8.202,shallow,13%,Medium
+OR-203,Wash Pond, ,No,1.348106215,Orleans,Nauset,11295.90548,12,shallow,1%,Very Low
+BA-719,Lumbert Pond, ,Yes - not on State List,10.17344981,Barnstable,Sagamore,,5.183664,shallow,8%,Low
+SA-581,Lower Hog Pond,Upper Hog Pond,No,8.194989568,Sandwich,Sagamore,,26,deep,17%,Medium
+SA-559,Upper Hog Pond,Lower Hog Pond,Yes - not on State List,11.7607283,Sandwich,Sagamore,,20,deep,8%,Low
+CH-522,Newty Pond, ,No,4.700103179,Chatham,Monomoy,,5.544552,shallow,12%,Medium
+HA-507,Flax Pond, ,Yes - on State List,15.10024892,Harwich,Monomoy,133375.7567,18,deep,6%,Low
+DE-496,Duck Pond, ,No,0.517828666,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+YA-492,Greenough Pond, ,Yes - on State List,26.8687069,Yarmouth,Sagamore,,25,deep,1%,Very Low
+YA-470,Little Greenough Pond, ,No,4.660132343,Yarmouth,Sagamore,,#N/A,#N/A,0%,Very Low
+BA-382, , ,No,5.733771478,Barnstable,Sagamore,,#N/A,#N/A,12%,Medium
+BA-372,Bog Pond, ,No,2.198285166,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+SA-324,Mill Pond,Nye Pond,No,6.694631165,Sandwich,Sagamore,,#N/A,#N/A,25%,High
+BR-205,Schoolhouse Pond, ,No,6.805394013,Brewster,Monomoy,,10,shallow,23%,Medium
+OR-167,Bakers Pond, ,Yes - on State List,31.1420429,Orleans,Nauset,1432831.736,60,deep,8%,Low
+BR-162,Owl Pond, ,No,3.902415946,Brewster,Monomoy,,29.5272,deep,10%,Medium
+SA-615,Pimlico Pond, ,Yes - not on State List,16.92513745,Sandwich,Sagamore,233475.5243,25,deep,31%,High
+HA-532,Island Pond, ,No,2.87502801,Harwich,Monomoy,,#N/A,#N/A,2%,Very Low
+SA-526,Peters Pond, ,Yes - on State List,135.0273587,Sandwich,Sagamore,4124658.959,57,deep,16%,Medium
+BO-498,The Basin, ,No,2.031597146,Bourne,Sagamore,,#N/A,#N/A,2%,Very Low
+YA-487,Muddy Pond, ,No,2.353102419,Yarmouth,Sagamore,,20,deep,2%,Very Low
+YA-457,Millers Pond, ,No,5.930031166,Yarmouth,Sagamore,,20,deep,,#N/A
+YA-422,Howes Pond, ,No,2.088481755,Yarmouth,Sagamore,,15,deep,5%,Very Low
+OR-264,Uncle Seths Pond, ,No,5.777735419,Orleans,Nauset,,11.285952,shallow,15%,Medium
+BR-161,Vespers Pond, ,No,1.85730854,Brewster,Monomoy,,#N/A,#N/A,8%,Low
+BR-160,Keeler Pond, ,No,3.29533046,Brewster,Monomoy,,#N/A,#N/A,5%,Low
+BR-158,Lees Pond, ,No,2.486402015,Brewster,Monomoy,,#N/A,#N/A,19%,Medium
+CH-524,Black Pond, ,No,4.292150377,Chatham,Monomoy,34635.59733,16,deep,13%,Medium
+YA-494,Long Pond, ,No,8.485012081,Yarmouth,Sagamore,,25,deep,27%,High
+BA-430,Andreas Pond, ,No,0.801461517,Barnstable,Sagamore,,#N/A,#N/A,23%,Medium
+BO-169,Goat Pasture Pond,Goat Pond,Yes - not on State List,22.62819117,Bourne,Plymouth-Carver,,5,shallow,2%,Very Low
+BR-163,Triangle Pond, ,No,1.735759799,Brewster,Monomoy,,#N/A,#N/A,0%,Very Low
+FA-833,Turtle Pond, ,No,2.372696786,Falmouth,Sagamore,,#N/A,#N/A,5%,Very Low
+YA-472,Dennis Pond, ,Yes - on State List,48.32412519,Yarmouth,Sagamore,423581.0776,18,deep,7%,Low
+BR-225,Smith Pond, ,Yes - on State List,12.28929194,Brewster,Monomoy,,10.367328,shallow,6%,Low
+BR-202,Eel Pond, ,No,3.335261613,Brewster,Monomoy,,13.812168,deep,3%,Very Low
+BR-194,Higgins Pond,White Pond,Yes - on State List,29.46527434,Brewster,Monomoy,1396856.472,67,deep,1%,Very Low
+BR-168,Flax Pond,Flat Pond,Yes - on State List,52.66507063,Brewster,Monomoy,3209382.618,75,deep,1%,Very Low
+EA-94,Uncle Dans Pond, ,No,2.214236274,Eastham,Nauset,,#N/A,#N/A,6%,Low
+HA-500,Abrams Pond, ,No,0.816668058,Harwich,Monomoy,,#N/A,#N/A,14%,Medium
+DE-447,Eagle Pond, ,Yes - on State List,8.114671673,Dennis,Monomoy,,24,deep,3%,Very Low
+DE-348,Run Pond, ,Yes - on State List,8.768727743,Dennis,Monomoy,,10.5,shallow,4%,Very Low
+DE-340,Cash Pond, ,No,2.407925211,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+BA-737,Long Pond, ,Yes - not on State List,54.31713392,Barnstable,Sagamore,909545.0915,23,deep,61%,Very High
+BO-709,Cuffs Pond, ,No,1.1941232,Bourne,Sagamore,,#N/A,#N/A,32%,High
+BO-687,Long Pond, ,No,7.233664798,Bourne,Sagamore,,#N/A,#N/A,3%,Very Low
+BA-646,Mary Dunn Pond,Halfway Pond,Yes - not on State List,18.08405016,Barnstable,Sagamore,59199.8396,9,shallow,2%,Very Low
+YA-625,Crow Pond, ,No,0.749526723,Yarmouth,Sagamore,,#N/A,#N/A,4%,Very Low
+BO-495,Freeman Pond, ,No,2.501451959,Bourne,Plymouth-Carver,,3,shallow,,#N/A
+BA-473,Flax Pond,Lily Pond,No,2.847737265,Barnstable,Sagamore,,#N/A,#N/A,30%,High
+BO-477,Upper Pond, ,No,1.609234413,Bourne,Sagamore,,#N/A,#N/A,,#N/A
+HA-414,White Pond,Lizzies Pond,Yes - on State List,12.29979021,Harwich,Monomoy,,26.2464,deep,21%,Medium
+BR-313,Walkers Pond,Mill Pond,Yes - on State List,105.2431006,Brewster,Monomoy,590376.7108,10,shallow,5%,Very Low
+BR-272,Upper Mill Pond,Mill Pond,Yes - on State List,260.1000261,Brewster,Monomoy,4564785.5,30,deep,8%,Low
+BR-269,Canoe Pond, ,Yes - on State List,13.79258978,Brewster,Monomoy,,20,deep,14%,Medium
+BR-245,Lower Mill Pond, ,Yes - on State List,51.64770572,Brewster,Monomoy,246043.7231,13,deep,10%,Low
+BR-192,Little Cliff Pond, ,Yes - on State List,35.63063902,Brewster,Monomoy,936062.2367,37,deep,1%,Very Low
+BR-189,Sols Pond, ,No,7.068649503,Brewster,Monomoy,,18.0444,deep,21%,Medium
+BR-1028,Cliff Pond, ,Yes - on State List,205.1891701,Brewster,Monomoy,15878274.16,95,deep,1%,Very Low
+BR-180,Blueberry Pond, ,Yes - on State List,22.03603889,Brewster,Monomoy,372012.8009,24,deep,9%,Low
+FA-904,Shallow Pond, ,Yes - on State List,12.3805519,Falmouth,Sagamore,,#N/A,#N/A,18%,Medium
+BA-670,Lewis Pond, ,No,4.180740698,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-652,Upper Gate Pond, ,No,1.139768171,Barnstable,Sagamore,,#N/A,#N/A,6%,Low
+BA-596,Lamson Pond, ,Yes - not on State List,13.149563,Barnstable,Sagamore,,#N/A,#N/A,0%,Very Low
+HA-442,Andrews Pond,Katies Pond,Yes - on State List,6.873229102,Harwich,Monomoy,,28.54296,deep,11%,Medium
+DE-355,Flax Pond, ,Yes - on State List,16.60577428,Dennis,Monomoy,,29,deep,8%,Low
+DE-342,Bakers Pond, ,Yes - on State List,9.939393593,Dennis,Monomoy,,19,deep,5%,Very Low
+BR-321,Slough Pond, ,Yes - on State List,32.36563375,Brewster,Monomoy,,30,deep,16%,Medium
+BR-232,Rafe Pond, ,No,9.485228103,Brewster,Monomoy,124436.9793,18,deep,2%,Very Low
+BR-1029,Grassy Nook Pond, ,No,7.291726858,Brewster,Monomoy,,3,shallow,2%,Very Low
+BA-587,Round Pond, ,No,2.503953421,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+HA-393,Washburn Bog Pond, ,No,0.585624406,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+HA-353,Hinckleys Pond,Pleasant Lake,Yes - on State List,174.7566875,Harwich,Monomoy,2940055.314,28,deep,20%,Medium
+BR-209,Ruth Pond, ,No,7.995494249,Brewster,Monomoy,101121.6707,18,deep,2%,Very Low
+BR-197,Widger Hole,Widgeon Hole Pond,No,3.289237557,Brewster,Monomoy,,#N/A,#N/A,6%,Low
+BA-723,Dunns Pond, ,No,5.242197961,Barnstable,Sagamore,,4.26504,shallow,1%,Very Low
+HA-387,Littlefields Pond, ,No,5.427428076,Harwich,Monomoy,,#N/A,#N/A,10%,Medium
+HA-386,Robbins Pond, ,Yes - on State List,32.76166666,Harwich,Monomoy,,12,shallow,13%,Medium
+BR-357,Elbow Pond, ,Yes - on State List,36.82766364,Brewster,Monomoy,817024.7309,31,deep,14%,Medium
+BR-335,Pine Pond, ,Yes - on State List,24.19357869,Brewster,Monomoy,,19.389528,deep,11%,Medium
+HA-306,Seymour Pond,Bangs Pond,Yes - on State List,183.380274,Brewster,Monomoy,5794031.777,38,deep,12%,Medium
+FA-901,Randal Pond, ,No,3.309847785,Falmouth,Sagamore,,#N/A,#N/A,16%,Medium
+BA-701,Fresh Pond, ,No,2.833127266,Barnstable,Sagamore,,#N/A,#N/A,51%,Very High
+BA-608,Little Israel Pond, ,No,1.595333391,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BA-585,Israel Pond,Israels Pond,No,8.523888555,Barnstable,Sagamore,11358.97382,2,shallow,1%,Very Low
+BR-377,Dark Bottom Pond,Round Pond,No,4.965817542,Brewster,Monomoy,,#N/A,#N/A,2%,Very Low
+DE-304,Aunt Pattys Pond, ,No,8.782704339,Dennis,Monomoy,,#N/A,#N/A,7%,Low
+BR-298,1858 Bog, ,No,1.479280242,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+OR-171,Chigger Pond, ,No,0.302342148,Orleans,Nauset,,2.887104,shallow,21%,Medium
+FA-918,Jenkins Pond, ,Yes - on State List,88.31270422,Falmouth,Sagamore,2872795.354,51,deep,42%,High
+MA-895,Flying Squirrel Pond, ,No,0.986883065,Mashpee,Sagamore,,6,shallow,17%,Medium
+FA-884,Crooked Pond, ,Yes - on State List,35.38703972,Falmouth,Sagamore,1167465.448,42,deep,14%,Medium
+BA-614,Flint Rock Pond, ,No,6.926946149,Barnstable,Sagamore,,#N/A,#N/A,14%,Medium
+BA-600,Small Pond, ,No,0.767511298,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+HA-424,Kiddies Pond, ,No,2.657533691,Harwich,Monomoy,,#N/A,#N/A,45%,High
+HA-420,Bucks Pond, ,Yes - on State List,34.36598459,Harwich,Monomoy,,35.92476,deep,45%,High
+HA-418,Sand Lake, ,No,8.303726423,Harwich,Monomoy,,#N/A,#N/A,35%,High
+HA-416,Josephs Pond,John Josephs Pond,Yes - on State List,21.81159272,Harwich,Monomoy,808718.0859,55,deep,34%,High
+BR-319,Grassy Pond, ,Yes - on State List,12.5972323,Brewster,Monomoy,,#N/A,#N/A,6%,Low
+BR-316,Black Pond, ,Yes - not on State List,11.36662809,Brewster,Monomoy,,15.190104,deep,22%,Medium
+BR-314,Smalls Pond, ,Yes - on State List,17.32074268,Brewster,Monomoy,94872.38126,10,shallow,14%,Medium
+BR-305,Greenland Pond, ,Yes - on State List,37.53928512,Brewster,Monomoy,,18,deep,6%,Low
+HA-300,Mud Pond, ,Yes - not on State List,11.00925188,Harwich,Monomoy,,#N/A,#N/A,1%,Very Low
+BR-299,Cahoon Pond, ,Yes - on State List,32.89551545,Brewster,Monomoy,,14,deep,16%,Medium
+BR-279,Long Pond, ,Yes - on State List,742.9484129,Brewster,Monomoy,41274889.31,70,deep,22%,Medium
+BR-267,Calf Field Pond, ,No,2.920324751,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+FA-867,Spectacle Pond, ,No,5.781251746,Falmouth,Sagamore,,#N/A,#N/A,10%,Low
+BA-812,Naomi Pond, ,No,1.349674501,Barnstable,Sagamore,,#N/A,#N/A,0%,Very Low
+BA-699, , ,No,4.729415627,Barnstable,Sagamore,,#N/A,#N/A,7%,Low
+HA-404,Jacks Pond, ,No,1.759102804,Harwich,Monomoy,,#N/A,#N/A,63%,Very High
+HA-364,Black Pond,Little Hawksnest Pond,Yes - on State List,9.35493543,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+HA-354,Hawksnest Pond,Wolf's Field Pond,Yes - on State List,29.54941406,Harwich,Monomoy,,27.23064,deep,1%,Very Low
+HA-351,Olivers Pond,Kenneys Pond,Yes - on State List,14.59654627,Harwich,Monomoy,,#N/A,#N/A,1%,Very Low
+HA-310,Mill Pond, ,Yes - not on State List,13.58196154,Harwich,Monomoy,108396.4826,15,deep,15%,Medium
+BR-303,Girl Scout Pond, ,No,3.776275032,Brewster,Monomoy,,#N/A,#N/A,4%,Very Low
+BR-287,Round Pond, ,No,3.525921834,Brewster,Monomoy,,#N/A,#N/A,5%,Very Low
+DE-286,Fund Pond, ,No,5.446489854,Dennis,Monomoy,,#N/A,#N/A,61%,Very High
+BR-285,Tuckers Pond, ,No,2.853840254,Brewster,Monomoy,,#N/A,#N/A,0%,Very Low
+BR-240,Sheep Pond, ,Yes - on State List,150.8885993,Brewster,Monomoy,5780313.161,63,deep,9%,Low
+BR-213,No Bottom Pond, ,No,3.271031665,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+MA-804,Coombs Pond, ,No,2.075852531,Mashpee,Sagamore,,0.8202,shallow,17%,Medium
+BA-626,Shallow Pond, ,Yes - not on State List,80.97420468,Barnstable,Sagamore,79691.49938,7,shallow,20%,Medium
+HA-381,Cornelius Pond,Eldridge Pond,Yes - on State List,12.73294001,Harwich,Monomoy,,7,shallow,2%,Very Low
+HA-376,Aunt Edies Pond,Josiah Bassetts Pond,Yes - not on State List,21.7778078,Harwich,Monomoy,,7,shallow,18%,Medium
+HA-358,Walkers Pond,Eldredge Pond,Yes - on State List,36.16547055,Harwich,Monomoy,,27,deep,8%,Low
+SA-345,Lily Pond, ,No,5.430365704,Sandwich,Sagamore,,#N/A,#N/A,13%,Medium
+DE-281,Cedar Pond, ,No,9.204679336,Dennis,Monomoy,,13.89999962,deep,14%,Medium
+SA-277,Dead Swamp Pond, ,No,1.819204943,Sandwich,Sagamore,,#N/A,#N/A,4%,Very Low
+BR-275,Balogs Bog, ,No,0.910019521,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+BR-241,Ed Snow Pond, ,No,4.456937705,Brewster,Monomoy,,#N/A,#N/A,3%,Very Low
+FA-882,Round Pond, ,Yes - on State List,12.06572595,Falmouth,Sagamore,52785.56134,10,shallow,26%,High
+MA-871,Martha Pond,Wills Pond,Yes - not on State List,12.79375888,Mashpee,Sagamore,,13,deep,13%,Medium
+FA-888,Coonamessett Pond,Pickerel Pond,Yes - on State List,169.4260687,Falmouth,Sagamore,3271886.687,35,deep,11%,Medium
+MA-801,Amos Pond, ,No,5.70934838,Mashpee,Sagamore,,1.31232,shallow,2%,Very Low
+BA-594,Hathaway Pond (South), ,Yes - on State List,13.24102216,Barnstable,Sagamore,,6.88968,shallow,6%,Low
+BA-565,Hathaway Pond (North), ,Yes - not on State List,21.83656172,Barnstable,Sagamore,933529.2891,57,deep,1%,Very Low
+BO-365,Clay Pond, ,No,8.526345448,Bourne,Plymouth-Carver,,#N/A,#N/A,15%,Medium
+FA-857,Deep Pond, ,Yes - on State List,27.92505048,Falmouth,Sagamore,429433.1697,28,deep,24%,Medium
+BO-289,Great Pond, ,No,2.489248527,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+BR-248,Griffiths Pond, ,Yes - on State List,34.01702574,Brewster,Monomoy,,15,deep,14%,Medium
+OR-147,Kettle Pond, ,No,1.160154477,Orleans,Nauset,7452.111783,10,shallow,38%,High
+MA-870,Cataquin Pond,Tim Pond,Yes - not on State List,10.77610598,Mashpee,Sagamore,,1.6404,shallow,30%,High
+BO-556,Flax Pond,Picture Lake,Yes - not on State List,22.77985006,Bourne,Sagamore,74099.08698,6,shallow,45%,High
+BA-523,No Bottom Pond, ,No,1.729314912,Barnstable,Sagamore,,18.0444,deep,,#N/A
+SA-210,Shawme Lake,Mill Pond,Yes - not on State List,26.44708408,Sandwich,Sagamore,69826.70234,16,deep,36%,High
+MA-897,Flashy Pond,Deborah Bottles Pond,No,4.972842073,Mashpee,Sagamore,,5.90544,shallow,6%,Low
+MA-818,Johns Pond, ,Yes - on State List,336.7208783,Mashpee,Sagamore,17434879.46,65,deep,40%,High
+BA-759,Lovells Pond, ,Yes - on State List,55.66782798,Barnstable,Sagamore,805011.8133,37,deep,16%,Medium
+BO-538,Lily Pond, ,No,8.070862878,Bourne,Sagamore,,5,shallow,21%,Medium
+FA-916,Round Pond, ,Yes - on State List,19.9053361,Falmouth,Sagamore,304374.9719,23,deep,16%,Medium
+FA-860,Grassy Pond,,No,8.190832478,Falmouth,Sagamore,,#N/A,#N/A,4%,Very Low
+BA-691,Round Pond, ,Yes - on State List,10.23280895,Barnstable,Sagamore,,14,deep,15%,Medium
+FA-850,Frog Pond, ,No,1.144098002,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+MA-718,Santuit Pond, ,Yes - on State List,175.3828199,Mashpee,Sagamore,748342.1307,10,shallow,18%,Medium
+BA-668,Hamblin Pond, ,Yes - on State List,118.583786,Barnstable,Sagamore,4324668.843,62,deep,20%,Medium
+BA-535,Spruce Pond, ,No,4.802066802,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+MA-793,Moody Pond,Moodys Pond,Yes - not on State List,20.29589913,Mashpee,Sagamore,,5,shallow,2%,Very Low
+BA-510,Garretts Pond,Stewards Pond,Yes - on State List,29.04435642,Barnstable,Sagamore,659297.2483,28,deep,17%,Medium
+BA-694,Muddy Pond, ,Yes - not on State List,25.03300532,Barnstable,Sagamore,314314.3381,14,deep,15%,Medium
+SA-234,Upper Shawme Lake, ,Yes - not on State List,24.56896282,Sandwich,Sagamore,176629.7657,24,deep,10%,Low
+MA-808,Ashumet Pond, ,Yes - on State List,220.2197012,Mashpee,Sagamore,11489649.88,84,deep,34%,High
+MA-781,Washburn Pond, ,No,7.835714844,Mashpee,Sagamore,,0.98424,shallow,13%,Medium
+BA-664,Shubael Pond, ,Yes - on State List,56.48108029,Barnstable,Sagamore,1905124.455,45,deep,28%,High
+BA-584,Mystic Lake,,Yes - on State List,151.3357532,Barnstable,Sagamore,4753280.987,48,deep,14%,Medium
+BO-619,Connery South Pond, ,No,1.136574859,Bourne,Plymouth-Carver,,#N/A,#N/A,0%,Very Low
+BA-449,, ,No,0.5118188,Barnstable,Sagamore,,#N/A,#N/A,56%,Very High
+BO-548, , ,No,0.423135713,Bourne,Sagamore,,#N/A,#N/A,100%,Very High
+BA-395, , ,No,0.247342658,Barnstable,Sagamore,,#N/A,#N/A,18%,Medium
+BO-389, , ,No,0.538391647,Bourne,Sagamore,,#N/A,#N/A,25%,High
+BA-370, , ,No,2.723873606,Barnstable,Sagamore,,#N/A,#N/A,23%,Medium
+BO-1083,,,No,1.418719212,Bourne,Plymouth-Carver,,#N/A,#N/A,5%,Very Low
+SA-1084,,,No,0.352174299,Sandwich,Sagamore,,#N/A,#N/A,,#N/A
+BR-157, , ,No,0.285262605,Brewster,Monomoy,,#N/A,#N/A,73%,Very High
+BR-143, , ,No,3.503258394,Brewster,Monomoy,,#N/A,#N/A,14%,Medium
+FA-947,,,No,1.720170965,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+YA-499, , ,No,1.030026687,Yarmouth,Sagamore,,#N/A,#N/A,3%,Very Low
+BA-450, , ,No,2.382054133,Barnstable,Sagamore,,#N/A,#N/A,6%,Low
+BA-392, , ,No,0.29087792,Barnstable,Sagamore,,#N/A,#N/A,2%,Very Low
+DE-278, , ,No,0.846636968,Dennis,Monomoy,,#N/A,#N/A,27%,High
+OR-1086,,,No,0.234833826,Orleans,Nauset,,#N/A,#N/A,46%,High
+OR-1087,,,No,0.322814992,Orleans,Nauset,,#N/A,#N/A,14%,Medium
+EA-104, , ,No,0.563914517,Eastham,Nauset,,#N/A,#N/A,,#N/A
+EA-1088,,,No,0.256308673,Eastham,Nauset,,#N/A,#N/A,,#N/A
+EA-88, , ,No,0.577176005,Eastham,Nauset,,#N/A,#N/A,0%,Very Low
+WE-77, , ,No,0.264078876,Wellfleet,Chequesset,,#N/A,#N/A,8%,Low
+MA-1089,,,No,1.147577048,Mashpee,Sagamore,,#N/A,#N/A,77%,Very High
+FA-932, , ,No,0.90944555,Falmouth,Sagamore,,#N/A,#N/A,16%,Medium
+BA-757, , ,No,0.321250571,Barnstable,Sagamore,,#N/A,#N/A,44%,High
+CH-1090,,,No,5.496083944,Chatham,Monomoy,,#N/A,#N/A,23%,Medium
+CH-456, , ,No,0.528868336,Chatham,Monomoy,,#N/A,#N/A,6%,Low
+SA-270, , ,No,0.233853293,Sandwich,Sagamore,,#N/A,#N/A,32%,High
+SA-233, , ,No,0.334332648,Sandwich,Sagamore,,#N/A,#N/A,24%,Medium
+EA-1091,,,No,0.284021688,Eastham,Nauset,,#N/A,#N/A,18%,Medium
+EA-1092,,,No,0.328083092,Eastham,Nauset,,#N/A,#N/A,22%,Medium
+BA-843, , ,No,2.66393649,Barnstable,Sagamore,,#N/A,#N/A,21%,Medium
+BA-827, , ,No,0.436288175,Barnstable,Sagamore,,#N/A,#N/A,54%,Very High
+BA-772, , ,No,1.905599574,Barnstable,Sagamore,,#N/A,#N/A,14%,Medium
+YA-703, , ,No,2.666982672,Yarmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+BO-622, , ,No,0.545378631,Bourne,Sagamore,,#N/A,#N/A,17%,Medium
+HA-531, , ,No,0.353318102,Harwich,Monomoy,,#N/A,#N/A,20%,Medium
+BA-433, , ,No,0.735058146,Barnstable,Sagamore,,#N/A,#N/A,26%,High
+BA-412, , ,No,0.238127768,Barnstable,Sagamore,,#N/A,#N/A,13%,Medium
+DE-1093,,,No,0.358792343,Dennis,Monomoy,,#N/A,#N/A,16%,Medium
+OR-207, , ,No,0.471685391,Orleans,Nauset,,#N/A,#N/A,42%,High
+BR-146, , ,No,1.342703476,Brewster,Monomoy,,#N/A,#N/A,7%,Low
+CH-514, , ,No,4.845885875,Chatham,Monomoy,,#N/A,#N/A,12%,Medium
+YA-1094,,,No,0.421734367,Yarmouth,Sagamore,,#N/A,#N/A,31%,High
+BO-405, , ,No,0.731889035,Bourne,Sagamore,,#N/A,#N/A,49%,High
+SA-263, , ,No,6.124376574,Sandwich,Sagamore,,#N/A,#N/A,10%,Low
+SA-242, , ,No,0.723887988,Sandwich,Sagamore,,#N/A,#N/A,77%,Very High
+OR-1095,,,No,1.492476293,Orleans,Nauset,,#N/A,#N/A,,#N/A
+BR-148, , ,No,1.391180159,Brewster,Monomoy,,#N/A,#N/A,33%,High
+FA-1096,,,No,0.306615361,Falmouth,Sagamore,,#N/A,#N/A,24%,Medium
+BA-822, , ,No,0.566632446,Barnstable,Sagamore,,#N/A,#N/A,31%,High
+BA-771,Straightway Pond, ,No,5.082259355,Barnstable,Sagamore,,#N/A,#N/A,21%,Medium
+YA-683, , ,No,1.235620144,Yarmouth,Sagamore,,#N/A,#N/A,,#N/A
+BO-583, , ,No,0.236181779,Bourne,Sagamore,,#N/A,#N/A,58%,Very High
+DE-561, , ,No,0.538752921,Dennis,Monomoy,,#N/A,#N/A,50%,High
+DE-521, , ,No,0.247071084,Dennis,Monomoy,,#N/A,#N/A,67%,Very High
+DE-513, , ,No,0.917895821,Dennis,Monomoy,,#N/A,#N/A,39%,High
+BA-438, , ,No,1.191042372,Barnstable,Sagamore,,#N/A,#N/A,16%,Medium
+SA-329, , ,No,1.813196885,Sandwich,Sagamore,,#N/A,#N/A,9%,Low
+SA-261, , ,No,2.192375063,Sandwich,Sagamore,,#N/A,#N/A,23%,Medium
+SA-1097,,,No,0.302863071,Sandwich,Sagamore,,#N/A,#N/A,19%,Medium
+EA-108, , ,No,0.253370082,Eastham,Nauset,,#N/A,#N/A,7%,Low
+FA-1002, , ,No,0.263858724,Falmouth,Sagamore,,#N/A,#N/A,41%,High
+MA-859, , ,No,0.902009538,Mashpee,Sagamore,,#N/A,#N/A,76%,Very High
+BA-767, , ,No,0.712323707,Barnstable,Sagamore,,#N/A,#N/A,43%,High
+BA-762, , ,No,0.437729604,Barnstable,Sagamore,,#N/A,#N/A,41%,High
+BA-744, , ,No,0.325552509,Barnstable,Sagamore,,#N/A,#N/A,13%,Medium
+DE-375, , ,No,0.385733373,Dennis,Monomoy,,#N/A,#N/A,10%,Low
+OR-227, , ,No,0.577430728,Orleans,Nauset,,#N/A,#N/A,11%,Medium
+FA-999, , ,No,0.686362645,Falmouth,Sagamore,,#N/A,#N/A,25%,Medium
+MA-1098,,,No,0.290984676,Mashpee,Sagamore,,#N/A,#N/A,13%,Medium
+BA-768, , ,No,0.281988517,Barnstable,Sagamore,,#N/A,#N/A,22%,Medium
+MA-739, , ,No,0.916426838,Mashpee,Sagamore,,#N/A,#N/A,,#N/A
+CH-509, , ,No,1.638609075,Chatham,Monomoy,,#N/A,#N/A,,#N/A
+SA-1099,,,No,0.315253431,Sandwich,Sagamore,,#N/A,#N/A,14%,Medium
+DE-367, , ,No,1.383169258,Dennis,Monomoy,,#N/A,#N/A,2%,Very Low
+SA-1100,,,No,1.196184935,Sandwich,Sagamore,,#N/A,#N/A,10%,Low
+OR-124, , ,No,0.592554413,Orleans,Nauset,,#N/A,#N/A,25%,Medium
+FA-922, , ,No,0.261232093,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+BO-573, , ,No,0.392625852,Bourne,Sagamore,,#N/A,#N/A,47%,High
+YA-1101,,,No,0.767216249,Yarmouth,Sagamore,,#N/A,#N/A,33%,High
+CH-475, , ,No,0.983924571,Chatham,Monomoy,,#N/A,#N/A,13%,Medium
+SA-307, , ,No,0.766071599,Sandwich,Sagamore,,#N/A,#N/A,32%,High
+OR-230, , ,No,0.677521184,Orleans,Nauset,,#N/A,#N/A,33%,High
+BR-214, , ,No,1.471046403,Brewster,Monomoy,,#N/A,#N/A,1%,Very Low
+OR-191, , ,No,3.162802442,Orleans,Nauset,,#N/A,#N/A,,#N/A
+MA-883, , ,No,1.026515055,Mashpee,Sagamore,,#N/A,#N/A,97%,Very High
+FA-1102,,,No,0.33745651,Falmouth,Sagamore,,#N/A,#N/A,19%,Medium
+BA-1103,,,No,0.588705344,Barnstable,Sagamore,,#N/A,#N/A,12%,Medium
+SA-603, , ,No,0.570115539,Sandwich,Sagamore,,#N/A,#N/A,51%,Very High
+BA-1104,,,No,0.267475488,Barnstable,Sagamore,,#N/A,#N/A,58%,Very High
+HA-1105,,,No,1.160431226,Harwich,Monomoy,,#N/A,#N/A,6%,Low
+BA-1106,,,No,0.451103181,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+SA-350, , ,No,0.357823445,Sandwich,Sagamore,,#N/A,#N/A,25%,Medium
+DE-323, , ,No,0.591104653,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+OR-238, , ,No,1.084215162,Orleans,Nauset,,#N/A,#N/A,22%,Medium
+BO-181, , ,No,8.511424767,Bourne,Plymouth-Carver,,#N/A,#N/A,18%,Medium
+BR-172, , ,No,0.487014325,Brewster,Monomoy,,#N/A,#N/A,13%,Medium
+OR-110, , ,No,1.293849983,Orleans,Nauset,,#N/A,#N/A,1%,Very Low
+FA-1107,,,No,0.289005026,Falmouth,Sagamore,,#N/A,#N/A,20%,Medium
+MA-1108,,,No,0.24154972,Mashpee,Sagamore,,#N/A,#N/A,58%,Very High
+FA-1109,,,No,0.669354429,Falmouth,Sagamore,,#N/A,#N/A,8%,Low
+BA-742, , ,No,0.305219565,Barnstable,Sagamore,,#N/A,#N/A,3%,Very Low
+YA-659, , ,No,1.507226772,Yarmouth,Sagamore,,#N/A,#N/A,5%,Low
+HA-1110,,,No,0.340953337,Harwich,Monomoy,,#N/A,#N/A,16%,Medium
+BA-373, , ,No,2.472377489,Barnstable,Sagamore,,#N/A,#N/A,4%,Very Low
+DE-1111,,,No,0.409420288,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+BR-173, , ,No,0.744888109,Brewster,Monomoy,,#N/A,#N/A,2%,Very Low
+OR-109, , ,No,0.631220837,Orleans,Nauset,,#N/A,#N/A,29%,High
+OR-107, , ,No,1.337308304,Orleans,Nauset,,#N/A,#N/A,20%,Medium
+FA-911, , ,No,1.449491707,Falmouth,Sagamore,,#N/A,#N/A,4%,Very Low
+BA-727, , ,No,1.996130676,Barnstable,Sagamore,,#N/A,#N/A,12%,Medium
+BO-717, , ,No,0.241402699,Bourne,Sagamore,,#N/A,#N/A,12%,Medium
+SA-1112,,,No,0.244335397,Sandwich,Sagamore,,#N/A,#N/A,7%,Low
+HA-520, , ,No,0.271591811,Harwich,Monomoy,,#N/A,#N/A,55%,Very High
+HA-508, , ,No,0.443526364,Harwich,Monomoy,,#N/A,#N/A,4%,Very Low
+BA-474, , ,No,0.24755142,Barnstable,Sagamore,,#N/A,#N/A,0%,Very Low
+DE-1113,,,No,0.396131776,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+BR-1114,,,No,0.233455314,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+BO-184, , ,No,3.323597783,Bourne,Plymouth-Carver,,#N/A,#N/A,30%,High
+FA-1115,,,No,0.905150725,Falmouth,Sagamore,,#N/A,#N/A,48%,High
+FA-1116,,,No,0.534786739,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+BA-751, , ,No,0.371142323,Barnstable,Sagamore,,#N/A,#N/A,19%,Medium
+BA-743, , ,No,1.438963741,Barnstable,Sagamore,,#N/A,#N/A,32%,High
+HA-489, , ,No,0.533171734,Harwich,Monomoy,,#N/A,#N/A,1%,Very Low
+OR-1117,,,No,0.70249342,Orleans,Nauset,,#N/A,#N/A,5%,Low
+OR-119, , ,No,1.172387712,Orleans,Nauset,,#N/A,#N/A,5%,Very Low
+FA-909, , ,No,0.366459282,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+FA-835, , ,No,0.387382755,Falmouth,Sagamore,,#N/A,#N/A,,#N/A
+YA-661, , ,No,0.506153646,Yarmouth,Sagamore,,#N/A,#N/A,,#N/A
+CH-552, , ,No,1.39882035,Chatham,Monomoy,,#N/A,#N/A,0%,Very Low
+BA-503, , ,No,0.283325104,Barnstable,Sagamore,,#N/A,#N/A,60%,Very High
+DE-1118,,,No,0.232239083,Dennis,Monomoy,,#N/A,#N/A,3%,Very Low
+SA-330, , ,No,1.275013287,Sandwich,Sagamore,,#N/A,#N/A,26%,High
+BR-244, , ,No,1.212287613,Brewster,Monomoy,,#N/A,#N/A,1%,Very Low
+MA-1119,,,No,0.389323572,Mashpee,Sagamore,,#N/A,#N/A,,#N/A
+FA-906, , ,No,0.616895396,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+BA-814, , ,No,0.597811041,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BA-774, , ,No,0.556292707,Barnstable,Sagamore,,#N/A,#N/A,100%,Very High
+CH-536, , ,No,0.354869421,Chatham,Monomoy,,#N/A,#N/A,59%,Very High
+CH-1120,,,No,0.557472376,Chatham,Monomoy,,#N/A,#N/A,6%,Low
+BA-482, , ,No,0.308119076,Barnstable,Sagamore,,#N/A,#N/A,11%,Medium
+DE-467, , ,No,1.101330831,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+DE-235, , ,No,1.167471449,Dennis,Monomoy,,#N/A,#N/A,21%,Medium
+BR-183, , ,No,0.439395687,Brewster,Monomoy,,#N/A,#N/A,4%,Very Low
+MA-846, , ,No,0.301281081,Mashpee,Sagamore,,#N/A,#N/A,100%,Very High
+BA-399, , ,No,0.248026145,Barnstable,Sagamore,,#N/A,#N/A,35%,High
+DE-346, , ,No,0.674967003,Dennis,Monomoy,,#N/A,#N/A,,#N/A
+BR-1121,,,No,0.310691202,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+BR-206, , ,No,0.481155153,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+OR-132, , ,No,1.182184306,Orleans,Nauset,,#N/A,#N/A,5%,Low
+MA-1122,,,No,2.33470765,Mashpee,Sagamore,,#N/A,#N/A,99%,Very High
+MA-840, , ,No,0.551285181,Mashpee,Sagamore,,#N/A,#N/A,47%,High
+FA-787, , ,No,0.590088418,Falmouth,Sagamore,,#N/A,#N/A,0%,Very Low
+BA-1123,,,No,0.313771841,Barnstable,Sagamore,,#N/A,#N/A,43%,High
+SA-318, , ,No,1.507104009,Sandwich,Sagamore,,#N/A,#N/A,54%,Very High
+BR-1124,,,No,0.720430011,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+BR-200, , ,No,1.743216453,Brewster,Monomoy,,#N/A,#N/A,0%,Very Low
+OR-1125,,,No,0.996112171,Orleans,Nauset,,#N/A,#N/A,20%,Medium
+MA-1126,,,No,0.341359815,Mashpee,Sagamore,,#N/A,#N/A,57%,Very High
+MA-853, , ,No,0.322631762,Mashpee,Sagamore,,#N/A,#N/A,80%,Very High
+MA-847, , ,No,1.390720039,Mashpee,Sagamore,,#N/A,#N/A,31%,High
+MA-838, , ,No,0.731196656,Mashpee,Sagamore,,#N/A,#N/A,52%,Very High
+BA-732, , ,No,1.590183988,Barnstable,Sagamore,,#N/A,#N/A,39%,High
+BA-673, , ,No,6.324374221,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-631, , ,No,0.261667779,Barnstable,Sagamore,,#N/A,#N/A,3%,Very Low
+YA-575, , ,No,0.995031155,Yarmouth,Sagamore,,#N/A,#N/A,37%,High
+BA-574,Campground Pond, ,No,3.646331434,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BO-159, , ,No,2.514814704,Bourne,Plymouth-Carver,,#N/A,#N/A,24%,Medium
+BA-1127,,,No,0.426288723,Barnstable,Sagamore,,#N/A,#N/A,36%,High
+BO-1128,,,No,0.512571867,Bourne,Sagamore,,#N/A,#N/A,24%,Medium
+SA-643, , ,No,1.211561282,Sandwich,Sagamore,,#N/A,#N/A,71%,Very High
+BA-502, , ,No,0.493822134,Barnstable,Sagamore,,#N/A,#N/A,3%,Very Low
+BA-451, , ,No,0.684711849,Barnstable,Sagamore,,#N/A,#N/A,0%,Very Low
+DE-336, , ,No,1.579621589,Dennis,Monomoy,,#N/A,#N/A,4%,Very Low
+FA-907, , ,No,0.8581423,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+BA-697, , ,No,0.771084347,Barnstable,Sagamore,,#N/A,#N/A,44%,High
+BA-610, , ,No,1.567953602,Barnstable,Sagamore,,#N/A,#N/A,3%,Very Low
+BA-580, , ,No,0.477871484,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BA-570, , ,No,0.963959094,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+HA-465, , ,No,1.771013958,Harwich,Monomoy,,#N/A,#N/A,5%,Very Low
+HA-454, , ,No,0.366743453,Harwich,Monomoy,,#N/A,#N/A,2%,Very Low
+BR-1129,,,No,0.478579116,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+HA-301, , ,No,0.689052629,Harwich,Monomoy,,#N/A,#N/A,0%,Very Low
+BR-296, , ,No,0.925305138,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+OR-111, , ,No,1.248521063,Orleans,Nauset,,#N/A,#N/A,7%,Low
+MA-896, , ,No,5.830985391,Mashpee,Sagamore,,#N/A,#N/A,6%,Low
+FA-879, , ,No,3.273180352,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+BA-741, , ,No,0.260288557,Barnstable,Sagamore,,#N/A,#N/A,4%,Very Low
+SA-650, , ,No,1.530742287,Sandwich,Sagamore,,#N/A,#N/A,82%,Very High
+SA-612, , ,No,2.015026706,Sandwich,Sagamore,,#N/A,#N/A,87%,Very High
+BA-611, , ,No,0.658919387,Barnstable,Sagamore,,#N/A,#N/A,6%,Low
+HA-486, , ,No,0.688956517,Harwich,Monomoy,,#N/A,#N/A,3%,Very Low
+HA-446, , ,No,1.583236333,Harwich,Monomoy,,#N/A,#N/A,30%,High
+HA-331, , ,No,1.22680344,Harwich,Monomoy,,#N/A,#N/A,1%,Very Low
+BR-320, , ,No,0.408424742,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+SA-204, , ,No,0.545710542,Sandwich,Sagamore,,#N/A,#N/A,36%,High
+OR-131, , ,No,1.966604411,Orleans,Nauset,,#N/A,#N/A,2%,Very Low
+MA-894, , ,No,0.265759926,Mashpee,Sagamore,,#N/A,#N/A,40%,High
+BA-710, , ,No,0.276699854,Barnstable,Sagamore,,#N/A,#N/A,34%,High
+BA-1130,,,No,1.792215058,Barnstable,Sagamore,,#N/A,#N/A,67%,Very High
+BA-696, , ,No,1.728175165,Barnstable,Sagamore,,#N/A,#N/A,79%,Very High
+BA-690, , ,No,0.977926195,Barnstable,Sagamore,,#N/A,#N/A,56%,Very High
+BA-621, , ,No,0.648080661,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-595, , ,No,0.287092904,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+HA-537, , ,No,0.343371251,Harwich,Monomoy,,#N/A,#N/A,96%,Very High
+HA-461, , ,No,0.449437486,Harwich,Monomoy,,#N/A,#N/A,1%,Very Low
+HA-1131,,,No,0.331999468,Harwich,Monomoy,,#N/A,#N/A,36%,High
+HA-434, , ,No,0.275471035,Harwich,Monomoy,,#N/A,#N/A,8%,Low
+HA-403, , ,No,1.415807714,Harwich,Monomoy,,#N/A,#N/A,3%,Very Low
+BR-317, , ,No,0.852554063,Brewster,Monomoy,,#N/A,#N/A,7%,Low
+FA-902, , ,No,0.3330198,Falmouth,Sagamore,,#N/A,#N/A,3%,Very Low
+MA-899, , ,No,0.779238405,Mashpee,Sagamore,,#N/A,#N/A,4%,Very Low
+MA-837, , ,No,0.349044126,Mashpee,Sagamore,,#N/A,#N/A,62%,Very High
+BA-735, , ,No,1.430309129,Barnstable,Sagamore,,#N/A,#N/A,15%,Medium
+BA-708, , ,No,1.754502939,Barnstable,Sagamore,,#N/A,#N/A,12%,Medium
+BA-662, , ,No,4.663441317,Barnstable,Sagamore,,#N/A,#N/A,22%,Medium
+BA-1132,,,No,0.251285149,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+HA-1133,,,No,0.569126825,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+HA-1134,,,No,0.383812809,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+HA-374, , ,No,0.243095321,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+HA-1135,,,No,0.857025922,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+BR-273, , ,No,0.851773624,Brewster,Monomoy,,#N/A,#N/A,7%,Low
+BR-266, , ,No,0.25616772,Brewster,Monomoy,,#N/A,#N/A,,#N/A
+FA-1136,,,No,0.405832848,Falmouth,Sagamore,,#N/A,#N/A,82%,Very High
+MA-900, , ,No,0.493290618,Mashpee,Sagamore,,#N/A,#N/A,7%,Low
+BA-726, , ,No,0.672527211,Barnstable,Sagamore,,#N/A,#N/A,2%,Very Low
+BA-707, , ,No,0.629569806,Barnstable,Sagamore,,#N/A,#N/A,55%,Very High
+BA-680, , ,No,0.84885401,Barnstable,Sagamore,,#N/A,#N/A,7%,Low
+BA-663, , ,No,0.868064754,Barnstable,Sagamore,,#N/A,#N/A,23%,Medium
+BA-655, , ,No,2.182781015,Barnstable,Sagamore,,#N/A,#N/A,18%,Medium
+FA-910, , ,No,0.44799205,Falmouth,Sagamore,,#N/A,#N/A,6%,Low
+BA-712, , ,No,0.387972042,Barnstable,Sagamore,,#N/A,#N/A,46%,High
+BA-623, , ,No,0.699939685,Barnstable,Sagamore,,#N/A,#N/A,58%,Very High
+BA-613, , ,No,1.133691532,Barnstable,Sagamore,,#N/A,#N/A,33%,High
+YA-1137,,,No,0.971819937,Yarmouth,Sagamore,,#N/A,#N/A,36%,High
+FA-967, , ,No,0.265196036,Falmouth,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-1138,,,No,0.254232739,Barnstable,Sagamore,,#N/A,#N/A,10%,Low
+FA-1139,,,No,0.345177663,Falmouth,Sagamore,,#N/A,#N/A,26%,High
+BA-1140,,,No,0.260611023,Barnstable,Sagamore,,#N/A,#N/A,55%,Very High
+BR-1141,,,No,0.280213534,Brewster,Monomoy,,#N/A,#N/A,4%,Very Low
+MA-1142,,,No,0.247321841,Mashpee,Sagamore,,#N/A,#N/A,8%,Low
+FA-836, , ,No,1.096318973,Falmouth,Sagamore,,#N/A,#N/A,0%,Very Low
+SA-1143,,,No,0.501312102,Sandwich,Sagamore,,#N/A,#N/A,8%,Low
+BR-193, , ,No,0.285523199,Brewster,Monomoy,,#N/A,#N/A,33%,High
+OR-133, , ,No,0.673197906,Orleans,Nauset,,#N/A,#N/A,,#N/A
+FA-858, , ,No,3.192351239,Falmouth,Sagamore,,#N/A,#N/A,0%,Very Low
+MA-851, , ,No,0.411564235,Mashpee,Sagamore,,#N/A,#N/A,87%,Very High
+YA-609, , ,No,0.680971587,Yarmouth,Sagamore,,#N/A,#N/A,89%,Very High
+FA-1144,,,No,0.618677691,Falmouth,Sagamore,,#N/A,#N/A,66%,Very High
+MA-1145,,,No,0.699839189,Mashpee,Sagamore,,#N/A,#N/A,11%,Medium
+BA-665, , ,No,0.605375119,Barnstable,Sagamore,,#N/A,#N/A,18%,Medium
+BA-1146,,,No,0.352558006,Barnstable,Sagamore,,#N/A,#N/A,14%,Medium
+BO-547, , ,No,0.462216409,Bourne,Sagamore,,#N/A,#N/A,42%,High
+SA-283, , ,No,0.440034538,Sandwich,Sagamore,,#N/A,#N/A,7%,Low
+FA-966, , ,No,0.302645941,Falmouth,Sagamore,,#N/A,#N/A,67%,Very High
+MA-1147,,,No,0.287782552,Mashpee,Sagamore,,#N/A,#N/A,81%,Very High
+MA-848, , ,No,2.411661416,Mashpee,Sagamore,,#N/A,#N/A,9%,Low
+FA-834, , ,No,3.62029746,Falmouth,Sagamore,,#N/A,#N/A,4%,Very Low
+BO-607, , ,No,0.292770173,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+FA-1148,,,No,0.644070157,Falmouth,Sagamore,,#N/A,#N/A,78%,Very High
+MA-1149,,,No,0.232121289,Mashpee,Sagamore,,#N/A,#N/A,80%,Very High
+MA-796, , ,No,0.675708595,Mashpee,Sagamore,,#N/A,#N/A,,#N/A
+MA-794, , ,No,0.733513827,Mashpee,Sagamore,,#N/A,#N/A,0%,Very Low
+BA-676, , ,No,1.19276313,Barnstable,Sagamore,,#N/A,#N/A,55%,Very High
+BA-672, , ,No,1.189660577,Barnstable,Sagamore,,#N/A,#N/A,0%,Very Low
+BA-632, , ,No,0.958051161,Barnstable,Sagamore,,#N/A,#N/A,25%,High
+BA-542,Sandy Hill Pond, ,No,6.95892602,Barnstable,Sagamore,,#N/A,#N/A,7%,Low
+BO-302,Deep Bottom Pond, ,No,1.423155972,Bourne,Plymouth-Carver,,#N/A,#N/A,2%,Very Low
+BO-343,Donnely Pond, ,No,2.191074381,Bourne,Plymouth-Carver,,#N/A,#N/A,1%,Very Low
+OR-113,Ice House Pond, ,No,5.553304007,Orleans,Nauset,,21.16116,deep,20%,Medium
+BO-578,Fish and Game Pond (South), ,Yes - not on State List,10.80642826,Bourne,Plymouth-Carver,,2.62464,shallow,4%,Very Low
+BO-337,Little Halfway Pond, ,No,0.783959162,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+OR-123,Reubens Pond, ,No,1.125472668,Orleans,Nauset,2727.269234,5,shallow,6%,Low
+BO-753,Spit Pond, ,No,0.667453886,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+BA-564,Little Pond, ,No,9.816815733,Barnstable,Sagamore,,3.871344,shallow,8%,Low
+BO-560,Fish and Game Pond (North), ,No,7.923195133,Bourne,Plymouth-Carver,,#N/A,#N/A,3%,Very Low
+OR-129,Critchetts Pond,Duck,No,1.189130635,Orleans,Nauset,,1.082664,shallow,40%,High
+FA-986,Two Ponds (South), ,No,0.719065373,Falmouth,Sagamore,,#N/A,#N/A,10%,Medium
+MA-634,Mashpee-Wakeby Pond, ,Yes - on State List,735.8599852,Mashpee,Sagamore,56934878.78,90,deep,14%,Medium
+SA-431,Lawrence Pond, ,Yes - on State List,138.6181798,Sandwich,Sagamore,2238615.197,27,deep,13%,Medium
+FA-974,Deep Pond,Punch Bowl,No,2.773994002,Falmouth,Sagamore,,#N/A,#N/A,0%,Very Low
+BO-736,Osbourne Pond,Osborne Pond,No,8.709363119,Bourne,Plymouth-Carver,,5,shallow,10%,Low
+BO-529,Opening Pond, ,No,1.089035472,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+BO-415,Succonnessett Pond,Succonessetts Pond,No,1.274107816,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+SA-616,Weeks Pond, ,Yes - not on State List,17.30583956,Sandwich,Sagamore,,15,deep,21%,Medium
+BO-745,Edmunds Pond, ,No,6.767704527,Bourne,Plymouth-Carver,,8,shallow,0%,Very Low
+SA-568,Snake Pond, ,Yes - on State List,87.46437738,Sandwich,Sagamore,2193107.992,33,deep,20%,Medium
+BA-605,Wequaquet Lake, ,Yes - on State List,673.1202474,Barnstable,Sagamore,13354074.99,32,deep,50%,Very High
+BO-315,Baileys Pond, ,No,0.801199451,Bourne,Plymouth-Carver,,#N/A,#N/A,11%,Medium
+FA-924,Fresh Pond, ,Yes - on State List,13.47204609,Falmouth,Sagamore,193715.8668,22,deep,21%,Medium
+SA-259,Boiling Springs Pond, ,No,3.741459845,Sandwich,Sagamore,,#N/A,#N/A,7%,Low
+FA-844,Potters Hole, ,No,3.598348941,Falmouth,Sagamore,,1.96848,shallow,30%,High
+BA-914,Rushy Marsh Pond,,Yes - on State List,16.06078082,Barnstable,Sagamore,,8.202,shallow,13%,Medium
+BO-576, , ,No,0.873333601,Bourne,Plymouth-Carver,,#N/A,#N/A,16%,Medium
+BA-1150,,,No,0.561321857,Barnstable,Sagamore,,#N/A,#N/A,100%,Very High
+SA-1151,,,No,0.799064684,Sandwich,Sagamore,,#N/A,#N/A,,#N/A
+BR-156, , ,No,0.772988837,Brewster,Monomoy,,#N/A,#N/A,47%,High
+OR-112, , ,No,0.265386628,Orleans,Nauset,,#N/A,#N/A,3%,Very Low
+OR-166, , ,No,0.498166499,Orleans,Nauset,,#N/A,#N/A,2%,Very Low
+OR-137, , ,No,0.583506576,Orleans,Nauset,,#N/A,#N/A,28%,High
+OR-138, , ,No,0.427510873,Orleans,Nauset,,#N/A,#N/A,84%,Very High
+FA-903, , ,No,0.29870042,Falmouth,Sagamore,,#N/A,#N/A,46%,High
+YA-1152,,,No,1.370455281,Yarmouth,Sagamore,,#N/A,#N/A,86%,Very High
+BA-541, , ,No,0.283575763,Barnstable,Sagamore,,#N/A,#N/A,3%,Very Low
+BA-636, , ,No,3.239073195,Barnstable,Sagamore,,#N/A,#N/A,20%,Medium
+BA-590, , ,No,0.62171293,Barnstable,Sagamore,,#N/A,#N/A,43%,High
+YA-604, , ,No,0.817618844,Yarmouth,Sagamore,,#N/A,#N/A,34%,High
+YA-380, , ,No,0.29495375,Yarmouth,Sagamore,,#N/A,#N/A,61%,Very High
+BO-327, , ,No,0.341087997,Bourne,Plymouth-Carver,,#N/A,#N/A,52%,Very High
+MA-765, , ,No,1.354561926,Mashpee,Sagamore,,#N/A,#N/A,18%,Medium
+SA-274, , ,No,0.717196755,Sandwich,Sagamore,,#N/A,#N/A,6%,Low
+BR-250, , ,No,1.300196361,Brewster,Monomoy,,#N/A,#N/A,17%,Medium
+MA-842, , ,No,0.460442554,Mashpee,Sagamore,,#N/A,#N/A,90%,Very High
+BA-533, , ,No,2.949294809,Barnstable,Sagamore,,#N/A,#N/A,29%,High
+BO-141, , ,No,0.287748935,Bourne,Plymouth-Carver,,#N/A,#N/A,7%,Low
+BA-633, , ,No,2.587723602,Barnstable,Sagamore,,#N/A,#N/A,40%,High
+BO-140, , ,No,0.738105654,Bourne,Plymouth-Carver,,#N/A,#N/A,14%,Medium
+MA-1154,,,No,0.738755055,Mashpee,Sagamore,,#N/A,#N/A,89%,Very High
+HA-1156,,,No,2.357870631,Harwich,Monomoy,,#N/A,#N/A,100%,Very High
+BR-1157,,,No,0.64417447,Brewster,Monomoy,,#N/A,#N/A,91%,Very High
+BR-280, , ,No,0.269256224,Brewster,Monomoy,,#N/A,#N/A,53%,Very High
+SA-1158,,,No,1.43187061,Sandwich,Sagamore,,#N/A,#N/A,,#N/A
+FA-1159,,,No,2.220777353,Falmouth,Sagamore,,#N/A,#N/A,93%,Very High
+MA-831, , ,No,0.411758729,Mashpee,Sagamore,,#N/A,#N/A,78%,Very High
+SA-647, , ,No,1.990002379,Sandwich,Sagamore,,#N/A,#N/A,14%,Medium
+SA-1160,,,No,0.348928641,Sandwich,Sagamore,,#N/A,#N/A,32%,High
+YA-1161,,,No,0.315558278,Yarmouth,Sagamore,,#N/A,#N/A,91%,Very High
+BR-1162,,,No,1.737635165,Brewster,Monomoy,,#N/A,#N/A,76%,Very High
+BR-1163,,,No,0.421936504,Brewster,Monomoy,,#N/A,#N/A,70%,Very High
+BA-624, , ,No,1.223436013,Barnstable,Sagamore,,#N/A,#N/A,98%,Very High
+MA-1164,,,No,0.250940502,Mashpee,Sagamore,,#N/A,#N/A,59%,Very High
+MA-1165,,,No,0.31414087,Mashpee,Sagamore,,#N/A,#N/A,73%,Very High
+MA-1166,,,No,0.627777975,Mashpee,Sagamore,,#N/A,#N/A,89%,Very High
+OR-1167,,,No,0.271245158,Orleans,Nauset,,#N/A,#N/A,37%,High
+BA-466, , ,No,0.246543496,Barnstable,Sagamore,,#N/A,#N/A,34%,High
+BA-519, , ,No,0.288202135,Barnstable,Sagamore,,#N/A,#N/A,68%,Very High
+BA-591, , ,No,0.422621001,Barnstable,Sagamore,,#N/A,#N/A,42%,High
+DE-308, , ,No,0.720282293,Dennis,Monomoy,,#N/A,#N/A,20%,Medium
+BR-211, , ,No,0.47677066,Brewster,Monomoy,,#N/A,#N/A,21%,Medium
+FA-852, , ,No,1.102278782,Falmouth,Sagamore,,#N/A,#N/A,2%,Very Low
+DE-312, , ,No,0.493436305,Dennis,Monomoy,,#N/A,#N/A,84%,Very High
+SA-271, , ,No,0.69527084,Sandwich,Sagamore,,#N/A,#N/A,55%,Very High
+SA-362, , ,No,0.881516687,Sandwich,Sagamore,,#N/A,#N/A,14%,Medium
+FA-1168,,,No,1.783258103,Falmouth,Sagamore,,#N/A,#N/A,91%,Very High
+SA-1169,,,No,0.317190843,Sandwich,Sagamore,,#N/A,#N/A,48%,High
+MA-957,Deans Pond, ,Yes - not on State List,12.08784112,Mashpee,Sagamore,,2.95272,shallow,61%,Very High
+YA-730, , ,No,1.456174125,Yarmouth,Sagamore,,#N/A,#N/A,9%,Low
+HA-512, , ,No,0.317224414,Harwich,Monomoy,,#N/A,#N/A,,#N/A
+BA-688, , ,No,0.994919467,Barnstable,Sagamore,,#N/A,#N/A,1%,Very Low
+BA-534, , ,No,0.365715583,Barnstable,Sagamore,,#N/A,#N/A,,#N/A
+BO-360, , ,No,0.760970213,Bourne,Plymouth-Carver,,#N/A,#N/A,,#N/A
+PR-4, , ,No,1.190559448,Provincetown,Pilgrim,,#N/A,#N/A,,#N/A
+BA-640,Middle Pond,,Yes - on State List,110.078891,Barnstable,Sagamore,1598525.111,30,deep,18%,Medium
