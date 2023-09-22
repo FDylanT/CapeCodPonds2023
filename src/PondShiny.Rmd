@@ -1,0 +1,239 @@
+---
+title: "PondShiny"
+date: "2023-09-20"
+runtime: shiny
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
+```
+
+```{r include = FALSE}
+### Load packages
+
+library(tidyverse)
+#library(shiny)
+library(trend)
+```
+
+```{r include = FALSE}
+### Load data
+
+setwd("~/Desktop/Repos/BarnstablePonds2023")
+
+#ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+  
+  # remove non-data rows
+  filter(Station.name != "") %>%
+  
+  # remove quality code columns for easier visualization
+  dplyr::select(-Quality.code, -Quality.code.1, -Quality.code.2, -Quality.code.3, -Quality.code.4,
+                -Quality.code.5,
+         -Quality.code.6, -Quality.code.7, -Quality.code.8, -Quality.code.9, -Quality.code.10,
+         -Quality.code.11, -Quality.code.12, -Quality.code.13, -Quality.code.14, -Quality.code.15,
+         -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
+         -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25,
+         -Quality.code.26, -Quality.code.27, -Quality.code.28, -Quality.code.29, -Quality.code.30,
+         -Quality.code.31, -Quality.code.32, -Quality.code.33, -Quality.code.34, -Quality.code.35,
+         -Quality.code.36, -Quality.code.37, -Quality.code.38)
+```
+
+```{r include = FALSE}
+### Merge same-parameter columns & reorganize data frame
+
+ponds <- ponds_full %>%
+  unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
+        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(Alk, Alkalinity...ALK, Alkalinity...ALK.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, pH...PH.2, sep = "") %>%
+  unite(TP, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
+  unite(TN, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
+  unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
+  unite(Phaeo, Phaeophytin...PHAEO, Phaeophytin...PHAEO.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
+  
+  # remove unneeded columns
+  dplyr::select(-Sample.number, -Depth.Designation) %>%
+  
+  # split long/lat coordinates
+  separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
+  
+  # rename columns with redundant headers
+  rename(Total.Depth = Total.Depth...DTB,
+         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL,
+         CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
+         CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
+         CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
+         ATemp = Air.Temperature...AT,
+         NH4 = Ammonium...NH4,
+         DO_Final = Dissolved.Oxygen.Concentration...Final...DO_FINAL,
+         DO_sat_Final = Dissolved.Oxygen.Saturation...Final...DO_SAT_FINAL,
+         NOX = Nitrate...Nitrite...NOX,
+         PO4 = Orthophosphate...PO4,
+         ORP = Oxidation.Reduction.Potential...ORP,
+         Wind = Qualitative.Wind.Description...WIND,
+         Cond = Specific.Conductivity...COND,
+         TDS = Total.Dissolved.Solids...TDS,
+         TPigm = Total.Pigments...TOTAL_PIGMENTS) %>%
+  
+  # reorder columns
+  relocate(Temp, .before = DO) %>%
+  relocate(DO_sat, .after = DO) %>%
+  relocate(pH, .after = DO_sat) %>%
+  relocate(Alk, .after = pH) %>%
+  relocate(Chla, .after = TN) %>%
+  relocate(Phaeo, .after = Chla) %>%
+  relocate(NOX, .after = NH4) %>%
+  
+  # extract date from date-time column & create new column
+  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
+         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}")) %>%
+  
+  # extract month and year from date-time column & create new column
+  mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
+         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""))
+
+# convert all empty cells to NA
+ponds[ponds == ""] <- NA
+
+# convert null datapoints to NA
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
+ponds[ponds == "<MDL 0.00"] <- NA
+ponds[ponds == "BDL 0.00"] <- "0"
+
+# temporarily fix non-numeric datapoints
+ponds[ponds == "-0.04"] <- "0.04"
+ponds[ponds == "-0.3"] <- "0.3"
+ponds[ponds == "> 15.50"] <- "15.50"
+ponds[ponds == "< 0.05"] <- "0"
+ponds[ponds == "< 0.10"] <- "0"
+ponds[ponds == "< 1.50"] <- "1.50"
+
+# temporarily remove problematic row
+ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
+
+# convert all numerical cols to numeric
+is_all_numeric <- function(x) {
+  !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
+}
+ponds <- ponds %>% 
+  mutate_if(is_all_numeric, as.numeric)
+
+#str(ponds)
+```
+
+```{r echo = FALSE}
+ponds <- ponds %>%
+  filter(Month == 8 | Month == 9) %>%
+  arrange(Station.number)
+
+pondName <- unique(ponds$Station.name)
+
+selectInput("pond", label = "Choose pond:", choices = pondName)
+```
+
+```{r echo = FALSE, message = FALSE}
+months <- ponds %>%
+  group_by(Station.name, Date) %>%
+  summarise(Month = mean(Month))
+
+renderPlot({
+  hist(months$Month[months$Station.name == input$pond], right = FALSE,
+     breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ylim = c(0, 32),
+     main = "Months of sampling events", col = "lightblue",
+     xlab = "Month", ylab = "Total sampling events")
+})
+```
+
+```{r echo = FALSE, message = FALSE}
+# load surface-only data
+allSurface <- read.csv("data/AllPonds_Surface.csv")
+
+sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 30, value = 30)
+sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 480, value = 480)
+
+renderPlot({
+  allSurface %>%
+    filter(Station.name == input$pond) %>%
+    filter(TP_flag == 2) %>%
+    filter(TN_flag == 2) %>%
+  ggplot(aes(x = TP, y = TN)) +
+    geom_point(size = 2.5) +
+    geom_abline(slope = 16/1, col = "black", linetype = "22", linewidth = 1) +
+    scale_x_continuous(limits = c(0, input$xAxisMax)) +
+    scale_y_continuous(limits = c(0, input$yAxisMax)) +
+    labs(x = "TP (μM)", y = "TN (μM)") +
+    theme_bw()
+})
+
+checkboxInput("line", "Show linear regression?", value = FALSE)
+
+renderPlot({
+  allSurface %>%
+    filter(Station.name == input$pond) %>%
+    filter(Chla_flag == 2) %>%
+    #filter(Secchi_flag == 2) %>%  # doesn't exist yet
+  ggplot(aes(x = Chla, y = Secchi)) +
+    geom_point() +
+    labs(x = "Surface Chlorophyll (μg/L)", y = "Secchi Depth (m)") +
+    theme_bw() +
+    if(input$line) {
+      model <- lm(Secchi ~ Chla, data = allSurface %>%
+                                          filter(Station.name == input$pond) %>%
+                                          filter(Chla_flag == 2))
+      geom_smooth(method = "lm", se = FALSE)
+    }
+})
+```
+
+### Time-series analyses
+```{r echo = FALSE}
+selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(8:14, 16:18)])
+checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
+
+renderPlot({
+  flag_name <- paste0(input$param, "_flag")
+  allSurface[allSurface$Station.name == input$pond &
+             allSurface[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = Year, y = get(input$param))) +
+    geom_point() +
+    labs(x = "Year", y = paste("Surface", input$param)) +
+    theme_bw() +
+    if(input$MK) {
+      slope <- sens.slope(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                          allSurface[[flag_name]] == 2])$estimates
+      intercept <- median(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                          allSurface[[flag_name]] == 2]) - 
+                   median(allSurface$Year[allSurface$Station.name == input$pond &
+                                          allSurface[[flag_name]] == 2]) * slope
+      geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1)
+    }
+})
+```
+
+```{r}
+param <- colnames(allSurface)[c(8:14, 16:18)][7]
+
+flag_name <- paste0(param, "_flag")
+allSurface[allSurface$Station.name == "Hinckley Pond / BA-411-01" &
+           allSurface[[flag_name]] == 2, ] %>%
+ggplot(aes(x = Year, y = get(param))) +
+  geom_point() +
+  labs(x = "Year", y = paste("Surface", param)) +
+  theme_bw() +
+  if(TRUE) {
+    slope <- sens.slope(allSurface[[param]][allSurface$Station.name == "Hinckley Pond / BA-411-01" &
+                                        allSurface[[flag_name]] == 2])$estimates
+    intercept <- median(allSurface[[param]][allSurface$Station.name == "Hinckley Pond / BA-411-01" &
+                                        allSurface[[flag_name]] == 2]) - 
+                 median(allSurface$Year[allSurface$Station.name == "Hinckley Pond / BA-411-01" &
+                                        allSurface[[flag_name]] == 2]) * slope
+    geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1)
+  }
+```
