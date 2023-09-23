@@ -1,5 +1,5 @@
 ---
-title: "PondShiny"
+title: "Pond Shiny"
 date: "2023-09-20"
 runtime: shiny
 output: html_document
@@ -13,7 +13,6 @@ knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
 ### Load packages
 
 library(tidyverse)
-#library(shiny)
 library(trend)
 ```
 
@@ -138,6 +137,24 @@ pondName <- unique(ponds$Station.name)
 selectInput("pond", label = "Choose pond:", choices = pondName)
 ```
 
+```{r include = FALSE}
+## Match ponds to metadata
+chars <- read.csv("data/PondCharacteristics.csv")
+
+ponds$Final.Depth.ft <- NA
+ponds$Final.Depth <- NA
+
+for(i in 1:nrow(ponds)) {
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d*")
+  if(length(chars$Final.Depth[chars$CCC_GIS_ID == ID]) > 0) {
+    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+    ponds$Final.Depth[i] <- ponds$Final.Depth.ft[i] * 12 / 39
+  }
+}
+
+#unique(ponds$Station.number[is.na(ponds$Final.Depth)])
+```
+
 ```{r echo = FALSE, message = FALSE}
 months <- ponds %>%
   group_by(Station.name, Date) %>%
@@ -151,7 +168,8 @@ renderPlot({
 })
 ```
 
-```{r echo = FALSE, message = FALSE}
+### Nutrient levels
+```{r echo = FALSE}
 # load surface-only data
 allSurface <- read.csv("data/AllPonds_Surface.csv")
 
@@ -171,29 +189,37 @@ renderPlot({
     labs(x = "TP (μM)", y = "TN (μM)") +
     theme_bw()
 })
+```
 
+### Surface Chlorophyll vs. Secchi Depth
+```{r echo = FALSE}
 checkboxInput("line", "Show linear regression?", value = FALSE)
 
 renderPlot({
   allSurface %>%
     filter(Station.name == input$pond) %>%
     filter(Chla_flag == 2) %>%
-    #filter(Secchi_flag == 2) %>%  # doesn't exist yet
+    filter(Secchi_flag == 2) %>%
   ggplot(aes(x = Chla, y = Secchi)) +
     geom_point() +
-    labs(x = "Surface Chlorophyll (μg/L)", y = "Secchi Depth (m)") +
+    labs(x = "Chlorophyll (μg/L)", y = "Secchi Depth (m)") +
     theme_bw() +
     if(input$line) {
       model <- lm(Secchi ~ Chla, data = allSurface %>%
                                           filter(Station.name == input$pond) %>%
-                                          filter(Chla_flag == 2))
+                                          filter(Chla_flag == 2) %>%
+                                          filter(Secchi_flag == 2))
       geom_smooth(method = "lm", se = FALSE)
     }
 })
 ```
 
-### Time-series analyses
+### Time-series analysis
 ```{r echo = FALSE}
+# colnames(allSurface)[c(8:14, 16:18)] <- c("Secchi Depth (m)", "Temperature (°C)", "DO (mg/L)",
+#                                           "DO_sat (%)", "pH", "Alkalinity (mg/L)", "TP (μM)",
+#                                           "TN (μM)", "Chlorophyll-a (μg/L)", "Phaeophytin (μM)")
+
 selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(8:14, 16:18)])
 checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
 
@@ -215,25 +241,4 @@ renderPlot({
       geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1)
     }
 })
-```
-
-```{r}
-param <- colnames(allSurface)[c(8:14, 16:18)][7]
-
-flag_name <- paste0(param, "_flag")
-allSurface[allSurface$Station.name == "Hinckley Pond / BA-411-01" &
-           allSurface[[flag_name]] == 2, ] %>%
-ggplot(aes(x = Year, y = get(param))) +
-  geom_point() +
-  labs(x = "Year", y = paste("Surface", param)) +
-  theme_bw() +
-  if(TRUE) {
-    slope <- sens.slope(allSurface[[param]][allSurface$Station.name == "Hinckley Pond / BA-411-01" &
-                                        allSurface[[flag_name]] == 2])$estimates
-    intercept <- median(allSurface[[param]][allSurface$Station.name == "Hinckley Pond / BA-411-01" &
-                                        allSurface[[flag_name]] == 2]) - 
-                 median(allSurface$Year[allSurface$Station.name == "Hinckley Pond / BA-411-01" &
-                                        allSurface[[flag_name]] == 2]) * slope
-    geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1)
-  }
 ```
