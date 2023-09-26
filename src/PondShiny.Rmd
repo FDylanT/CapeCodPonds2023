@@ -95,7 +95,12 @@ ponds <- ponds_full %>%
   
   # extract month and year from date-time column & create new column
   mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
-         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""))
+         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = "")) %>%
+  
+  # prepare columns for reordering ponds in dropdown menu
+  mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
+  mutate(Pond.number = as.numeric(str_extract(Station.number, "\\d+"))) %>%
+  mutate(Station.name = paste(Station.number, "/", Site))
 
 # convert all empty cells to NA
 ponds[ponds == ""] <- NA
@@ -130,7 +135,7 @@ ponds <- ponds %>%
 ```{r echo = FALSE}
 ponds <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
-  arrange(Station.number)
+  arrange(Town, Pond.number)
 
 pondName <- unique(ponds$Station.name)
 
@@ -145,7 +150,7 @@ ponds$Final.Depth.ft <- NA
 ponds$Final.Depth <- NA
 
 for(i in 1:nrow(ponds)) {
-  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d*")
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
   if(length(chars$Final.Depth[chars$CCC_GIS_ID == ID]) > 0) {
     ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
     ponds$Final.Depth[i] <- ponds$Final.Depth.ft[i] * 12 / 39
@@ -169,6 +174,7 @@ renderPlot({
 ```
 
 ### Nutrient levels
+
 ```{r echo = FALSE}
 # load surface-only data
 allSurface <- read.csv("data/AllPonds_Surface.csv")
@@ -192,6 +198,7 @@ renderPlot({
 ```
 
 ### Surface Chlorophyll vs. Secchi Depth
+
 ```{r echo = FALSE}
 checkboxInput("line", "Show linear regression?", value = FALSE)
 
@@ -201,7 +208,7 @@ renderPlot({
     filter(Chla_flag == 2) %>%
     filter(Secchi_flag == 2) %>%
   ggplot(aes(x = Chla, y = Secchi)) +
-    geom_point() +
+    geom_point(size = 2.5) +
     labs(x = "Chlorophyll (μg/L)", y = "Secchi Depth (m)") +
     theme_bw() +
     if(input$line) {
@@ -215,12 +222,15 @@ renderPlot({
 ```
 
 ### Time-series analysis
+
+#### Surface
+
 ```{r echo = FALSE}
 # colnames(allSurface)[c(8:14, 16:18)] <- c("Secchi Depth (m)", "Temperature (°C)", "DO (mg/L)",
 #                                           "DO_sat (%)", "pH", "Alkalinity (mg/L)", "TP (μM)",
 #                                           "TN (μM)", "Chlorophyll-a (μg/L)", "Phaeophytin (μM)")
 
-selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(8:14, 16:18)])
+selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(10:16, 18:20)])
 checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -228,17 +238,78 @@ renderPlot({
   allSurface[allSurface$Station.name == input$pond &
              allSurface[[flag_name]] == 2, ] %>%
   ggplot(aes(x = Year, y = get(input$param))) +
-    geom_point() +
+    geom_point(size = 2.5) +
     labs(x = "Year", y = paste("Surface", input$param)) +
     theme_bw() +
     if(input$MK) {
+      mk <- mk.test(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                              allSurface[[flag_name]] == 2])
       slope <- sens.slope(allSurface[[input$param]][allSurface$Station.name == input$pond &
                                           allSurface[[flag_name]] == 2])$estimates
       intercept <- median(allSurface[[input$param]][allSurface$Station.name == input$pond &
                                           allSurface[[flag_name]] == 2]) - 
                    median(allSurface$Year[allSurface$Station.name == input$pond &
                                           allSurface[[flag_name]] == 2]) * slope
-      geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1)
+      list(
+        geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1),
+        annotate("text",
+                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
+                                        allSurface[[flag_name]] == 2]) + 1,
+                 y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                              allSurface[[flag_name]] == 2]) * 0.95,
+                 label = paste("slope =", round(slope, 3)), col = "firebrick2"),
+        annotate("text",
+                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
+                                        allSurface[[flag_name]] == 2]) + 1,
+                 y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                                  allSurface[[flag_name]] == 2]) * 0.92,
+                 label = paste("p =", round(mk$p.value, 3)), col = "firebrick2")
+      )
+    }
+})
+```
+
+#### Bottom
+
+```{r echo = FALSE}
+# load bottom-only data
+allBottom <- read.csv("data/AllPonds_Bottom.csv")
+
+selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[c(11:16, 18:20)])
+checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
+
+renderPlot({
+  flag_name <- paste0(input$param2, "_flag")
+  allBottom[allBottom$Station.name == input$pond &
+             allBottom[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = Year, y = get(input$param2))) +
+    geom_point(size = 2.5) +
+    labs(x = "Year", y = paste("Bottom", input$param2)) +
+    theme_bw() +
+    if(input$MK2) {
+      mk <- mk.test(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                              allBottom[[flag_name]] == 2])
+      slope <- sens.slope(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                          allBottom[[flag_name]] == 2])$estimates
+      intercept <- median(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                          allBottom[[flag_name]] == 2]) - 
+                   median(allBottom$Year[allBottom$Station.name == input$pond &
+                                          allBottom[[flag_name]] == 2]) * slope
+      list(
+        geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1),
+        annotate("text",
+                 x = min(allBottom$Year[allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2]) + 1,
+                 y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                              allBottom[[flag_name]] == 2]) * 0.95,
+                 label = paste("slope =", round(slope, 3)), col = "firebrick2"),
+        annotate("text",
+                 x = min(allBottom$Year[allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2]) + 1,
+                 y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                                  allBottom[[flag_name]] == 2]) * 0.92,
+                 label = paste("p =", round(mk$p.value, 3)), col = "firebrick2")
+      )
     }
 })
 ```
