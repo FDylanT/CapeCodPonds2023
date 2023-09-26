@@ -225,6 +225,9 @@ pond_profiles3 <- ponds %>%
 # column 12: measuring program(s)
 
 # column 1
+ponds <- ponds %>%
+  arrange(Town, Pond.number)
+
 pondID <- unique(ponds$Station.number)
 
 # column 2
@@ -293,12 +296,12 @@ for(i in 1:length(pondID)) {
 }
 
 # column 8
-params <- c()
+all_params <- c()
 
 for(i in 1:length(pondID)) {
   temp_frame <- ponds[ponds$Station.number == pondID[i], ]
   string <- c()
-  for(j in 9:(ncol(temp_frame) - 4)) {
+  for(j in 11:(ncol(temp_frame) - 8)) {
     if(sum(!is.na(temp_frame[j])) > 0) {
       if(is.null(string)) {
         string = colnames(temp_frame)[j]
@@ -307,7 +310,7 @@ for(i in 1:length(pondID)) {
       }
     }
   }
-  params[i] <- string
+  all_params[i] <- string
 }
 
 # column 9
@@ -390,7 +393,7 @@ for(i in 1:length(pondID)) {
   }
 }
 
-param_last_values <- c()
+param_last_year <- c()
 
 for(i in 1:length(pondID)) {
   temp_frame <- surface[surface$Station.number == pondID[i], ]
@@ -415,29 +418,57 @@ for(i in 1:length(pondID)) {
       string = paste(string, val, sep = ", ")
     }
   }
-  param_last_values[i] <- string
+  param_last_year[i] <- string
+}
+
+# alternate column 11
+
+### load AllSurface file
+allSurface <- read.csv("data/AllPonds_Surface.csv")
+
+param_last8avg_surf <- c()
+
+for(i in 1:length(pondID)) {
+  temp_frame <- allSurface[allSurface$Station.number == pondID[i], ] %>%
+    filter(Year >= 2016)
+  string <- c()
+  p_list <- str_split(params[i], ", ")[[1]]
+  for(j in 1:length(p_list)) {
+    colname = p_list[j]
+    if(sum(!is.na(temp_frame[[colname]])) == 0) {
+      val <- NA
+    } else {
+      val <- round(mean(temp_frame[[colname]], na.rm = TRUE), 2)
+    }
+    if(is.null(string)) {
+      string = val
+    } else {
+      string = paste(string, val, sep = ", ")
+    }
+  }
+  param_last8avg_surf[i] <- string
 }
 
 # column 12
 
-program <- c()
+programs <- c()
 
 for(i in 1:length(pondID)) {
-  programs <- unique(ponds$Measuring.program.name[ponds$Station.number == pondID[i]])
-  program[i] <- paste(programs, collapse = ", ")
+  program <- unique(ponds$Measuring.program.name[ponds$Station.number == pondID[i]])
+  programs[i] <- paste(program, collapse = ", ")
 }
 
 # create data frame
 pond_summary <- as.data.frame(cbind(pondID, pond_name, years_data, years_profiles,
-                                    max_per_year, avg_per_year, all_years, params, 
-                                    param_years, last_year, param_last_values,
-                                    program)) %>%
+                                    max_per_year, avg_per_year, all_years, all_params, 
+                                    param_years, param_last8avg_surf, last_year,
+                                    programs)) %>%
   mutate_if(is_all_numeric, as.numeric)
 ```
 
 ## Write csv
 ```{r}
-write.csv(pond_summary, "data/PondsSummary09142023.csv", row.names = FALSE)
+write.csv(pond_summary, "data/09262023PondsSummary.csv", row.names = FALSE)
 ```
 
 ## Filter out months other than Aug & Sept
@@ -909,9 +940,11 @@ ggplot(MWP_surface[MWP_surface$Secchi_flag == 2, ], aes(x = Year, y = Secchi)) +
            label = paste0("p = ", round(summary(model)$coefficients[2, 4], 3)),
            col = "royalblue") +
   geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1) +
-  annotate("text", x = 2003, y = 2.1,
+  annotate("text", x = min(MWP_surface$Year[MWP_surface$Secchi_flag == 2]) + 2,
+           y = max(MWP_surface$Secchi[MWP_surface$Secchi_flag == 2]) * 0.95,
            label = paste0("slope = ", round(slope, 3)), col = "firebrick2") +
-  annotate("text", x = 2003, y = 1.9,
+  annotate("text", x = min(MWP_surface$Year[MWP_surface$Secchi_flag == 2]) + 2,
+           y = max(MWP_surface$Secchi[MWP_surface$Secchi_flag == 2]) * 0.92,
            label = paste0("p = ", round(mk$p.value, 3)), col = "firebrick2") +
   labs(y = "Secchi Depth (m)") +
   theme_bw()
