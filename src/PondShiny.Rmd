@@ -14,6 +14,10 @@ knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
 
 library(tidyverse)
 library(trend)
+library(sf)
+library(ggmap)
+library(pals)
+library(viridis)
 ```
 
 ```{r include = FALSE}
@@ -102,6 +106,9 @@ ponds <- ponds_full %>%
   mutate(Pond.number = as.numeric(str_extract(Station.number, "\\d+"))) %>%
   mutate(Station.name = paste(Station.number, "/", Site))
 
+ponds[ponds == "MA-634-01 / Mashpee-Wakeby Pond"] <- "MA-634-01 / Mashpee Lake"
+ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
+
 # convert all empty cells to NA
 ponds[ponds == ""] <- NA
 
@@ -160,6 +167,33 @@ for(i in 1:nrow(ponds)) {
 #unique(ponds$Station.number[is.na(ponds$Final.Depth)])
 ```
 
+```{r echo = FALSE}
+ponds$Temp_flag <- NA
+ponds$DO_flag <- NA
+
+for(pond in pondName) {
+  onePond <- ponds %>%
+    filter(Station.name == pond)
+  for(param in colnames(onePond)[12:13]) {
+    m <- mean(onePond[[param]], na.rm = TRUE)
+    sd <- sd(onePond[[param]], na.rm = TRUE)
+    sd <- ifelse(is.na(sd), 0, sd)
+    flag_name <- paste0(param, "_flag")
+    outliers <- vector()
+    for(j in 1:nrow(onePond)) {
+      if(is.na(onePond[[param]][j])) {
+        onePond[[flag_name]][j] <- 4
+      } else if(onePond[[param]][j] >= m - 3*sd & onePond[[param]][j] <= m + 3*sd) {
+        onePond[[flag_name]][j] <- 2
+      } else {
+        onePond[[flag_name]][j] <- 3
+      }
+    }
+    ponds[[flag_name]][ponds$Station.name == pond] <- onePond[[flag_name]]
+  }
+}
+```
+
 ```{r echo = FALSE, message = FALSE}
 months <- ponds %>%
   group_by(Station.name, Date) %>%
@@ -216,7 +250,22 @@ renderPlot({
                                           filter(Station.name == input$pond) %>%
                                           filter(Chla_flag == 2) %>%
                                           filter(Secchi_flag == 2))
-      geom_smooth(method = "lm", se = FALSE)
+      list(geom_smooth(method = "lm", se = FALSE, col = "royalblue"),
+           annotate("text",
+                    x = min(allSurface$Chla[allSurface$Station.name == input$pond &
+                                        allSurface$Chla_flag == 2]) + 0.25,
+                    y = max(allSurface$Secchi[allSurface$Station.name == input$pond &
+                                              allSurface$Secchi_flag == 2]) * 0.95,
+                    label = paste0("y = ", round(summary(model)$coefficients[1], 3), " + ",
+                                   round(summary(model)$coefficients[2], 3), "x"),
+                    col = "royalblue"),
+           annotate("text",
+                    x = min(allSurface$Chla[allSurface$Station.name == input$pond &
+                                        allSurface$Chla_flag == 2]) + 0.25,
+                    y = max(allSurface$Secchi[allSurface$Station.name == input$pond &
+                                              allSurface$Secchi_flag == 2]) * 0.92,
+                    label = paste0("p = ", round(summary(model)$coefficients[2, 4], 3)),
+                    col = "royalblue"))
     }
 })
 ```
@@ -281,7 +330,7 @@ checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
 renderPlot({
   flag_name <- paste0(input$param2, "_flag")
   allBottom[allBottom$Station.name == input$pond &
-             allBottom[[flag_name]] == 2, ] %>%
+            allBottom[[flag_name]] == 2, ] %>%
   ggplot(aes(x = Year, y = get(input$param2))) +
     geom_point(size = 2.5) +
     labs(x = "Year", y = paste("Bottom", input$param2)) +
@@ -311,5 +360,97 @@ renderPlot({
                  label = paste("p =", round(mk$p.value, 3)), col = "firebrick2")
       )
     }
+})
+```
+
+### Profile plots
+
+```{r echo = FALSE}
+selectInput("param4", label = "Choose parameter:", choices = colnames(ponds)[12:13])
+
+renderPlot({
+  flag_name <- paste0(input$param4, "_flag")
+  ponds[ponds$Station.name == input$pond &
+        ponds[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = Year, y = Depth, fill = get(input$param4))) +
+    geom_point(size = 4, shape = 21) +
+    scale_y_reverse() +
+    scale_fill_gradientn(colors = parula(100), name = input$param4,
+                         na.value = "white") +
+    labs(y = "Depth (m)") +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+})
+```
+
+### Cape Cod-wide maps
+
+#### TN:TP ratios
+
+Most recent year of data from every pond:
+```{r echo = FALSE, message = FALSE}
+# turn off spherical geometry to avoid "duplicate" errors
+sf_use_s2(FALSE)
+
+# register API key
+register_google(key = "AIzaSyBn1OxFq4DMK79J4qHmQoBvFlbHbeImABw")
+
+# fetch satellite map
+CC_map <- get_map(c(-70.2962, 41.7888), maptype = "satellite", zoom = 10, source = "google")
+
+renderPlot({
+  surface_recent <- allSurface %>%
+    group_by(Station.number) %>%
+    filter(Year == max(Year))
+  ggmap(CC_map) +
+    geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
+                                                                       col = log10(TN / TP)),
+               size = 2.5) +
+    scale_color_gradientn(colors = rev(parula(100)), name = "TN:TP", trans = "log10",
+                          limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme(axis.title = element_blank())
+})
+```
+
+Aug-Sept average of years 2016-2023:
+```{r echo = FALSE, message = FALSE}
+renderPlot({
+  surface_recent <- allSurface %>%
+    filter(Year >= 2016)
+  ggmap(CC_map) +
+    geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
+                                                                       col = log10(TN / TP)),
+               size = 2.5) +
+    scale_color_gradientn(colors = rev(parula(100)), name = "TN:TP", trans = "log10",
+                          limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme(axis.title = element_blank())
+})
+```
+
+#### Mix and match
+Aug-Sept average of years 2016-2023.
+
+```{r echo = FALSE}
+selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
+selectInput("param3", label = "Choose parameter:", choices = colnames(allSurface)[c(11:16, 18:20)])
+
+renderPlot({
+  if(input$layer == "Surface") {
+    data_recent <- allSurface %>%
+    filter(Year >= 2016)
+  } else {
+    data_recent <- allBottom %>%
+    filter(Year >= 2016)
+  }
+  ggmap(CC_map) +
+    geom_point(data = data_recent[!is.na(data_recent[[input$param3]]), ],
+                 aes(x = Long, y = Lat, col = get(input$param3)),
+                 size = 2.5) +
+    scale_color_viridis(option = "plasma", name = paste(input$layer, input$param3)) +
+    theme(axis.title = element_blank())
 })
 ```
