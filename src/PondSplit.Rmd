@@ -273,3 +273,39 @@ outlier_frame <- outlier_frame %>%
 
 write.csv(outlier_frame, "data/outliers2.csv", row.names = FALSE)
 ```
+
+## Attempt to identify temp & DO profile outliers
+```{r}
+outlier_frame_profiles <- data.frame(matrix(ncol = 2, nrow = 500))
+colnames(outlier_frame_profiles) <- colnames(ponds)[12:13]
+
+ponds$Temp_flag <- NA
+ponds$DO_flag <- NA
+
+for(pond in pondName) {
+  onePond <- ponds %>%
+    filter(Station.name == pond)
+  for(param in colnames(onePond)[12:13]) {
+    m <- mean(onePond[[param]], na.rm = TRUE)
+    sd <- sd(onePond[[param]], na.rm = TRUE)
+    sd <- ifelse(is.na(sd), 0, sd)
+    flag_name <- paste0(param, "_flag")
+    outliers <- vector()
+    for(j in 1:nrow(onePond)) {
+      if(is.na(onePond[[param]][j])) {
+        onePond[[flag_name]][j] <- 4
+      } else if(onePond[[param]][j] >= m - 3*sd & onePond[[param]][j] <= m + 3*sd) {
+        onePond[[flag_name]][j] <- 2
+      } else {
+        onePond[[flag_name]][j] <- 3
+        outliers <- c(outliers, onePond$Sampling.number[j])
+      }
+    }
+    ponds[[flag_name]][ponds$Station.name == pond] <- onePond[[flag_name]]
+    if(length(outliers) > 0) {
+      outlier_frame_profiles[[param]][sum(!is.na(outlier_frame[[param]])) +
+                                        1:length(outliers)] <- outliers
+    }
+  }
+}
+```
