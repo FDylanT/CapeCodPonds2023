@@ -13,10 +13,11 @@ knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
 ### Load packages
 
 library(tidyverse)
+library(gsw)
 library(trend)
+library(pals)
 library(sf)
 library(ggmap)
-library(pals)
 library(viridis)
 ```
 
@@ -126,6 +127,9 @@ ponds[ponds == "< 0.05"] <- "0"
 ponds[ponds == "< 0.10"] <- "0"
 ponds[ponds == "< 1.50"] <- "1.50"
 
+# fix missing decimal
+ponds[ponds == "207"] <- "20.7"
+
 # temporarily remove problematic row
 ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
 
@@ -135,6 +139,14 @@ is_all_numeric <- function(x) {
 }
 ponds <- ponds %>% 
   mutate_if(is_all_numeric, as.numeric)
+
+# calculate DO saturation values (*in future should come from WISKI)
+for(i in 1:nrow(ponds)) {
+  if(is.na(ponds$DO_sat[i])) {
+    ponds$DO_sat[i] <- ponds$DO[i] /
+                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i])
+  }
+}
 
 #str(ponds)
 ```
@@ -171,16 +183,36 @@ for(i in 1:nrow(ponds)) {
 ponds$Temp_flag <- NA
 ponds$DO_flag <- NA
 
+clim_all <- data.frame(matrix(ncol = 6, nrow = 2500))
+colnames(clim_all) <- c("Station.name", "Depth", "Temp", "Temp_sd", "DO", "DO_sd")
+
 for(pond in pondName) {
   onePond <- ponds %>%
-    filter(Station.name == pond)
-  for(param in colnames(onePond)[12:13]) {
-    m <- mean(onePond[[param]], na.rm = TRUE)
-    sd <- sd(onePond[[param]], na.rm = TRUE)
-    sd <- ifelse(is.na(sd), 0, sd)
+    filter(Station.name == pond,
+           !is.na(Depth))
+  onePond$Depth[onePond$Depth == 0] <- 0.01
+  clim <- data.frame(matrix(ncol = 5, nrow = length(1:ceiling(max(onePond$Depth)))))
+  colnames(clim) <- c("Depth", "Temp", "Temp_sd", "DO", "DO_sd")
+  for(param in c("Temp", "DO")) {
+    clim$Depth[1:length(1:ceiling(max(onePond$Depth)))] <- 1:ceiling(max(onePond$Depth))
+    clim.v <- rep(NA, nrow(clim))
+    clim.v2 <- rep(NA, nrow(clim))
+    for(i in 1:length(clim$Depth)) {
+      clim1 <- mean(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i],
+                    na.rm = TRUE)
+      clim.v[clim$Depth == i] <- clim1
+      clim2 <- sd(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i], na.rm = TRUE)
+      clim.v2[clim$Depth == i] <- clim2
+    }
+    clim[[param]][1:length(clim.v)] <- clim.v
+    param_sd <- paste0(param, "_sd")
+    clim[[param_sd]][1:length(clim.v2)] <- clim.v2
+    clim[[param_sd]] <- ifelse(is.na(clim[[param_sd]]), 0, clim[[param_sd]])
     flag_name <- paste0(param, "_flag")
-    outliers <- vector()
     for(j in 1:nrow(onePond)) {
+      depth <- ceiling(onePond$Depth[j])
+      m <- clim[[param]][clim$Depth == depth]
+      sd <- clim[[param_sd]][clim$Depth == depth]
       if(is.na(onePond[[param]][j])) {
         onePond[[flag_name]][j] <- 4
       } else if(onePond[[param]][j] >= m - 3*sd & onePond[[param]][j] <= m + 3*sd) {
@@ -189,8 +221,39 @@ for(pond in pondName) {
         onePond[[flag_name]][j] <- 3
       }
     }
-    ponds[[flag_name]][ponds$Station.name == pond] <- onePond[[flag_name]]
+    ponds[[flag_name]][ponds$Station.name == pond & !is.na(ponds$Depth)] <- onePond[[flag_name]]
   }
+  clim_all[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim), 2:6] <- clim
+  clim_all$Station.name[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim)] <- pond
+}
+
+clim_all <- clim_all %>%
+  filter(!is.na(Station.name))
+
+ponds$Temp_anom <- NA
+ponds$DO_anom <- NA
+
+for(i in 1:nrow(ponds)) {
+  pond <- ponds$Station.name[i]
+  if(is.na(ponds$Depth)[i]) {
+    next
+  }
+  if(ponds$Depth[i] == 0) {
+    a <- 0.01
+    b <- 1
+  } else if(ponds$Depth[i] %% 1 != 0){
+    a <- floor(ponds$Depth[i]) + 0.01
+    b <- ceiling(ponds$Depth[i])
+  } else {
+    a <- floor(ponds$Depth[i])
+    b <- ceiling(ponds$Depth[i])
+  }
+  ponds$Temp_anom[i] <- ponds$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                                      clim_all$Depth >= a &
+                                                      clim_all$Depth <= b]
+  ponds$DO_anom[i] <- ponds$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                                clim_all$Depth >= a &
+                                                clim_all$Depth <= b]
 }
 ```
 
@@ -300,19 +363,19 @@ renderPlot({
                    median(allSurface$Year[allSurface$Station.name == input$pond &
                                           allSurface[[flag_name]] == 2]) * slope
       list(
-        geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1),
+        geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1),
         annotate("text",
                  x = min(allSurface$Year[allSurface$Station.name == input$pond &
                                         allSurface[[flag_name]] == 2]) + 1,
                  y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
                                               allSurface[[flag_name]] == 2]) * 0.95,
-                 label = paste("slope =", round(slope, 3)), col = "firebrick2"),
+                 label = paste("slope =", round(slope, 3)), col = "black"),
         annotate("text",
                  x = min(allSurface$Year[allSurface$Station.name == input$pond &
                                         allSurface[[flag_name]] == 2]) + 1,
                  y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
                                                   allSurface[[flag_name]] == 2]) * 0.92,
-                 label = paste("p =", round(mk$p.value, 3)), col = "firebrick2")
+                 label = paste("p =", round(mk$p.value, 3)), col = "black")
       )
     }
 })
@@ -329,37 +392,40 @@ checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param2, "_flag")
-  allBottom[allBottom$Station.name == input$pond &
+  p <- allBottom[allBottom$Station.name == input$pond &
             allBottom[[flag_name]] == 2, ] %>%
   ggplot(aes(x = Year, y = get(input$param2))) +
     geom_point(size = 2.5) +
     labs(x = "Year", y = paste("Bottom", input$param2)) +
-    theme_bw() +
-    if(input$MK2) {
-      mk <- mk.test(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                              allBottom[[flag_name]] == 2])
-      slope <- sens.slope(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                          allBottom[[flag_name]] == 2])$estimates
-      intercept <- median(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                          allBottom[[flag_name]] == 2]) - 
-                   median(allBottom$Year[allBottom$Station.name == input$pond &
-                                          allBottom[[flag_name]] == 2]) * slope
-      list(
-        geom_abline(slope = slope, intercept = intercept, col = "firebrick2", linewidth = 1),
-        annotate("text",
-                 x = min(allBottom$Year[allBottom$Station.name == input$pond &
-                                        allBottom[[flag_name]] == 2]) + 1,
-                 y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                              allBottom[[flag_name]] == 2]) * 0.95,
-                 label = paste("slope =", round(slope, 3)), col = "firebrick2"),
-        annotate("text",
-                 x = min(allBottom$Year[allBottom$Station.name == input$pond &
-                                        allBottom[[flag_name]] == 2]) + 1,
-                 y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                                  allBottom[[flag_name]] == 2]) * 0.92,
-                 label = paste("p =", round(mk$p.value, 3)), col = "firebrick2")
-      )
-    }
+    theme_bw()
+  if(input$param2 == "DO") {
+    p <- p + geom_hline(yintercept = 3, col = "firebrick3", linewidth = 1)
+  }
+  if(input$MK2) {
+    mk <- mk.test(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                            allBottom[[flag_name]] == 2])
+    slope <- sens.slope(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2])$estimates
+    intercept <- median(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2]) - 
+                 median(allBottom$Year[allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2]) * slope
+    p <- p +
+      geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1) +
+      annotate("text",
+               x = min(allBottom$Year[allBottom$Station.name == input$pond &
+                                      allBottom[[flag_name]] == 2]) + 1,
+               y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                            allBottom[[flag_name]] == 2]) * 0.95,
+               label = paste("slope =", round(slope, 3)), col = "black") +
+      annotate("text",
+               x = min(allBottom$Year[allBottom$Station.name == input$pond &
+                                      allBottom[[flag_name]] == 2]) + 1,
+               y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                                allBottom[[flag_name]] == 2]) * 0.92,
+               label = paste("p =", round(mk$p.value, 3)), col = "black")
+  }
+  p
 })
 ```
 
@@ -377,6 +443,26 @@ renderPlot({
     scale_y_reverse() +
     scale_fill_gradientn(colors = parula(100), name = input$param4,
                          na.value = "white") +
+    labs(y = "Depth (m)") +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+})
+```
+
+#### Anomaly plot
+```{r echo = FALSE}
+renderPlot({
+  anom_name <- paste0(input$param4, "_anom")
+  flag_name <- paste0(input$param4, "_flag")
+  min <- -max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
+  max <- max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
+  ponds[ponds$Station.name == input$pond &
+        ponds[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = Year, y = Depth, fill = get(anom_name))) +
+    geom_point(size = 4, shape = 21) +
+    scale_y_reverse() +
+    scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
+                         limits = c(min, max), na.value = "white") +
     labs(y = "Depth (m)") +
     theme_bw() +
     theme(panel.grid = element_blank())
