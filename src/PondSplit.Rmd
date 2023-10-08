@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-First run chunks 2-4 of `PondShiny.Rmd` script.
+First run chunks 2-6 of `PondShiny.Rmd` script.
 
 ## Calculate outliers
 ```{r include = FALSE}
@@ -158,6 +158,10 @@ for(pond in pondName) {
     onePond$Final.Depth <- max(onePond$Total.Depth, na.rm = TRUE)
   }
   
+  if(mean(onePond$Final.Depth) < 3) {
+    next
+  }
+  
   for(year in unique(onePond$Year)) {
     for(j in 1:nrow(onePond[onePond$Year == year, ])) {
       depth = sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[j]
@@ -271,7 +275,7 @@ outlier_frame <- outlier_frame %>%
   select(where(~!all(is.na(.x)))) %>%
   select(-TP_ugL)
 
-write.csv(outlier_frame, "data/outliers2.csv", row.names = FALSE)
+write.csv(outlier_frame, "data/outliers.csv", row.names = FALSE)
 ```
 
 ## Attempt to identify temp & DO profile outliers
