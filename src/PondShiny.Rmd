@@ -469,6 +469,31 @@ renderPlot({
 })
 ```
 
+#### Pond climatology
+```{r echo = FALSE}
+renderPlot({
+  clim_all[clim_all$Station.name == input$pond, ] %>%
+  ggplot(aes(x = Station.name, y = Depth, fill = get(input$param4))) +
+    geom_tile() +
+    scale_y_reverse() +
+    labs(y = "Depth (m)") +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank()) +
+    if(input$param4 == "Temp") {
+      scale_fill_gradientn(colors = parula(100), name = input$param4,
+                           limits = c(5, 28),
+                           na.value = "white")
+    } else if(input$param4 == "DO") {
+      scale_fill_gradientn(colors = parula(100), name = input$param4,
+                           limits = c(0, 30),
+                           na.value = "white")
+    }
+})
+```
+
 ### Cape Cod-wide maps
 
 #### TN:TP ratios
