@@ -135,6 +135,11 @@ allSurface <- allSurface %>%
   # match columns to dropdown menu
   mutate(Station.name = paste(Station.number, "/", Site))
 
+allSurface$Station.name[allSurface$Station.name == "MA-634-01 / Mashpee-Wakeby Pond"] <-
+  "MA-634-01 / Mashpee Lake"
+allSurface$Station.name[allSurface$Station.name == "MA-1039-01 / Mashpee-Wakeby Pond"] <-
+  "MA-1039-01 / Wakeby Pond"
+
 write.csv(allSurface, "data/AllPonds_Surface.csv", row.names = FALSE)
 
 allBottom <- data.frame()
@@ -267,6 +272,11 @@ for(pond in pondName) {
 allBottom <- allBottom %>%
   # match columns to dropdown menu
   mutate(Station.name = paste(Station.number, "/", Site))
+
+allBottom$Station.name[allBottom$Station.name == "MA-634-01 / Mashpee-Wakeby Pond"] <-
+  "MA-634-01 / Mashpee Lake"
+allBottom$Station.name[allBottom$Station.name == "MA-1039-01 / Mashpee-Wakeby Pond"] <-
+  "MA-1039-01 / Wakeby Pond"
 
 write.csv(allBottom, "data/AllPonds_Bottom.csv", row.names = FALSE)
 
