@@ -82,7 +82,7 @@ for(pond in pondName) {
       }
       if(!is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth]) &
          !is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
-        for(k in 14:(ncol(onePond) - 3)) {
+        for(k in 14:(ncol(onePond) - 4)) {
           param <- colnames(onePond)[k]
           if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth])) {
             for(l in 1:(nrow(onePond[onePond$Year == year, ])-1)) {
@@ -105,7 +105,7 @@ for(pond in pondName) {
       oneSurface <- rbind(oneSurface, onePond[onePond$Year == year & onePond$Depth == depth, ])
     }
   }
-  for(i in 9:(ncol(oneSurface) - 3)) {
+  for(i in 9:(ncol(oneSurface) - 4)) {
     param <- colnames(oneSurface)[i]
     flag_name <- paste0(param, "_flag")
     if(sum(!is.na(oneSurface[[param]])) != 0) {
@@ -214,7 +214,7 @@ for(pond in pondName) {
       }
       if(!is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth]) &
          !is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
-        for(l in 14:(ncol(onePond) - 3)) {
+        for(l in 14:(ncol(onePond) - 4)) {
           param <- colnames(onePond)[l]
           if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth])) {
             for(m in 1:nrow(onePond[onePond$Year == year, ])) {
@@ -242,7 +242,7 @@ for(pond in pondName) {
   if(nrow(oneBottom) == 0) {
     next
   } else {
-    for(i in 11:(ncol(oneBottom) - 3)) {
+    for(i in 11:(ncol(oneBottom) - 4)) {
       param <- colnames(oneBottom)[i]
       flag_name <- paste0(param, "_flag")
       if(sum(!is.na(oneBottom[[param]])) != 0) {
@@ -288,38 +288,12 @@ outlier_frame <- outlier_frame %>%
 write.csv(outlier_frame, "data/outliers.csv", row.names = FALSE)
 ```
 
-## Attempt to identify temp & DO profile outliers
+## Identify instances of flipped temp & DO
 ```{r}
-outlier_frame_profiles <- data.frame(matrix(ncol = 2, nrow = 500))
-colnames(outlier_frame_profiles) <- colnames(ponds)[12:13]
+flip <- ponds$Sampling.number[which(ponds$Temp <= 15 & ponds$DO >= 15 & ponds$DO <= 30)]
+flip <- sort(unique(flip))
 
-ponds$Temp_flag <- NA
-ponds$DO_flag <- NA
+perc_sat <- sort(unique(ponds$Sampling.number[which(ponds$DO >= 30)]))
 
-for(pond in pondName) {
-  onePond <- ponds %>%
-    filter(Station.name == pond)
-  for(param in colnames(onePond)[12:13]) {
-    m <- mean(onePond[[param]], na.rm = TRUE)
-    sd <- sd(onePond[[param]], na.rm = TRUE)
-    sd <- ifelse(is.na(sd), 0, sd)
-    flag_name <- paste0(param, "_flag")
-    outliers <- vector()
-    for(j in 1:nrow(onePond)) {
-      if(is.na(onePond[[param]][j])) {
-        onePond[[flag_name]][j] <- 4
-      } else if(onePond[[param]][j] >= m - 3*sd & onePond[[param]][j] <= m + 3*sd) {
-        onePond[[flag_name]][j] <- 2
-      } else {
-        onePond[[flag_name]][j] <- 3
-        outliers <- c(outliers, onePond$Sampling.number[j])
-      }
-    }
-    ponds[[flag_name]][ponds$Station.name == pond] <- onePond[[flag_name]]
-    if(length(outliers) > 0) {
-      outlier_frame_profiles[[param]][sum(!is.na(outlier_frame[[param]])) +
-                                        1:length(outliers)] <- outliers
-    }
-  }
-}
+same <- sort(unique(ponds$Sampling.number[which(ponds$Temp == ponds$DO)]))
 ```
