@@ -15,6 +15,8 @@ knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
 library(tidyverse)
 library(gsw)
 library(trend)
+library(egg)
+library(DT)
 library(pals)
 library(sf)
 library(ggmap)
@@ -140,15 +142,31 @@ is_all_numeric <- function(x) {
 ponds <- ponds %>% 
   mutate_if(is_all_numeric, as.numeric)
 
-# calculate DO saturation values (*in future should come from WISKI)
+#str(ponds)
+```
+
+```{r echo = FALSE}
+## calculate DO saturation values (*in future should come from WISKI)
 for(i in 1:nrow(ponds)) {
   if(is.na(ponds$DO_sat[i])) {
-    ponds$DO_sat[i] <- ponds$DO[i] /
-                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i])
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
+    ponds$DO_sat[i] <- ponds$DO[i] / 15.999 / rho * 10^6 /
+                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
   }
 }
 
-#str(ponds)
+#mg/L to um/kg
+
+#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/15.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
+
+# calculate DO concentration values
+ponds$DO_con <- NA
+
+for(i in 1:nrow(ponds)) {
+  rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
+  ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO[i] * 15.999 * rho / 10^6
+}
 ```
 
 ```{r echo = FALSE}
@@ -432,6 +450,32 @@ renderPlot({
 ### Profile plots
 
 ```{r echo = FALSE}
+renderPlot({
+  p1 <- ponds[ponds$Station.name == input$pond, ] %>%
+    ggplot(aes(x = Temp, y = Depth)) +
+      geom_point(size = 2.5, shape = 21) +
+      scale_y_reverse() +
+      labs(y = "Depth (m)") +
+      theme_bw() +
+      theme(panel.grid = element_blank())
+  p2 <- ponds[ponds$Station.name == input$pond, ] %>%
+    ggplot(aes(x = DO, y = Depth)) +
+      geom_point(size = 2.5, shape = 21) +
+      scale_y_reverse() +
+      labs(y = "Depth (m)") +
+      theme_bw() +
+      theme(panel.grid = element_blank())
+  ggarrange(p1, p2, ncol = 2)
+})
+
+DT::renderDataTable({
+  ponds[ponds$Station.name == input$pond, c(1, 7:9, 12:13)] %>%
+    rename(Date.Time = Date.Time..sampling.)
+})
+
+```
+
+```{r echo = FALSE}
 selectInput("param4", label = "Choose parameter:", choices = colnames(ponds)[12:13])
 
 renderPlot({
@@ -449,32 +493,17 @@ renderPlot({
 })
 ```
 
-#### Anomaly plot
+#### Anomaly plots
+
 ```{r echo = FALSE}
 renderPlot({
   anom_name <- paste0(input$param4, "_anom")
   flag_name <- paste0(input$param4, "_flag")
   min <- -max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
   max <- max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
-  ponds[ponds$Station.name == input$pond &
-        ponds[[flag_name]] == 2, ] %>%
-  ggplot(aes(x = Year, y = Depth, fill = get(anom_name))) +
-    geom_point(size = 4, shape = 21) +
-    scale_y_reverse() +
-    scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
-                         limits = c(min, max), na.value = "white") +
-    labs(y = "Depth (m)") +
-    theme_bw() +
-    theme(panel.grid = element_blank())
-})
-```
-
-#### Pond climatology
-```{r echo = FALSE}
-renderPlot({
-  clim_all[clim_all$Station.name == input$pond, ] %>%
+  p1 <- clim_all[clim_all$Station.name == input$pond, ] %>%
   ggplot(aes(x = Station.name, y = Depth, fill = get(input$param4))) +
-    geom_tile() +
+    geom_point(size = 4, shape = 21) +
     scale_y_reverse() +
     labs(y = "Depth (m)") +
     theme_bw() +
@@ -491,6 +520,34 @@ renderPlot({
                            limits = c(0, 30),
                            na.value = "white")
     }
+  p2 <- ponds[ponds$Station.name == input$pond &
+        ponds[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = Year, y = Depth, fill = get(anom_name))) +
+    geom_point(size = 4, shape = 21) +
+    scale_y_reverse() +
+    scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
+                         limits = c(min, max), na.value = "white") +
+    labs(y = "Depth (m)") +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+  ggarrange(p1, p2, widths = c(1, 10))
+})
+
+renderPlot({
+  anom_name <- paste0(input$param4, "_anom")
+  flag_name <- paste0(input$param4, "_flag")
+  min <- -max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
+  max <- max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
+  ponds[ponds$Station.name == input$pond &
+        ponds[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = get(anom_name), y = Depth, fill = Year)) +
+    geom_point(size = 4, shape = 21) +
+    scale_x_continuous(limits = c(min, max), name = anom_name) +
+    scale_y_reverse() +
+    scale_fill_gradientn(colors = plasma(100)) +
+    labs(y = "Depth (m)") +
+    theme_bw() +
+    theme(panel.grid = element_blank())
 })
 ```
 
