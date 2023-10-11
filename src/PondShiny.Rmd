@@ -150,7 +150,7 @@ ponds <- ponds %>%
 for(i in 1:nrow(ponds)) {
   if(is.na(ponds$DO_sat[i])) {
     rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
-    ponds$DO_sat[i] <- ponds$DO[i] / 15.999 / rho * 10^6 /
+    ponds$DO_sat[i] <- ponds$DO[i] / 32 / rho * 10^6 /
                         gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
   }
 }
@@ -165,8 +165,11 @@ ponds$DO_con <- NA
 for(i in 1:nrow(ponds)) {
   rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
   ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
-                    ponds$DO[i] * 15.999 * rho / 10^6
+                    ponds$DO[i] * 32 * rho / 10^6
 }
+
+ponds <- ponds %>%
+  relocate(DO_con, .after = DO_sat)
 ```
 
 ```{r echo = FALSE}
@@ -469,10 +472,9 @@ renderPlot({
 })
 
 DT::renderDataTable({
-  ponds[ponds$Station.name == input$pond, c(1, 7:9, 12:13)] %>%
+  ponds[ponds$Station.name == input$pond, c(1, 7:9, 12:15)] %>%
     rename(Date.Time = Date.Time..sampling.)
 })
-
 ```
 
 ```{r echo = FALSE}
@@ -517,7 +519,7 @@ renderPlot({
                            na.value = "white")
     } else if(input$param4 == "DO") {
       scale_fill_gradientn(colors = parula(100), name = input$param4,
-                           limits = c(0, 30),
+                           limits = c(0, 15),
                            na.value = "white")
     }
   p2 <- ponds[ponds$Station.name == input$pond &
@@ -540,11 +542,12 @@ renderPlot({
   max <- max(abs(ponds[[anom_name]][ponds$Station.name == input$pond & ponds[[flag_name]] == 2]))
   ponds[ponds$Station.name == input$pond &
         ponds[[flag_name]] == 2, ] %>%
-  ggplot(aes(x = get(anom_name), y = Depth, fill = Year)) +
-    geom_point(size = 4, shape = 21) +
+  ggplot(aes(x = get(anom_name), y = Depth, group = Year, col = Year)) +
+    geom_path() +
+    geom_point() +
     scale_x_continuous(limits = c(min, max), name = anom_name) +
     scale_y_reverse() +
-    scale_fill_gradientn(colors = plasma(100)) +
+    scale_color_gradientn(colors = plasma(100)) +
     labs(y = "Depth (m)") +
     theme_bw() +
     theme(panel.grid = element_blank())
