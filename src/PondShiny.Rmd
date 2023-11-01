@@ -631,7 +631,7 @@ renderPlot({
 })
 ```
 
-#### Size
+#### Size --- color by Buffer Class
 
 ```{r echo = FALSE}
 renderPlot({
@@ -650,24 +650,6 @@ renderPlot({
     theme_bw() +
     theme(panel.grid = element_blank())
 })
-
-prop1 <- "Temp"
-prop2 <- "DO"
-
-flag_name1 <- paste0(prop1, "_flag")
-  flag_name2 <- paste0(prop2, "_flag")
-  allSurface[allSurface[[flag_name1]] == 2 &
-             allSurface[[flag_name2]] == 2 &
-             !is.na(allSurface$SizeClass) &
-             allSurface$Year >= 2001 &
-             allSurface$Year <= 2020, ] %>%
-    mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
-  ggplot(aes(x = get(prop1), y = get(prop2))) +
-    geom_point(size = 2.5) +
-    facet_wrap(~ SizeClass) +
-    labs(x = prop1, y = prop2) +
-    theme_bw() +
-    theme(panel.grid = element_blank())
 ```
 
 ### Cape Cod-wide maps
@@ -795,14 +777,14 @@ slopes_surf <- data.frame(rep(NA, length(pondName)),
                           rep(NA, length(pondName)),
                           rep(NA, length(pondName)),
                           rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
                           rep(NA, length(pondName)))
-colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[c(13:19, 21:23)])
+colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[c(13:20, 22:24)])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
   slopes_surf$pond[i] <- pond
-  oneSurf <- allSurface[allSurface$Station.name == pond &
-                        allSurface[[flag_name]] == 2, ]
+  oneSurf <- allSurface[allSurface$Station.name == pond, ]
   slopes_surf$Long[i] <- oneSurf$Long[1]
   slopes_surf$Lat[i] <- oneSurf$Lat[1]
   if(nrow(oneSurf) < 3) {
@@ -813,12 +795,12 @@ for(i in 1:length(pondName)) {
   if(nrow(oneSurf) < (year.n - year.1)/2) {
     next
   }
-  for(param in colnames(allSurface)[c(13:19, 21:23)]) {
+  for(param in colnames(allSurface)[c(13:20, 22:24)]) {
     if(is.na(sum(oneSurf[[param]]))) {
       next
     }
     flag_name <- paste0(param, "_flag")
-    mk <- mk.test(oneSurf[[param]])
+    mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
     if(mk$p.value > 0.1) {
       next
     }
@@ -837,15 +819,13 @@ slopes_bott <- data.frame(rep(NA, length(pondName)),
                           rep(NA, length(pondName)),
                           rep(NA, length(pondName)),
                           rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
                           rep(NA, length(pondName)))
-colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[c(13:19, 21:23)])
+colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[c(15:20, 22:24)])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
   slopes_bott$pond[i] <- pond
-  oneBott <- allBottom[allBottom$Station.name == pond &
-                       allBottom[[flag_name]] == 2, ]
+  oneBott <- allBottom[allBottom$Station.name == pond, ]
   slopes_bott$Long[i] <- oneBott$Long[1]
   slopes_bott$Lat[i] <- oneBott$Lat[1]
   if(nrow(oneBott) < 3) {
@@ -856,12 +836,12 @@ for(i in 1:length(pondName)) {
   if(nrow(oneBott) < (year.n - year.1)/2) {
     next
   }
-  for(param in colnames(allBottom)[c(13:19, 21:23)]) {
+  for(param in colnames(allBottom)[c(15:20, 22:24)]) {
     if(is.na(sum(oneBott[[param]]))) {
       next
     }
     flag_name <- paste0(param, "_flag")
-    mk <- mk.test(oneBott[[param]])
+    mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
     if(mk$p.value > 0.1) {
       next
     }
