@@ -24,7 +24,8 @@ for(pond in pondName) {
     # temporarily deal with NA depths
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
-    group_by(Station.name, Station.number, Site, Lens, PercentBuffer, BufferClass, Year, Depth) %>%
+    group_by(Station.name, Station.number, Site, DepthClass, SizeClass, Lens, PercentBuffer, BufferClass,
+             Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
   
@@ -49,7 +50,7 @@ for(pond in pondName) {
       }
       if(!is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth]) &
          !is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
-        for(k in 17:(ncol(onePond) - 4)) {   ### change here when cols change
+        for(k in 19:(ncol(onePond) - 4)) {   ### change here when cols change
           param <- colnames(onePond)[k]
           if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth])) {
             for(l in 1:(nrow(onePond[onePond$Year == year, ])-1)) {
@@ -72,7 +73,7 @@ for(pond in pondName) {
       oneSurface <- rbind(oneSurface, onePond[onePond$Year == year & onePond$Depth == depth, ])
     }
   }
-  for(i in 12:(ncol(oneSurface) - 4)) {   ### change here when cols change
+  for(i in 14:(ncol(oneSurface) - 4)) {   ### change here when cols change
     param <- colnames(oneSurface)[i]
     flag_name <- paste0(param, "_flag")
     if(sum(!is.na(oneSurface[[param]])) != 0) {
@@ -107,11 +108,6 @@ allSurface$Station.name[allSurface$Station.name == "MA-634-01 / Mashpee-Wakeby P
 allSurface$Station.name[allSurface$Station.name == "MA-1039-01 / Mashpee-Wakeby Pond"] <-
   "MA-1039-01 / Wakeby Pond"
 
-allSurface <- allSurface %>%
-  mutate(DepthClass = case_when(Final.Depth < 3 ~ "Shallow",
-                                Final.Depth > 3 ~ "Deep")) %>%
-  relocate(DepthClass, .after = Final.Depth)
-
 write.csv(allSurface, "data/AllPonds_Surface.csv", row.names = FALSE)
 
 allBottom <- data.frame()
@@ -124,7 +120,8 @@ for(pond in pondName) {
     # temporarily deal with NA depths
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
-    group_by(Station.name, Station.number, Site, Lens, PercentBuffer, BufferClass, Year, Depth) %>%
+    group_by(Station.name, Station.number, Site, DepthClass, SizeClass, Lens, PercentBuffer, BufferClass,
+             Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
   
@@ -186,7 +183,7 @@ for(pond in pondName) {
       }
       if(!is.na(onePond$Temp[onePond$Year == year & onePond$Depth == depth]) &
          !is.na(onePond$DO[onePond$Year == year & onePond$Depth == depth])) {
-        for(l in 17:(ncol(onePond) - 4)) {
+        for(l in 19:(ncol(onePond) - 4)) {   ### change here when cols change
           param <- colnames(onePond)[l]
           if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth])) {
             for(m in 1:nrow(onePond[onePond$Year == year, ])) {
@@ -214,7 +211,7 @@ for(pond in pondName) {
   if(nrow(oneBottom) == 0) {
     next
   } else {
-    for(i in 14:(ncol(oneBottom) - 4)) {
+    for(i in 16:(ncol(oneBottom) - 4)) {   ### change here when cols change
       param <- colnames(oneBottom)[i]
       flag_name <- paste0(param, "_flag")
       if(sum(!is.na(oneBottom[[param]])) != 0) {
