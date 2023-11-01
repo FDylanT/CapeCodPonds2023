@@ -205,6 +205,23 @@ for(i in 1:nrow(ponds)) {
   }
 }
 
+ponds <- ponds %>%
+  mutate(DepthClass = case_when(Final.Depth < 3 ~ "Shallow",
+                                Final.Depth > 3 ~ "Deep"))
+
+ponds$SizeClass <- NA
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(Size = mean(Size))
+# 
+# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds$SizeClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
+                             ponds$Size <= 12.315432 ~ "Small",
+                             ponds$Size <= 32.563650 ~ "Medium",
+                             ponds$Size > 32.563650 ~ "Large")
+
 #unique(ponds$Station.number[is.na(ponds$Final.Depth)])
 ```
 
@@ -581,7 +598,7 @@ renderPlot({
              !is.na(allSurface$DepthClass) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
-    ## check whether next line works; if so, copy to other plots
+    mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
     mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = BufferClass)) +
     geom_point(size = 2.5) +
@@ -603,6 +620,8 @@ renderPlot({
              !is.na(allSurface$BufferClass) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
+    mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+    mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = DepthClass)) +
     geom_point(size = 2.5) +
     facet_wrap(~ BufferClass) +
@@ -614,8 +633,41 @@ renderPlot({
 
 #### Size
 
-```{r}
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop1, "_flag")
+  flag_name2 <- paste0(input$prop2, "_flag")
+  allSurface[allSurface[[flag_name1]] == 2 &
+             allSurface[[flag_name2]] == 2 &
+             !is.na(allSurface$SizeClass) &
+             allSurface$Year >= input$yearRange[1] &
+             allSurface$Year <= input$yearRange[2], ] %>%
+    mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
+  ggplot(aes(x = get(input$prop1), y = get(input$prop2))) +
+    geom_point(size = 2.5) +
+    facet_wrap(~ SizeClass) +
+    labs(x = input$prop1, y = input$prop2) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+})
 
+prop1 <- "Temp"
+prop2 <- "DO"
+
+flag_name1 <- paste0(prop1, "_flag")
+  flag_name2 <- paste0(prop2, "_flag")
+  allSurface[allSurface[[flag_name1]] == 2 &
+             allSurface[[flag_name2]] == 2 &
+             !is.na(allSurface$SizeClass) &
+             allSurface$Year >= 2001 &
+             allSurface$Year <= 2020, ] %>%
+    mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
+  ggplot(aes(x = get(prop1), y = get(prop2))) +
+    geom_point(size = 2.5) +
+    facet_wrap(~ SizeClass) +
+    labs(x = prop1, y = prop2) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
 ```
 
 ### Cape Cod-wide maps
