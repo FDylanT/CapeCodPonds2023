@@ -19,7 +19,6 @@ library(egg)
 library(DT)
 library(pals)
 library(sf)
-library(ggmap)
 library(viridis)
 ```
 
@@ -184,16 +183,25 @@ selectInput("pond", label = "Choose pond:", choices = pondName)
 
 ```{r include = FALSE}
 ## Match ponds to metadata
+setwd("~/Desktop/Repos/BarnstablePonds2023")
 chars <- read.csv("data/PondCharacteristics.csv")
 
 ponds$Final.Depth.ft <- NA
 ponds$Final.Depth <- NA
+ponds$Size <- NA
+ponds$Lens <- NA
+ponds$PercentBuffer <- NA
+ponds$BufferClass <- NA
 
 for(i in 1:nrow(ponds)) {
   ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
   if(length(chars$Final.Depth[chars$CCC_GIS_ID == ID]) > 0) {
     ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
     ponds$Final.Depth[i] <- ponds$Final.Depth.ft[i] * 12 / 39
+    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentBuffer[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$BufferClass[i] <- chars$buffer.development.class[chars$CCC_GIS_ID == ID]
   }
 }
 
@@ -363,7 +371,7 @@ renderPlot({
 #                                           "DO_sat (%)", "pH", "Alkalinity (mg/L)", "TP (μM)",
 #                                           "TN (μM)", "Chlorophyll-a (μg/L)", "Phaeophytin (μM)")
 
-selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(10:16, 18:20)])
+selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(13:19, 21:23)])
 checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -408,7 +416,7 @@ renderPlot({
 # load bottom-only data
 allBottom <- read.csv("data/AllPonds_Bottom.csv")
 
-selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[c(11:16, 18:20)])
+selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[c(14:19, 21:23)])
 checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -554,6 +562,62 @@ renderPlot({
 })
 ```
 
+### Regional patterns in surface data
+
+```{r echo = FALSE}
+selectInput("prop1", label = "Choose x parameter:", choices = colnames(ponds)[c(12:13, 16:18, 20:22)])
+selectInput("prop2", label = "Choose y parameter:", choices = colnames(ponds)[c(12:13, 16:18, 20:22)])
+sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
+```
+
+#### Depth
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop1, "_flag")
+  flag_name2 <- paste0(input$prop2, "_flag")
+  allSurface[allSurface[[flag_name1]] == 2 &
+             allSurface[[flag_name2]] == 2 &
+             !is.na(allSurface$DepthClass) &
+             allSurface$Year >= input$yearRange[1] &
+             allSurface$Year <= input$yearRange[2], ] %>%
+    ## check whether next line works; if so, copy to other plots
+    mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = BufferClass)) +
+    geom_point(size = 2.5) +
+    facet_wrap(~ DepthClass) +
+    labs(x = input$prop1, y = input$prop2) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+})
+```
+
+#### Buffer
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop1, "_flag")
+  flag_name2 <- paste0(input$prop2, "_flag")
+  allSurface[allSurface[[flag_name1]] == 2 &
+             allSurface[[flag_name2]] == 2 &
+             !is.na(allSurface$BufferClass) &
+             allSurface$Year >= input$yearRange[1] &
+             allSurface$Year <= input$yearRange[2], ] %>%
+  ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = DepthClass)) +
+    geom_point(size = 2.5) +
+    facet_wrap(~ BufferClass) +
+    labs(x = input$prop1, y = input$prop2) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+})
+```
+
+#### Size
+
+```{r}
+
+```
+
 ### Cape Cod-wide maps
 
 #### TN:TP ratios
@@ -563,17 +627,17 @@ Most recent year of data from every pond:
 # turn off spherical geometry to avoid "duplicate" errors
 sf_use_s2(FALSE)
 
-# register API key
-register_google(key = "AIzaSyBn1OxFq4DMK79J4qHmQoBvFlbHbeImABw")
-
-# fetch satellite map
-CC_map <- get_map(c(-70.2962, 41.7888), maptype = "satellite", zoom = 10, source = "google")
+# get Massachusetts outline
+mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+  st_make_valid() %>%
+  st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
 
 renderPlot({
   surface_recent <- allSurface %>%
     group_by(Station.number) %>%
     filter(Year == max(Year))
-  ggmap(CC_map) +
+  ggplot() +
+    geom_sf(data = mass) +
     geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
                                                                        col = log10(TN / TP)),
                size = 2.5) +
@@ -581,16 +645,18 @@ renderPlot({
                           limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
+    theme_bw() +
     theme(axis.title = element_blank())
 })
 ```
 
 Aug-Sept average of years 2016-2023:
-```{r echo = FALSE, message = FALSE}
+```{r echo = FALSE, warning = FALSE}
 renderPlot({
   surface_recent <- allSurface %>%
     filter(Year >= 2016)
-  ggmap(CC_map) +
+  ggplot() +
+    geom_sf(data = mass) +
     geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
                                                                        col = log10(TN / TP)),
                size = 2.5) +
@@ -598,6 +664,7 @@ renderPlot({
                           limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
+    theme_bw() +
     theme(axis.title = element_blank())
 })
 ```
@@ -607,7 +674,7 @@ Aug-Sept average of years 2016-2023.
 
 ```{r echo = FALSE}
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("param3", label = "Choose parameter:", choices = colnames(allSurface)[c(11:16, 18:20)])
+selectInput("param3", label = "Choose parameter:", choices = colnames(allSurface)[c(14:19, 21:23)])
 
 renderPlot({
   if(input$layer == "Surface") {
@@ -617,11 +684,180 @@ renderPlot({
     data_recent <- allBottom %>%
     filter(Year >= 2016)
   }
-  ggmap(CC_map) +
+  ggplot() +
+    geom_sf(data = mass) +
     geom_point(data = data_recent[!is.na(data_recent[[input$param3]]), ],
                  aes(x = Long, y = Lat, col = get(input$param3)),
                  size = 2.5) +
     scale_color_viridis(option = "plasma", name = paste(input$layer, input$param3)) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme_bw() +
     theme(axis.title = element_blank())
+})
+```
+
+#### Regional patterns in surface anomalies
+
+```{r echo = FALSE}
+selectInput("param5", label = "Choose parameter:", choices = colnames(ponds)[12:13])
+sliderInput("year", label = "Year:", min = 2001, max = 2020, value = 2020)
+
+renderPlot({
+  anom_name <- paste0(input$param5, "_anom")
+  flag_name <- paste0(input$param5, "_flag")
+  #min <- -max(abs(ponds[[anom_name]][ponds[[flag_name]] == 2]), na.rm = TRUE)
+  #max <- max(abs(ponds[[anom_name]][ponds[[flag_name]] == 2]), na.rm = TRUE)
+  min <- ifelse(anom_name == "Temp_anom", -10, -15)   # temp_anom range [-10, 10]; DO_anom range [-15, 15]
+  max <- ifelse(anom_name == "Temp_anom", 10, 15)
+  ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = ponds[ponds[[flag_name]] == 2 &
+                            ponds$Year == input$year &
+                            ponds$Depth <= 1.0, ],
+               aes(x = Long, y = Lat, fill = get(anom_name), size = abs(get(anom_name))), shape = 21) +
+    scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
+                         limits = c(min, max), na.value = "white") +
+    scale_size_continuous(range = c(2, 6), name = paste(anom_name, "\nmagnitude"),
+                          limits = c(0, max)) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank())
+})
+```
+
+#### Surface trends over time
+
+```{r echo = FALSE}
+slopes_surf <- data.frame(rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)))
+colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[c(13:19, 21:23)])
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_surf$pond[i] <- pond
+  oneSurf <- allSurface[allSurface$Station.name == pond &
+                        allSurface[[flag_name]] == 2, ]
+  slopes_surf$Long[i] <- oneSurf$Long[1]
+  slopes_surf$Lat[i] <- oneSurf$Lat[1]
+  if(nrow(oneSurf) < 3) {
+    next
+  }
+  year.1 <- min(oneSurf$Year)
+  year.n <- max(oneSurf$Year)
+  if(nrow(oneSurf) < (year.n - year.1)/2) {
+    next
+  }
+  for(param in colnames(allSurface)[c(13:19, 21:23)]) {
+    if(is.na(sum(oneSurf[[param]]))) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneSurf[[param]])
+    if(mk$p.value > 0.1) {
+      next
+    }
+    slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]])$estimates
+  }
+}
+
+slopes_bott <- data.frame(rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)),
+                          rep(NA, length(pondName)))
+colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[c(13:19, 21:23)])
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_bott$pond[i] <- pond
+  oneBott <- allBottom[allBottom$Station.name == pond &
+                       allBottom[[flag_name]] == 2, ]
+  slopes_bott$Long[i] <- oneBott$Long[1]
+  slopes_bott$Lat[i] <- oneBott$Lat[1]
+  if(nrow(oneBott) < 3) {
+    next
+  }
+  year.1 <- min(oneBott$Year)
+  year.n <- max(oneBott$Year)
+  if(nrow(oneBott) < (year.n - year.1)/2) {
+    next
+  }
+  for(param in colnames(allBottom)[c(13:19, 21:23)]) {
+    if(is.na(sum(oneBott[[param]]))) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneBott[[param]])
+    if(mk$p.value > 0.1) {
+      next
+    }
+    slopes_bott[[param]][i] <- sens.slope(oneBott[[param]])$estimates
+  }
+}
+```
+
+```{r echo = FALSE}
+selectInput("param6", label = "Choose parameter:", choices = colnames(allSurface)[c(13:19, 21:23)])
+
+renderPlot({
+  ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = slopes_surf,
+               aes(x = Long, y = Lat, size = abs(get(input$param6)), fill = factor(sign(get(input$param6)))),
+               shape = 21) +
+    scale_size_continuous(range = c(2, 6), name = paste(input$param6, "trend\nmagnitude")) +
+    scale_fill_discrete(type = c("firebrick", "royalblue"), labels = c("negative", "positive"),
+                        name = paste(input$param6, "trend\ndirection"),
+                        na.translate = FALSE) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank())
+})
+```
+
+#### Bottom trends over time
+
+```{r echo = FALSE}
+selectInput("param7", label = "Choose parameter:", choices = colnames(allBottom)[c(14:19, 21:23)])
+
+renderPlot({
+  ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = slopes_bott,
+               aes(x = Long, y = Lat, size = abs(get(input$param7)), fill = factor(sign(get(input$param7)))),
+               shape = 21) +
+    scale_size_continuous(range = c(2, 6), name = paste(input$param7, "trend\nmagnitude")) +
+    scale_fill_discrete(type = c("firebrick", "royalblue"), labels = c("negative", "positive"),
+                        name = paste(input$param7, "trend\ndirection"),
+                        na.translate = FALSE) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank())
 })
 ```
