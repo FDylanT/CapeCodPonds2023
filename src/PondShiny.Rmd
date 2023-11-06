@@ -133,10 +133,10 @@ ponds[ponds == "-0.3"] <- "0.3"
 #ponds[ponds == "< 1.50"] <- "1.50"
 
 # fix missing decimal
-ponds[ponds == "207"] <- "20.7"
+#ponds[ponds == "207"] <- "20.7"
 
 # temporarily remove problematic row
-ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
+#ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
 
 # convert all numerical cols to numeric
 is_all_numeric <- function(x) {
@@ -507,7 +507,7 @@ DT::renderDataTable({
 ```
 
 ```{r echo = FALSE}
-selectInput("param4", label = "Choose parameter:", choices = colnames(ponds)[12:13])
+selectInput("param4", label = "Choose parameter:", choices = c("Temp", "DO"))
 
 renderPlot({
   flag_name <- paste0(input$param4, "_flag")
@@ -586,8 +586,8 @@ renderPlot({
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-selectInput("prop1", label = "Choose x parameter:", choices = colnames(ponds)[c(12:13, 16:18, 20:22)])
-selectInput("prop2", label = "Choose y parameter:", choices = colnames(ponds)[c(12:13, 16:18, 20:22)])
+selectInput("prop1", label = "Choose x parameter:", choices = c("Temp", "DO", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 ```
 
@@ -734,7 +734,7 @@ Aug-Sept average of years 2016-2023.
 
 ```{r echo = FALSE}
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("param3", label = "Choose parameter:", choices = colnames(allSurface)[c(14:19, 21:23)])
+selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO",   "DO_sat", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
 
 renderPlot({
   if(input$layer == "Surface") {
@@ -760,7 +760,7 @@ renderPlot({
 #### Regional patterns in surface anomalies
 
 ```{r echo = FALSE}
-selectInput("param5", label = "Choose parameter:", choices = colnames(ponds)[12:13])
+selectInput("param5", label = "Choose parameter:", choices = c("Temp", "DO"))
 sliderInput("year", label = "Year:", min = 2001, max = 2020, value = 2020)
 
 renderPlot({
@@ -877,7 +877,7 @@ for(i in 1:length(pondName)) {
 ```
 
 ```{r echo = FALSE}
-selectInput("param6", label = "Choose parameter:", choices = colnames(allSurface)[c(13:19, 21:23)])
+selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
 
 renderPlot({
   ggplot() +
@@ -900,7 +900,7 @@ renderPlot({
 #### Bottom trends over time
 
 ```{r echo = FALSE}
-selectInput("param7", label = "Choose parameter:", choices = colnames(allBottom)[c(14:19, 21:23)])
+selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
 
 renderPlot({
   ggplot() +
