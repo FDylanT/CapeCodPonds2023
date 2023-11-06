@@ -28,7 +28,8 @@ library(viridis)
 setwd("~/Desktop/Repos/BarnstablePonds2023")
 
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
-ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
   
   # remove non-data rows
   filter(Station.name != "") %>%
@@ -63,13 +64,15 @@ ponds <- ponds_full %>%
   unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
   
   # remove unneeded columns
-  dplyr::select(-Sample.number, -Depth.Designation) %>%
+  #dplyr::select(-Sample.number, -Depth.Designation) %>%
+  dplyr::select(-Water.body) %>%
   
   # split long/lat coordinates
   separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
   
   # rename columns with redundant headers
   rename(Total.Depth = Total.Depth...DTB,
+         Secchi_pct = Percent.Secchi...SECCHI_PCT,
          TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL,
          CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
          CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
@@ -87,6 +90,7 @@ ponds <- ponds_full %>%
          TPigm = Total.Pigments...TOTAL_PIGMENTS) %>%
   
   # reorder columns
+  relocate(Secchi_pct, .after = Secchi) %>%
   relocate(Temp, .before = DO) %>%
   relocate(DO_sat, .after = DO) %>%
   relocate(pH, .after = DO_sat) %>%
@@ -115,18 +119,18 @@ ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
 ponds[ponds == ""] <- NA
 
 # convert null datapoints to NA
-ponds[ponds == "n.m. 0.00"] <- NA
-ponds[ponds == "ND 0.00"] <- NA
-ponds[ponds == "<MDL 0.00"] <- NA
-ponds[ponds == "BDL 0.00"] <- "0"
+#ponds[ponds == "n.m. 0.00"] <- NA
+#ponds[ponds == "ND 0.00"] <- NA
+#ponds[ponds == "<MDL 0.00"] <- NA
+#ponds[ponds == "BDL 0.00"] <- "0"
 
 # temporarily fix non-numeric datapoints
 ponds[ponds == "-0.04"] <- "0.04"
 ponds[ponds == "-0.3"] <- "0.3"
-ponds[ponds == "> 15.50"] <- "15.50"
-ponds[ponds == "< 0.05"] <- "0"
-ponds[ponds == "< 0.10"] <- "0"
-ponds[ponds == "< 1.50"] <- "1.50"
+#ponds[ponds == "> 15.50"] <- "15.50"
+#ponds[ponds == "< 0.05"] <- "0"
+#ponds[ponds == "< 0.10"] <- "0"
+#ponds[ponds == "< 1.50"] <- "1.50"
 
 # fix missing decimal
 ponds[ponds == "207"] <- "20.7"
@@ -388,7 +392,7 @@ renderPlot({
 #                                           "DO_sat (%)", "pH", "Alkalinity (mg/L)", "TP (μM)",
 #                                           "TN (μM)", "Chlorophyll-a (μg/L)", "Phaeophytin (μM)")
 
-selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(13:19, 21:23)])
+selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(14:20, 22:24)])
 checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -433,7 +437,7 @@ renderPlot({
 # load bottom-only data
 allBottom <- read.csv("data/AllPonds_Bottom.csv")
 
-selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[c(14:19, 21:23)])
+selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[c(15:20, 22:24)])
 checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -631,7 +635,7 @@ renderPlot({
 })
 ```
 
-#### Size --- color by Buffer Class
+#### Size
 
 ```{r echo = FALSE}
 renderPlot({
@@ -643,9 +647,31 @@ renderPlot({
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
     mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
-  ggplot(aes(x = get(input$prop1), y = get(input$prop2))) +
+    mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = BufferClass)) +
     geom_point(size = 2.5) +
     facet_wrap(~ SizeClass) +
+    labs(x = input$prop1, y = input$prop2) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+})
+```
+
+#### Lens
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop1, "_flag")
+  flag_name2 <- paste0(input$prop2, "_flag")
+  allSurface[allSurface[[flag_name1]] == 2 &
+             allSurface[[flag_name2]] == 2 &
+             !is.na(allSurface$Lens) &
+             allSurface$Year >= input$yearRange[1] &
+             allSurface$Year <= input$yearRange[2], ] %>%
+    mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+  ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = DepthClass)) +
+    geom_point(size = 2.5) +
+    facet_wrap(~ Lens) +
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
@@ -883,7 +909,7 @@ renderPlot({
                aes(x = Long, y = Lat, size = abs(get(input$param7)), fill = factor(sign(get(input$param7)))),
                shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param7, "trend\nmagnitude")) +
-    scale_fill_discrete(type = c("firebrick", "royalblue"), labels = c("negative", "positive"),
+    scale_fill_discrete(type = c("royalblue", "firebrick"), labels = c("negative", "positive"),
                         name = paste(input$param7, "trend\ndirection"),
                         na.translate = FALSE) +
     xlim(-70.65, -69.95) +
