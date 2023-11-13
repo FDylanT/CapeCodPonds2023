@@ -35,15 +35,7 @@ ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
   filter(Station.name != "") %>%
   
   # remove quality code columns for easier visualization
-  dplyr::select(-Quality.code, -Quality.code.1, -Quality.code.2, -Quality.code.3, -Quality.code.4,
-                -Quality.code.5,
-         -Quality.code.6, -Quality.code.7, -Quality.code.8, -Quality.code.9, -Quality.code.10,
-         -Quality.code.11, -Quality.code.12, -Quality.code.13, -Quality.code.14, -Quality.code.15,
-         -Quality.code.16, -Quality.code.17, -Quality.code.18, -Quality.code.19, -Quality.code.20,
-         -Quality.code.21, -Quality.code.22, -Quality.code.23, -Quality.code.24, -Quality.code.25,
-         -Quality.code.26, -Quality.code.27, -Quality.code.28, -Quality.code.29, -Quality.code.30,
-         -Quality.code.31, -Quality.code.32, -Quality.code.33, -Quality.code.34, -Quality.code.35,
-         -Quality.code.36, -Quality.code.37, -Quality.code.38)
+  dplyr::select(-contains("Quality.code"))
 ```
 
 ```{r include = FALSE}
@@ -62,10 +54,6 @@ ponds <- ponds_full %>%
   unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
   unite(Phaeo, Phaeophytin...PHAEO, Phaeophytin...PHAEO.1, sep = "") %>%
   unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
-  
-  # remove unneeded columns
-  #dplyr::select(-Sample.number, -Depth.Designation) %>%
-  dplyr::select(-Water.body) %>%
   
   # split long/lat coordinates
   separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
@@ -90,14 +78,12 @@ ponds <- ponds_full %>%
          TPigm = Total.Pigments...TOTAL_PIGMENTS) %>%
   
   # reorder columns
+  relocate(Secchi, .after = Depth) %>%
   relocate(Secchi_pct, .after = Secchi) %>%
-  relocate(Temp, .before = DO) %>%
+  relocate(Temp, .after = Secchi_pct) %>%
+  relocate(DO, .after = Temp) %>%
   relocate(DO_sat, .after = DO) %>%
-  relocate(pH, .after = DO_sat) %>%
-  relocate(Alk, .after = pH) %>%
-  relocate(Chla, .after = TN) %>%
-  relocate(Phaeo, .after = Chla) %>%
-  relocate(NOX, .after = NH4) %>%
+  relocate(Total.Depth, .after = last_col()) %>%
   
   # extract date from date-time column & create new column
   mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
@@ -125,6 +111,7 @@ ponds[ponds == ""] <- NA
 #ponds[ponds == "BDL 0.00"] <- "0"
 
 # temporarily fix non-numeric datapoints
+ponds[ponds == "-0.15"] <- "0.15"
 ponds[ponds == "-0.04"] <- "0.04"
 ponds[ponds == "-0.3"] <- "0.3"
 #ponds[ponds == "> 15.50"] <- "15.50"
@@ -163,26 +150,16 @@ for(i in 1:nrow(ponds)) {
 #mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/15.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
 
 # calculate DO concentration values
-ponds$DO_con <- NA
+#ponds$DO_con <- NA
 
-for(i in 1:nrow(ponds)) {
-  rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
-  ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
-                    ponds$DO[i] * 32 * rho / 10^6
-}
+#for(i in 1:nrow(ponds)) {
+#  rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
+#  ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+#                    ponds$DO[i] * 32 * rho / 10^6
+#}
 
-ponds <- ponds %>%
-  relocate(DO_con, .after = DO_sat)
-```
-
-```{r echo = FALSE}
-ponds <- ponds %>%
-  filter(Month == 8 | Month == 9) %>%
-  arrange(Town, Pond.number)
-
-pondName <- unique(ponds$Station.name)
-
-selectInput("pond", label = "Choose pond:", choices = pondName)
+#ponds <- ponds %>%
+#  relocate(DO_con, .after = DO_sat)
 ```
 
 ```{r include = FALSE}
@@ -227,6 +204,16 @@ ponds$SizeClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
                              ponds$Size > 32.563650 ~ "Large")
 
 #unique(ponds$Station.number[is.na(ponds$Final.Depth)])
+```
+
+```{r echo = FALSE}
+ponds <- ponds %>%
+  filter(Month == 8 | Month == 9) %>%
+  arrange(Town, Pond.number)
+
+pondName <- unique(ponds$Station.name)
+
+selectInput("pond", label = "Choose pond:", choices = pondName)
 ```
 
 ```{r echo = FALSE}
@@ -324,7 +311,8 @@ renderPlot({
 
 ```{r echo = FALSE}
 # load surface-only data
-allSurface <- read.csv("data/AllPonds_Surface.csv")
+allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
+  filter(Month == 8 | Month == 9)
 
 sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 30, value = 30)
 sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 480, value = 480)
@@ -392,7 +380,10 @@ renderPlot({
 #                                           "DO_sat (%)", "pH", "Alkalinity (mg/L)", "TP (μM)",
 #                                           "TN (μM)", "Chlorophyll-a (μg/L)", "Phaeophytin (μM)")
 
-selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[c(14:20, 22:24)])
+start <- which(colnames(allSurface) == "Lat") + 1
+end <- which(colnames(allSurface) == "Total.Depth") - 1
+
+selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[start:end])
 checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -435,9 +426,13 @@ renderPlot({
 
 ```{r echo = FALSE}
 # load bottom-only data
-allBottom <- read.csv("data/AllPonds_Bottom.csv")
+allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
+  filter(Month == 8 | Month == 9)
 
-selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[c(15:20, 22:24)])
+start <- which(colnames(allSurface) == "Secchi_pct") + 1
+end <- which(colnames(allSurface) == "Total.Depth") - 1
+
+selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[start:end])
 checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
@@ -586,8 +581,8 @@ renderPlot({
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-selectInput("prop1", label = "Choose x parameter:", choices = c("Temp", "DO", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
-selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("prop1", label = "Choose x parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla", "Phaeo"))
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 ```
 
@@ -734,7 +729,7 @@ Aug-Sept average of years 2016-2023.
 
 ```{r echo = FALSE}
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO",   "DO_sat", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO",   "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
 
 renderPlot({
   if(input$layer == "Surface") {
@@ -791,21 +786,11 @@ renderPlot({
 #### Surface trends over time
 
 ```{r echo = FALSE}
-slopes_surf <- data.frame(rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)))
-colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[c(13:20, 22:24)])
+start <- which(colnames(allSurface) == "Lat") + 1
+end <- which(colnames(allSurface) == "Total.Depth") - 1
+
+slopes_surf <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
+colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[start:end])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -818,10 +803,13 @@ for(i in 1:length(pondName)) {
   }
   year.1 <- min(oneSurf$Year)
   year.n <- max(oneSurf$Year)
+  if(year.1 > 2005 | year.n < 2016) {
+    next
+  }
   if(nrow(oneSurf) < (year.n - year.1)/2) {
     next
   }
-  for(param in colnames(allSurface)[c(13:20, 22:24)]) {
+  for(param in colnames(allSurface)[start:end]) {
     if(is.na(sum(oneSurf[[param]]))) {
       next
     }
@@ -834,19 +822,44 @@ for(i in 1:length(pondName)) {
   }
 }
 
-slopes_bott <- data.frame(rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)),
-                          rep(NA, length(pondName)))
-colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[c(15:20, 22:24)])
+slopes_surf2 <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
+colnames(slopes_surf2) <- c("pond", "Long", "Lat", colnames(allSurface)[start:end])
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_surf2$pond[i] <- pond
+  oneSurf <- allSurface[allSurface$Station.name == pond, ]
+  slopes_surf2$Long[i] <- oneSurf$Long[1]
+  slopes_surf2$Lat[i] <- oneSurf$Lat[1]
+  if(nrow(oneSurf) < 3) {
+    next
+  }
+  year.1 <- min(oneSurf$Year)
+  year.n <- max(oneSurf$Year)
+  if(year.1 > 2005 | year.n < 2016) {
+    next
+  }
+  if(nrow(oneSurf) < (year.n - year.1)/2) {
+    next
+  }
+  for(param in colnames(allSurface)[start:end]) {
+    if(is.na(sum(oneSurf[[param]]))) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
+    if(mk$p.value <= 0.1) {
+      next
+    }
+    slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]])$estimates
+  }
+}
+
+start <- which(colnames(allBottom) == "Secchi_pct") + 1
+end <- which(colnames(allBottom) == "Total.Depth") - 1
+
+slopes_bott <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
+colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[start:end])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -859,10 +872,13 @@ for(i in 1:length(pondName)) {
   }
   year.1 <- min(oneBott$Year)
   year.n <- max(oneBott$Year)
+  if(year.1 > 2005 | year.n < 2016) {
+    next
+  }
   if(nrow(oneBott) < (year.n - year.1)/2) {
     next
   }
-  for(param in colnames(allBottom)[c(15:20, 22:24)]) {
+  for(param in colnames(allBottom)[start:end]) {
     if(is.na(sum(oneBott[[param]]))) {
       next
     }
@@ -874,10 +890,46 @@ for(i in 1:length(pondName)) {
     slopes_bott[[param]][i] <- sens.slope(oneBott[[param]])$estimates
   }
 }
+
+start <- which(colnames(allBottom) == "Secchi_pct") + 1
+end <- which(colnames(allBottom) == "Total.Depth") - 1
+
+slopes_bott2 <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
+colnames(slopes_bott2) <- c("pond", "Long", "Lat", colnames(allBottom)[start:end])
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_bott2$pond[i] <- pond
+  oneBott <- allBottom[allBottom$Station.name == pond, ]
+  slopes_bott2$Long[i] <- oneBott$Long[1]
+  slopes_bott2$Lat[i] <- oneBott$Lat[1]
+  if(nrow(oneBott) < 3) {
+    next
+  }
+  year.1 <- min(oneBott$Year)
+  year.n <- max(oneBott$Year)
+  if(year.1 > 2005 | year.n < 2016) {
+    next
+  }
+  if(nrow(oneBott) < (year.n - year.1)/2) {
+    next
+  }
+  for(param in colnames(allBottom)[start:end]) {
+    if(is.na(sum(oneBott[[param]]))) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
+    if(mk$p.value <= 0.1) {
+      next
+    }
+    slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]])$estimates
+  }
+}
 ```
 
 ```{r echo = FALSE}
-selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
 
 renderPlot({
   ggplot() +
@@ -885,10 +937,20 @@ renderPlot({
     geom_point(data = slopes_surf,
                aes(x = Long, y = Lat, size = abs(get(input$param6)), fill = factor(sign(get(input$param6)))),
                shape = 21) +
+    geom_point(data = slopes_surf2,
+               aes(x = Long, y = Lat, size = abs(get(input$param6)), col = factor(sign(get(input$param6)))),
+               shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param6, "trend\nmagnitude")) +
-    scale_fill_discrete(type = c("firebrick", "royalblue"), labels = c("negative", "positive"),
-                        name = paste(input$param6, "trend\ndirection"),
-                        na.translate = FALSE) +
+    scale_fill_manual(values = c("royalblue", "firebrick"), 
+                      breaks = c(-1, 1),
+                      labels = c("negative", "positive"),
+                      name = paste(input$param6, "trend\ndirection"),
+                      na.translate = FALSE) +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                       breaks = c(-1, 0, 1),
+                       labels = c("negative", "zero", "positive"),
+                       name = paste(input$param6, "trend\ndirection"),
+                       na.translate = FALSE) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -900,7 +962,7 @@ renderPlot({
 #### Bottom trends over time
 
 ```{r echo = FALSE}
-selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "pH", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
 
 renderPlot({
   ggplot() +
@@ -908,10 +970,20 @@ renderPlot({
     geom_point(data = slopes_bott,
                aes(x = Long, y = Lat, size = abs(get(input$param7)), fill = factor(sign(get(input$param7)))),
                shape = 21) +
+    geom_point(data = slopes_bott2,
+               aes(x = Long, y = Lat, size = abs(get(input$param7)), col = factor(sign(get(input$param7)))),
+               shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param7, "trend\nmagnitude")) +
-    scale_fill_discrete(type = c("royalblue", "firebrick"), labels = c("negative", "positive"),
-                        name = paste(input$param7, "trend\ndirection"),
-                        na.translate = FALSE) +
+    scale_fill_manual(values = c("royalblue", "firebrick"), 
+                      breaks = c(-1, 1),
+                      labels = c("negative", "positive"),
+                      name = paste(input$param7, "trend\ndirection"),
+                      na.translate = FALSE) +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                       breaks = c(-1, 0, 1),
+                       labels = c("negative", "zero", "positive"),
+                       name = paste(input$param7, "trend\ndirection"),
+                       na.translate = FALSE) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
