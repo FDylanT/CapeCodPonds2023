@@ -165,7 +165,8 @@ for(i in 1:nrow(ponds)) {
 ```{r include = FALSE}
 ## Match ponds to metadata
 setwd("~/Desktop/Repos/BarnstablePonds2023")
-chars <- read.csv("data/PondCharacteristics.csv")
+chars <- read.csv("data/PondCharacteristics.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
 ponds$Final.Depth.ft <- NA
 ponds$Final.Depth <- NA
@@ -312,7 +313,8 @@ renderPlot({
 ```{r echo = FALSE}
 # load surface-only data
 allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
-  filter(Month == 8 | Month == 9)
+  filter(Month == 8 | Month == 9) %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
 sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 30, value = 30)
 sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 480, value = 480)
@@ -427,7 +429,8 @@ renderPlot({
 ```{r echo = FALSE}
 # load bottom-only data
 allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
-  filter(Month == 8 | Month == 9)
+  filter(Month == 8 | Month == 9) %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
 start <- which(colnames(allSurface) == "Secchi_pct") + 1
 end <- which(colnames(allSurface) == "Total.Depth") - 1
@@ -592,9 +595,10 @@ sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = 
 renderPlot({
   flag_name1 <- paste0(input$prop1, "_flag")
   flag_name2 <- paste0(input$prop2, "_flag")
-  allSurface[allSurface[[flag_name1]] == 2 &
+  p <- allSurface[allSurface[[flag_name1]] == 2 &
              allSurface[[flag_name2]] == 2 &
              !is.na(allSurface$DepthClass) &
+             !is.na(allSurface$BufferClass) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
     mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
@@ -605,6 +609,13 @@ renderPlot({
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
+    if(input$prop1 == "TP" | input$prop1 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop2 == "TP" | input$prop2 == "TN") {
+      p <- p + scale_y_log10()
+    }
+  p
 })
 ```
 
@@ -614,7 +625,7 @@ renderPlot({
 renderPlot({
   flag_name1 <- paste0(input$prop1, "_flag")
   flag_name2 <- paste0(input$prop2, "_flag")
-  allSurface[allSurface[[flag_name1]] == 2 &
+  p <- allSurface[allSurface[[flag_name1]] == 2 &
              allSurface[[flag_name2]] == 2 &
              !is.na(allSurface$BufferClass) &
              allSurface$Year >= input$yearRange[1] &
@@ -627,6 +638,13 @@ renderPlot({
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
+    if(input$prop1 == "TP" | input$prop1 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop2 == "TP" | input$prop2 == "TN") {
+      p <- p + scale_y_log10()
+    }
+  p
 })
 ```
 
@@ -636,9 +654,10 @@ renderPlot({
 renderPlot({
   flag_name1 <- paste0(input$prop1, "_flag")
   flag_name2 <- paste0(input$prop2, "_flag")
-  allSurface[allSurface[[flag_name1]] == 2 &
+  p <- allSurface[allSurface[[flag_name1]] == 2 &
              allSurface[[flag_name2]] == 2 &
              !is.na(allSurface$SizeClass) &
+             !is.na(allSurface$BufferClass) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
     mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
@@ -649,6 +668,13 @@ renderPlot({
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
+    if(input$prop1 == "TP" | input$prop1 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop2 == "TP" | input$prop2 == "TN") {
+      p <- p + scale_y_log10()
+    }
+  p
 })
 ```
 
@@ -658,7 +684,7 @@ renderPlot({
 renderPlot({
   flag_name1 <- paste0(input$prop1, "_flag")
   flag_name2 <- paste0(input$prop2, "_flag")
-  allSurface[allSurface[[flag_name1]] == 2 &
+  p <- allSurface[allSurface[[flag_name1]] == 2 &
              allSurface[[flag_name2]] == 2 &
              !is.na(allSurface$Lens) &
              allSurface$Year >= input$yearRange[1] &
@@ -670,6 +696,13 @@ renderPlot({
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
+    if(input$prop1 == "TP" | input$prop1 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop2 == "TP" | input$prop2 == "TN") {
+      p <- p + scale_y_log10()
+    }
+  p
 })
 ```
 
@@ -689,7 +722,7 @@ mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/li
 
 renderPlot({
   surface_recent <- allSurface %>%
-    group_by(Station.number) %>%
+    group_by(Station.name) %>%
     filter(Year == max(Year))
   ggplot() +
     geom_sf(data = mass) +
@@ -990,4 +1023,9 @@ renderPlot({
     theme(panel.grid = element_blank(),
           axis.title = element_blank())
 })
+```
+
+## DO proportion of regulatory limit
+```{r echo = FALSE}
+
 ```
