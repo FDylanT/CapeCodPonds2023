@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup, include = FALSE}
 knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
 ```{r include = FALSE}
@@ -119,8 +120,9 @@ ponds[ponds == "-0.3"] <- "0.3"
 #ponds[ponds == "< 0.10"] <- "0"
 #ponds[ponds == "< 1.50"] <- "1.50"
 
-# fix missing decimal
+# fix erroneous values
 #ponds[ponds == "207"] <- "20.7"
+ponds$Temp[ponds$Temp == "0"] <- NA
 
 # temporarily remove problematic row
 #ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
@@ -205,6 +207,18 @@ ponds$SizeClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
                              ponds$Size > 32.563650 ~ "Large")
 
 #unique(ponds$Station.number[is.na(ponds$Final.Depth)])
+
+# remove incorrect Secchi depths
+ponds$Secchi[ponds$Secchi > 30] <- NA
+
+# remove impossible Secchi depths
+# for(i in 1:nrow(ponds)) {
+#   if(!is.na(ponds$Secchi[i]) &
+#      !is.na(ponds$Final.Depth[i]) &
+#      ponds$Secchi[i] > ponds$Final.Depth[i]) {
+#     print(ponds$Secchi[i])
+#   }
+# }
 ```
 
 ```{r echo = FALSE}
@@ -295,7 +309,7 @@ for(i in 1:nrow(ponds)) {
 }
 ```
 
-```{r echo = FALSE, message = FALSE}
+```{r echo = FALSE}
 months <- ponds %>%
   group_by(Station.name, Date) %>%
   summarise(Month = mean(Month))
@@ -589,7 +603,9 @@ selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "A
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 ```
 
-#### Depth
+This year range applies to the next four sets of graphics (depth, buffer, size, and lens groupings).
+
+#### Depth Classes
 
 ```{r echo = FALSE}
 renderPlot({
@@ -615,11 +631,19 @@ renderPlot({
     if(input$prop2 == "TP" | input$prop2 == "TN") {
       p <- p + scale_y_log10()
     }
+    if(input$prop1 == "TP" & input$prop2 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop1 == "TN" & input$prop2 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
   p
 })
 ```
 
-#### Buffer
+#### Buffer Classes
 
 ```{r echo = FALSE}
 renderPlot({
@@ -644,11 +668,19 @@ renderPlot({
     if(input$prop2 == "TP" | input$prop2 == "TN") {
       p <- p + scale_y_log10()
     }
+    if(input$prop1 == "TP" & input$prop2 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop1 == "TN" & input$prop2 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
   p
 })
 ```
 
-#### Size
+#### Size Classes
 
 ```{r echo = FALSE}
 renderPlot({
@@ -674,11 +706,19 @@ renderPlot({
     if(input$prop2 == "TP" | input$prop2 == "TN") {
       p <- p + scale_y_log10()
     }
+    if(input$prop1 == "TP" & input$prop2 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop1 == "TN" & input$prop2 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
   p
 })
 ```
 
-#### Lens
+#### Lenses
 
 ```{r echo = FALSE}
 renderPlot({
@@ -702,6 +742,14 @@ renderPlot({
     if(input$prop2 == "TP" | input$prop2 == "TN") {
       p <- p + scale_y_log10()
     }
+    if(input$prop1 == "TP" & input$prop2 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop1 == "TN" & input$prop2 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
   p
 })
 ```
@@ -711,7 +759,7 @@ renderPlot({
 #### TN:TP ratios
 
 Most recent year of data from every pond:
-```{r echo = FALSE, message = FALSE}
+```{r echo = FALSE}
 # turn off spherical geometry to avoid "duplicate" errors
 sf_use_s2(FALSE)
 
@@ -739,7 +787,7 @@ renderPlot({
 ```
 
 Aug-Sept average of years 2016-2023:
-```{r echo = FALSE, warning = FALSE}
+```{r echo = FALSE}
 renderPlot({
   surface_recent <- allSurface %>%
     filter(Year >= 2016)
@@ -762,7 +810,13 @@ Aug-Sept average of years 2016-2023.
 
 ```{r echo = FALSE}
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO",   "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
+
+renderUI({
+  val <- input$param3
+  sliderInput("color", label = "Choose gradient limits:", min = min(ponds[[val]], na.rm = TRUE), max = max(ponds[[val]], na.rm = TRUE),
+            value = c(min(ponds[[val]], na.rm = TRUE), max(ponds[[val]], na.rm = TRUE)))
+})
 
 renderPlot({
   if(input$layer == "Surface") {
@@ -777,7 +831,8 @@ renderPlot({
     geom_point(data = data_recent[!is.na(data_recent[[input$param3]]), ],
                  aes(x = Long, y = Lat, col = get(input$param3)),
                  size = 2.5) +
-    scale_color_viridis(option = "plasma", name = paste(input$layer, input$param3)) +
+    scale_color_viridis(option = "plasma", name = paste(input$layer, input$param3),
+                        limits = c(input$color[1], input$color[2])) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -787,9 +842,11 @@ renderPlot({
 
 #### Regional patterns in surface anomalies
 
+The region-wide anomaly values from a single year are visualized at once.
+
 ```{r echo = FALSE}
 selectInput("param5", label = "Choose parameter:", choices = c("Temp", "DO"))
-sliderInput("year", label = "Year:", min = 2001, max = 2020, value = 2020)
+sliderInput("year", label = "Year:", min = 2001, max = 2020, value = 2001)
 
 renderPlot({
   anom_name <- paste0(input$param5, "_anom")
@@ -1025,7 +1082,9 @@ renderPlot({
 })
 ```
 
-## DO proportion of regulatory limit
+#### DO proportion of regulatory limit
 ```{r echo = FALSE}
+selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
+
 
 ```
