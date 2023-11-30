@@ -21,6 +21,7 @@ library(DT)
 library(pals)
 library(sf)
 library(viridis)
+library(rkt)
 ```
 
 ```{r include = FALSE}
@@ -92,7 +93,8 @@ ponds <- ponds_full %>%
   
   # extract month and year from date-time column & create new column
   mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
-         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = "")) %>%
+         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         Year_frac = sum(as.numeric(Year), as.numeric(Month)/12)) %>%
   
   # prepare columns for reordering ponds in dropdown menu
   mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
@@ -206,6 +208,8 @@ ponds$SizeClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
                              ponds$Size <= 32.563650 ~ "Medium",
                              ponds$Size > 32.563650 ~ "Large")
 
+
+
 #unique(ponds$Station.number[is.na(ponds$Final.Depth)])
 
 # remove incorrect Secchi depths
@@ -222,11 +226,11 @@ ponds$Secchi[ponds$Secchi > 30] <- NA
 ```
 
 ```{r echo = FALSE}
-ponds <- ponds %>%
+focal_ponds <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
-  arrange(Town, Pond.number)
+  arrange(Town, Site)
 
-pondName <- unique(ponds$Station.name)
+pondName <- unique(focal_ponds$Station.name)
 
 selectInput("pond", label = "Choose pond:", choices = pondName)
 ```
@@ -240,6 +244,7 @@ colnames(clim_all) <- c("Station.name", "Depth", "Temp", "Temp_sd", "DO", "DO_sd
 
 for(pond in pondName) {
   onePond <- ponds %>%
+    filter(Month == 8 | Month == 9) %>%
     filter(Station.name == pond,
            !is.na(Depth))
   onePond$Depth[onePond$Depth == 0] <- 0.01
@@ -286,6 +291,9 @@ ponds$Temp_anom <- NA
 ponds$DO_anom <- NA
 
 for(i in 1:nrow(ponds)) {
+  if(ponds$Month[i] != 8 & ponds$Month[i] != 9) {
+    next
+  }
   pond <- ponds$Station.name[i]
   if(is.na(ponds$Depth)[i]) {
     next
@@ -525,7 +533,7 @@ renderPlot({
   flag_name <- paste0(input$param4, "_flag")
   ponds[ponds$Station.name == input$pond &
         ponds[[flag_name]] == 2, ] %>%
-  ggplot(aes(x = Year, y = Depth, fill = get(input$param4))) +
+  ggplot(aes(x = Year_frac, y = Depth, fill = get(input$param4))) +
     geom_point(size = 4, shape = 21) +
     scale_y_reverse() +
     scale_fill_gradientn(colors = parula(100), name = input$param4,
@@ -565,7 +573,7 @@ renderPlot({
     }
   p2 <- ponds[ponds$Station.name == input$pond &
         ponds[[flag_name]] == 2, ] %>%
-  ggplot(aes(x = Year, y = Depth, fill = get(anom_name))) +
+  ggplot(aes(x = Year_frac, y = Depth, fill = get(anom_name))) +
     geom_point(size = 4, shape = 21) +
     scale_y_reverse() +
     scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
@@ -575,6 +583,8 @@ renderPlot({
     theme(panel.grid = element_blank())
   ggarrange(p1, p2, widths = c(1, 10))
 })
+
+# note that this plot (below) currently includes data from all months
 
 renderPlot({
   anom_name <- paste0(input$param4, "_anom")
@@ -598,8 +608,8 @@ renderPlot({
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-selectInput("prop1", label = "Choose x parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla", "Phaeo"))
-selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("prop1", label = "Choose x parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla"))
+selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla"))
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 ```
 
@@ -620,15 +630,15 @@ renderPlot({
     mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
     mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = BufferClass)) +
-    geom_point(size = 2.5) +
+    geom_point(size = 2.5, shape = 1) +
     facet_wrap(~ DepthClass) +
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
-    if(input$prop1 == "TP" | input$prop1 == "TN") {
+    if(input$prop1 == "TP" | input$prop1 == "TN" | input$prop1 == "Chla") {
       p <- p + scale_x_log10()
     }
-    if(input$prop2 == "TP" | input$prop2 == "TN") {
+    if(input$prop2 == "TP" | input$prop2 == "TN" | input$prop2 == "Chla") {
       p <- p + scale_y_log10()
     }
     if(input$prop1 == "TP" & input$prop2 == "TN") {
@@ -657,15 +667,15 @@ renderPlot({
     mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
     mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = DepthClass)) +
-    geom_point(size = 2.5) +
+    geom_point(size = 2.5, shape = 1) +
     facet_wrap(~ BufferClass) +
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
-    if(input$prop1 == "TP" | input$prop1 == "TN") {
+    if(input$prop1 == "TP" | input$prop1 == "TN" | input$prop1 == "Chla") {
       p <- p + scale_x_log10()
     }
-    if(input$prop2 == "TP" | input$prop2 == "TN") {
+    if(input$prop2 == "TP" | input$prop2 == "TN" | input$prop2 == "Chla") {
       p <- p + scale_y_log10()
     }
     if(input$prop1 == "TP" & input$prop2 == "TN") {
@@ -695,15 +705,15 @@ renderPlot({
     mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
     mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = BufferClass)) +
-    geom_point(size = 2.5) +
+    geom_point(size = 2.5, shape = 1) +
     facet_wrap(~ SizeClass) +
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
-    if(input$prop1 == "TP" | input$prop1 == "TN") {
+    if(input$prop1 == "TP" | input$prop1 == "TN" | input$prop1 == "Chla") {
       p <- p + scale_x_log10()
     }
-    if(input$prop2 == "TP" | input$prop2 == "TN") {
+    if(input$prop2 == "TP" | input$prop2 == "TN" | input$prop2 == "Chla") {
       p <- p + scale_y_log10()
     }
     if(input$prop1 == "TP" & input$prop2 == "TN") {
@@ -731,15 +741,15 @@ renderPlot({
              allSurface$Year <= input$yearRange[2], ] %>%
     mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = DepthClass)) +
-    geom_point(size = 2.5) +
+    geom_point(size = 2.5, shape = 1) +
     facet_wrap(~ Lens) +
     labs(x = input$prop1, y = input$prop2) +
     theme_bw() +
     theme(panel.grid = element_blank())
-    if(input$prop1 == "TP" | input$prop1 == "TN") {
+    if(input$prop1 == "TP" | input$prop1 == "TN" | input$prop1 == "Chla") {
       p <- p + scale_x_log10()
     }
-    if(input$prop2 == "TP" | input$prop2 == "TN") {
+    if(input$prop2 == "TP" | input$prop2 == "TN" | input$prop2 == "Chla") {
       p <- p + scale_y_log10()
     }
     if(input$prop1 == "TP" & input$prop2 == "TN") {
@@ -747,6 +757,165 @@ renderPlot({
         geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
     }
     if(input$prop1 == "TN" & input$prop2 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
+  p
+})
+```
+
+### Regional patterns in bottom data
+
+```{r echo = FALSE}
+selectInput("prop3", label = "Choose x parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN"))
+selectInput("prop4", label = "Choose y parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN"))
+sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
+```
+
+This year range applies to the next four sets of graphics (depth, buffer, size, and lens groupings).
+
+#### Depth Classes
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop3, "_flag")
+  flag_name2 <- paste0(input$prop4, "_flag")
+  p <- allBottom[allBottom[[flag_name1]] == 2 &
+             allBottom[[flag_name2]] == 2 &
+             !is.na(allBottom$DepthClass) &
+             !is.na(allBottom$BufferClass) &
+             allBottom$Year >= input$yearRange[1] &
+             allBottom$Year <= input$yearRange[2], ] %>%
+    mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+    mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = BufferClass)) +
+    geom_point(size = 2.5, shape = 1) +
+    facet_wrap(~ DepthClass) +
+    labs(x = input$prop3, y = input$prop4) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+    if(input$prop3 == "TP" | input$prop3 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop4 == "TP" | input$prop4 == "TN") {
+      p <- p + scale_y_log10()
+    }
+    if(input$prop3 == "TP" & input$prop4 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop3 == "TN" & input$prop4 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
+  p
+})
+```
+
+#### Buffer Classes
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop3, "_flag")
+  flag_name2 <- paste0(input$prop4, "_flag")
+  p <- allBottom[allBottom[[flag_name1]] == 2 &
+             allBottom[[flag_name2]] == 2 &
+             !is.na(allBottom$BufferClass) &
+             allBottom$Year >= input$yearRange[1] &
+             allBottom$Year <= input$yearRange[2], ] %>%
+    mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+    mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = DepthClass)) +
+    geom_point(size = 2.5, shape = 1) +
+    facet_wrap(~ BufferClass) +
+    labs(x = input$prop3, y = input$prop4) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+    if(input$prop3 == "TP" | input$prop3 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop4 == "TP" | input$prop4 == "TN") {
+      p <- p + scale_y_log10()
+    }
+    if(input$prop3 == "TP" & input$prop4 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop3 == "TN" & input$prop4 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
+  p
+})
+```
+
+#### Size Classes
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop3, "_flag")
+  flag_name2 <- paste0(input$prop4, "_flag")
+  p <- allBottom[allBottom[[flag_name1]] == 2 &
+             allBottom[[flag_name2]] == 2 &
+             !is.na(allBottom$SizeClass) &
+             !is.na(allBottom$BufferClass) &
+             allBottom$Year >= input$yearRange[1] &
+             allBottom$Year <= input$yearRange[2], ] %>%
+    mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
+    mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = BufferClass)) +
+    geom_point(size = 2.5, shape = 1) +
+    facet_wrap(~ SizeClass) +
+    labs(x = input$prop3, y = input$prop4) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+    if(input$prop3 == "TP" | input$prop3 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop4 == "TP" | input$prop4 == "TN") {
+      p <- p + scale_y_log10()
+    }
+    if(input$prop3 == "TP" & input$prop4 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop3 == "TN" & input$prop4 == "TP") {
+      p <- p + 
+        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+    }
+  p
+})
+```
+
+#### Lenses
+
+```{r echo = FALSE}
+renderPlot({
+  flag_name1 <- paste0(input$prop3, "_flag")
+  flag_name2 <- paste0(input$prop4, "_flag")
+  p <- allBottom[allBottom[[flag_name1]] == 2 &
+             allBottom[[flag_name2]] == 2 &
+             !is.na(allBottom$Lens) &
+             allBottom$Year >= input$yearRange[1] &
+             allBottom$Year <= input$yearRange[2], ] %>%
+    mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+  ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = DepthClass)) +
+    geom_point(size = 2.5, shape = 1) +
+    facet_wrap(~ Lens) +
+    labs(x = input$prop3, y = input$prop4) +
+    theme_bw() +
+    theme(panel.grid = element_blank())
+    if(input$prop3 == "TP" | input$prop3 == "TN") {
+      p <- p + scale_x_log10()
+    }
+    if(input$prop4 == "TP" | input$prop4 == "TN") {
+      p <- p + scale_y_log10()
+    }
+    if(input$prop3 == "TP" & input$prop4 == "TN") {
+      p <- p + 
+        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+    }
+    if(input$prop3 == "TN" & input$prop4 == "TP") {
       p <- p + 
         geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
     }
@@ -810,7 +979,7 @@ Aug-Sept average of years 2016-2023.
 
 ```{r echo = FALSE}
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla"))
 
 renderUI({
   val <- input$param3
@@ -836,17 +1005,21 @@ renderPlot({
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
-    theme(axis.title = element_blank())
+    theme(axis.title = element_blank()) +
+    if(input$param3 == "TP" | input$param3 == "TN" | input$param3 == "Chla") {
+      scale_color_gradientn(colors = plasma(100), name = paste(input$layer, input$param3),
+                        limits = c(input$color[1], input$color[2]), trans = "log")
+    }
 })
 ```
 
 #### Regional patterns in surface anomalies
 
-The region-wide anomaly values from a single year are visualized at once.
+The region-wide anomaly values from a single year are visualized at once. Note that all months are included (but anything other than Aug/Sept should be NA -- will confirm).
 
 ```{r echo = FALSE}
 selectInput("param5", label = "Choose parameter:", choices = c("Temp", "DO"))
-sliderInput("year", label = "Year:", min = 2001, max = 2020, value = 2001)
+sliderInput("year", label = "Choose year:", min = 2001, max = 2020, value = 2001)
 
 renderPlot({
   anom_name <- paste0(input$param5, "_anom")
@@ -1019,7 +1192,7 @@ for(i in 1:length(pondName)) {
 ```
 
 ```{r echo = FALSE}
-selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla"))
 
 renderPlot({
   ggplot() +
@@ -1052,7 +1225,7 @@ renderPlot({
 #### Bottom trends over time
 
 ```{r echo = FALSE}
-selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla", "Phaeo"))
+selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla"))
 
 renderPlot({
   ggplot() +
@@ -1082,9 +1255,88 @@ renderPlot({
 })
 ```
 
+```{r include = FALSE}
+reg_surf <- data.frame(matrix(ncol = 4, nrow = length(pondName)))
+colnames(reg_surf) <- c("pond", "Long", "Lat", "mean_DO")
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  reg_surf$pond[i] <- pond
+  oneSurf <- allSurface[allSurface$Station.name == pond, ]
+  reg_surf$Long[i] <- oneSurf$Long[1]
+  reg_surf$Lat[i] <- oneSurf$Lat[1]
+  reg_surf$mean_DO[i] <- clim_all$DO[clim_all$Station.name == pond &
+                                     clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+}
+
+reg_surf$lim <- reg_surf$mean_DO / 3
+
+slopes_surf$DO_lim <- reg_surf$lim[reg_surf$pond == slopes_surf$pond]
+slopes_surf2$DO_lim <- reg_surf$lim[reg_surf$pond == slopes_surf2$pond]
+
+reg_bott <- data.frame(matrix(ncol = 4, nrow = length(pondName)))
+colnames(reg_bott) <- c("pond", "Long", "Lat", "mean_DO")
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  reg_bott$pond[i] <- pond
+  oneBott <- allBottom[allBottom$Station.name == pond, ]
+  reg_bott$Long[i] <- oneBott$Long[1]
+  reg_bott$Lat[i] <- oneBott$Lat[1]
+  reg_bott$mean_DO[i] <- clim_all$DO[clim_all$Station.name == pond &
+                                     clim_all$Depth == max(clim_all$Depth[clim_all$Station.name == pond])]
+}
+
+reg_bott$lim <- reg_bott$mean_DO / 3
+
+slopes_bott$DO_lim <- reg_bott$lim[reg_bott$pond == slopes_bott$pond]
+slopes_bott2$DO_lim <- reg_bott$lim[reg_bott$pond == slopes_bott2$pond]
+```
+
+#### Regional trends in trends ;)
+```{r echo = FALSE}
+
+```
+
 #### DO proportion of regulatory limit
 ```{r echo = FALSE}
+## change point outline thickness
+
 selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
-
+renderPlot({
+  if(input$layer2 == "Surface") {
+    slopes <- slopes_surf
+    slopes2 <- slopes_surf2
+  } else {
+    slopes <- slopes_bott
+    slopes2 <- slopes_bott2
+  }
+  ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = slopes,
+               aes(x = Long, y = Lat, size = abs(DO), fill = DO_lim, col = factor(sign(DO))),
+               shape = 23, stroke = 2) +
+    geom_point(data = slopes2,
+               aes(x = Long, y = Lat, size = abs(DO), fill = DO_lim, col = factor(sign(DO))),
+               shape = 23, stroke = 2, alpha = 0.5) +
+    scale_size_continuous(range = c(2, 6), name = "DO trend\nmagnitude") +
+    scale_fill_gradientn(colors = kovesi.diverging_cwm_80_100_c22(100),
+                         limits = c(0, 6),
+                         name = "Mean DO value",
+                         na.value = "#FAAEF0") +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                          breaks = c(-1, 0, 1),
+                          labels = c("negative", "zero", "positive"),
+                          name = "DO trend\ndirection") +
+    # scale_shape_manual(values = c(25, 21, 24),
+    #                    breaks = c(-1, 0, 1),
+    #                    labels = c("negative", "zero", "positive"),
+    #                    name = "DO trend\ndirection") +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank())
+})
 ```
