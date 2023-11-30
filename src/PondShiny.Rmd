@@ -94,7 +94,7 @@ ponds <- ponds_full %>%
   # extract month and year from date-time column & create new column
   mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
          Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
-         Year_frac = sum(as.numeric(Year), as.numeric(Month)/12)) %>%
+         Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
   
   # prepare columns for reordering ponds in dropdown menu
   mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
@@ -278,7 +278,7 @@ for(pond in pondName) {
         onePond[[flag_name]][j] <- 3
       }
     }
-    ponds[[flag_name]][ponds$Station.name == pond & !is.na(ponds$Depth)] <- onePond[[flag_name]]
+    ponds[[flag_name]][ponds$Station.name == pond & !is.na(ponds$Depth) & (ponds$Month == 8 | ponds$Month == 9)] <- onePond[[flag_name]]
   }
   clim_all[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim), 2:6] <- clim
   clim_all$Station.name[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim)] <- pond
@@ -538,7 +538,7 @@ renderPlot({
     scale_y_reverse() +
     scale_fill_gradientn(colors = parula(100), name = input$param4,
                          na.value = "white") +
-    labs(y = "Depth (m)") +
+    labs(x = "Year", y = "Depth (m)") +
     theme_bw() +
     theme(panel.grid = element_blank())
 })
@@ -578,7 +578,7 @@ renderPlot({
     scale_y_reverse() +
     scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
                          limits = c(min, max), na.value = "white") +
-    labs(y = "Depth (m)") +
+    labs(x = "Year", y = "Depth (m)") +
     theme_bw() +
     theme(panel.grid = element_blank())
   ggarrange(p1, p2, widths = c(1, 10))
