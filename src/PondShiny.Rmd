@@ -1,6 +1,6 @@
 ---
 title: "Pond Shiny"
-date: "2023-09-20"
+date: "2023-12-06"
 runtime: shiny
 output: html_document
 ---
@@ -168,7 +168,7 @@ for(i in 1:nrow(ponds)) {
 
 ```{r include = FALSE}
 ## Match ponds to metadata
-setwd("~/Desktop/Repos/BarnstablePonds2023")
+#setwd("~/Desktop/Repos/BarnstablePonds2023")
 chars <- read.csv("data/PondCharacteristics.csv") %>%
   mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
@@ -305,8 +305,8 @@ for(i in 1:nrow(ponds)) {
     a <- floor(ponds$Depth[i]) + 0.01
     b <- ceiling(ponds$Depth[i])
   } else {
-    a <- floor(ponds$Depth[i])
-    b <- ceiling(ponds$Depth[i])
+    a <- ponds$Depth[i]
+    b <- ponds$Depth[i]
   }
   ponds$Temp_anom[i] <- ponds$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
                                                       clim_all$Depth >= a &
@@ -314,6 +314,83 @@ for(i in 1:nrow(ponds)) {
   ponds$DO_anom[i] <- ponds$DO[i] - clim_all$DO[clim_all$Station.name == pond &
                                                 clim_all$Depth >= a &
                                                 clim_all$Depth <= b]
+}
+
+# load surface-only data
+allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
+  filter(Month == 8 | Month == 9) %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+# calculate surface anomalies only
+for(i in 1:nrow(allSurface)) {
+  pond <- allSurface$Station.name[i]
+  allSurface$Temp_anom[i] <- allSurface$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                                                clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+  allSurface$DO_anom[i] <- allSurface$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                                          clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+}
+
+# load bottom-only data
+allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
+  filter(Month == 8 | Month == 9) %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+# calculate bottom anomalies only
+for(i in 1:nrow(allBottom)) {
+  pond <- allBottom$Station.name[i]
+  if(allBottom$Depth[i] %% 1 != 0){
+    a <- floor(allBottom$Depth[i]) + 0.01
+    b <- ceiling(allBottom$Depth[i])
+  } else {
+    a <- allBottom$Depth[i]
+    b <- allBottom$Depth[i]
+  }
+  allBottom$Temp_anom[i] <- allBottom$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                                              clim_all$Depth >= a &
+                                                              clim_all$Depth <= b]
+  allBottom$DO_anom[i] <- allBottom$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                                        clim_all$Depth >= a &
+                                                        clim_all$Depth <= b]
+}
+```
+
+```{r include = FALSE}
+# calculate MLDs
+
+allSurface$MLD <- NA
+
+for(pond in pondName) {
+  onePond <- ponds[ponds$Station.name == pond &
+                   !is.na(ponds$Depth) &
+                   (ponds$Month == 8 |
+                    ponds$Month == 9), ]
+  for(i in 1:n_distinct(onePond$Year)) {
+    oneYear <- onePond[onePond$Year == unique(onePond$Year)[i], ]
+    if(sum(!is.na(oneYear$Temp)) < 2 |
+       n_distinct(oneYear$Depth) < 2) {
+      next
+    }
+    for(j in 2:n_distinct(oneYear$Depth)) {
+      if(is.na(oneYear$Temp[1]) |
+         is.na(oneYear$Temp[j]) |
+         oneYear$Depth[j - 1] < 1) {
+        next
+      }
+      for(k in 1:length(oneYear$Temp)) {
+        if(!is.na(oneYear$Temp[j - k])) {
+          break
+        }
+      }
+      depth_diff <- oneYear$Depth[j] - oneYear$Depth[j - k]
+      temp_diff <- oneYear$Temp[j] - oneYear$Temp[j - k]
+      delta_temp <- temp_diff / depth_diff
+      if(abs(delta_temp) >= 1) {
+        allSurface$MLD[allSurface$Station.name == pond &
+                       allSurface$Year == unique(onePond$Year)[i]] <- oneYear$Depth[j - 1]
+        break
+      }
+    }
+  }
 }
 ```
 
@@ -333,11 +410,6 @@ renderPlot({
 ### Nutrient levels
 
 ```{r echo = FALSE}
-# load surface-only data
-allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
-  filter(Month == 8 | Month == 9) %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A")))
-
 sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 30, value = 30)
 sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 480, value = 480)
 
@@ -397,7 +469,46 @@ renderPlot({
 
 ### Time-series analysis
 
-#### Surface
+#### Mixed-layer depth
+
+```{r echo = FALSE}
+checkboxInput("MK3", "Show Mann-Kendall trend?", value = FALSE)
+
+renderPlot({
+  allSurface[allSurface$Station.name == input$pond, ] %>%
+  ggplot(aes(x = Year, y = MLD)) +
+    geom_point(size = 2.5) +
+    labs(x = "Year", y = "Mixed-layer depth") +
+    theme_bw() +
+    if(input$MK) {
+      mk <- mk.test(allSurface$MLD[allSurface$Station.name == input$pond &
+                                   !is.na(allSurface$MLD)])
+      slope <- sens.slope(allSurface$MLD[allSurface$Station.name == input$pond &
+                                         !is.na(allSurface$MLD)])$estimates
+      intercept <- median(allSurface$MLD[allSurface$Station.name == input$pond &
+                                         !is.na(allSurface$MLD)]) - 
+                   median(allSurface$Year[allSurface$Station.name == input$pond &
+                                         !is.na(allSurface$MLD)]) * slope
+      list(
+        geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1),
+        annotate("text",
+                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
+                                         !is.na(allSurface$MLD)]) + 1,
+                 y = max(allSurface$MLD[allSurface$Station.name == input$pond &
+                                        !is.na(allSurface$MLD)]) * 0.95,
+                 label = paste("slope =", round(slope, 3)), col = "black"),
+        annotate("text",
+                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
+                                         !is.na(allSurface$MLD)]) + 1,
+                 y = max(allSurface$MLD[allSurface$Station.name == input$pond &
+                                        !is.na(allSurface$MLD)]) * 0.92,
+                 label = paste("p =", round(mk$p.value, 3)), col = "black")
+      )
+    }
+})
+```
+
+#### Surface parameters
 
 ```{r echo = FALSE}
 # colnames(allSurface)[c(8:14, 16:18)] <- c("Secchi Depth (m)", "Temperature (°C)", "DO (mg/L)",
@@ -446,14 +557,9 @@ renderPlot({
 })
 ```
 
-#### Bottom
+#### Bottom parameters
 
 ```{r echo = FALSE}
-# load bottom-only data
-allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
-  filter(Month == 8 | Month == 9) %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A")))
-
 start <- which(colnames(allSurface) == "Secchi_pct") + 1
 end <- which(colnames(allSurface) == "Total.Depth") - 1
 
@@ -532,7 +638,10 @@ selectInput("param4", label = "Choose parameter:", choices = c("Temp", "DO"))
 renderPlot({
   flag_name <- paste0(input$param4, "_flag")
   ponds[ponds$Station.name == input$pond &
-        ponds[[flag_name]] == 2, ] %>%
+        (ponds[[flag_name]] == 2 |
+          (ponds$Month != 8 &
+           ponds$Month != 9 &
+           !is.na(ponds[[input$param4]]))), ] %>%
   ggplot(aes(x = Year_frac, y = Depth, fill = get(input$param4))) +
     geom_point(size = 4, shape = 21) +
     scale_y_reverse() +
@@ -545,6 +654,8 @@ renderPlot({
 ```
 
 #### Anomaly plots
+
+August and September averages.
 
 ```{r echo = FALSE}
 renderPlot({
@@ -608,8 +719,15 @@ renderPlot({
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-selectInput("prop1", label = "Choose x parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla"))
-selectInput("prop2", label = "Choose y parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN", "Chla"))
+props <- c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla")
+
+selectInput("prop1", label = "Choose x parameter:", choices = props)
+
+renderUI({
+  selectInput("prop2", label = "Choose y parameter:",
+              choices = props[!(props %in% input$prop1)])
+})
+
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 ```
 
@@ -767,8 +885,15 @@ renderPlot({
 ### Regional patterns in bottom data
 
 ```{r echo = FALSE}
-selectInput("prop3", label = "Choose x parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN"))
-selectInput("prop4", label = "Choose y parameter:", choices = c("Temp", "DO", "Alk", "TP", "TN"))
+props <- c("Temp", "DO", "Alk", "TP", "TN")
+
+selectInput("prop3", label = "Choose x parameter:", choices = props)
+
+renderUI({
+  selectInput("prop4", label = "Choose y parameter:",
+              choices = props[!(props %in% input$prop3)])
+})
+
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 ```
 
@@ -979,7 +1104,15 @@ Aug-Sept average of years 2016-2023.
 
 ```{r echo = FALSE}
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("param3", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla"))
+
+renderUI({
+  choices <- if(input$layer == "Surface") {
+                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla")
+              } else {
+                c("Temp", "DO", "DO_sat", "Alk", "TP", "TN")
+              }
+  selectInput("param3", label = "Choose parameter:", choices = choices, selected = "Temp")
+})
 
 renderUI({
   val <- input$param3
@@ -1013,26 +1146,31 @@ renderPlot({
 })
 ```
 
-#### Regional patterns in surface anomalies
+#### Regional patterns in anomalies
 
-The region-wide anomaly values from a single year are visualized at once. Note that all months are included (but anything other than Aug/Sept should be NA -- will confirm).
+The region-wide anomaly values from a single year are visualized at once.
 
 ```{r echo = FALSE}
+selectInput("depth", label = "Choose layer:", choices = c("Surface", "Bottom"))
 selectInput("param5", label = "Choose parameter:", choices = c("Temp", "DO"))
 sliderInput("year", label = "Choose year:", min = 2001, max = 2020, value = 2001)
 
 renderPlot({
+  if(input$depth == "Surface") {
+    one_depth <- allSurface
+  } else {
+    one_depth <- allBottom
+  }
   anom_name <- paste0(input$param5, "_anom")
   flag_name <- paste0(input$param5, "_flag")
-  #min <- -max(abs(ponds[[anom_name]][ponds[[flag_name]] == 2]), na.rm = TRUE)
-  #max <- max(abs(ponds[[anom_name]][ponds[[flag_name]] == 2]), na.rm = TRUE)
+  #min <- -max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
+  #max <- max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
   min <- ifelse(anom_name == "Temp_anom", -10, -15)   # temp_anom range [-10, 10]; DO_anom range [-15, 15]
   max <- ifelse(anom_name == "Temp_anom", 10, 15)
   ggplot() +
     geom_sf(data = mass) +
-    geom_point(data = ponds[ponds[[flag_name]] == 2 &
-                            ponds$Year == input$year &
-                            ponds$Depth <= 1.0, ],
+    geom_point(data = one_depth[one_depth[[flag_name]] == 2 &
+                                one_depth$Year == input$year, ],
                aes(x = Long, y = Lat, fill = get(anom_name), size = abs(get(anom_name))), shape = 21) +
     scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
                          limits = c(min, max), na.value = "white") +
@@ -1046,9 +1184,9 @@ renderPlot({
 })
 ```
 
-#### Surface trends over time
+```{r include = FALSE}
+# calculate trends
 
-```{r echo = FALSE}
 start <- which(colnames(allSurface) == "Lat") + 1
 end <- which(colnames(allSurface) == "Total.Depth") - 1
 
@@ -1191,6 +1329,8 @@ for(i in 1:length(pondName)) {
 }
 ```
 
+#### Surface trends over time
+
 ```{r echo = FALSE}
 selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla"))
 
@@ -1255,6 +1395,210 @@ renderPlot({
 })
 ```
 
+#### Regional trends in trends ;)
+```{r echo = FALSE}
+selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
+
+renderUI({
+  choices <- if(input$layer2 == "Surface") {
+                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla")
+              } else {
+                c("Temp", "DO", "DO_sat", "Alk", "TP", "TN")
+              }
+  selectInput("trend", label = "Choose parameter:", choices = choices, selected = "Temp")
+})
+
+lensRKTs <- data.frame(matrix(nrow = 5, ncol = 7))
+rownames(lensRKTs) <- c("tau", "S", "varS", "p-value", "slope")
+
+DT::renderDataTable({
+  if(input$layer == "Surface") {
+    trend_data <- allSurface
+  } else {
+    trend_data <- allBottom
+  }
+  flag_name <- paste0(input$trend, "_flag")
+  for(i in 1:length(unique(ponds$Lens[!is.na(ponds$Lens)]))) {
+    lens <- sort(unique(ponds$Lens[!is.na(ponds$Lens)]))[i]
+    colnames(lensRKTs)[i] <- lens
+    if(length(trend_data$Year_frac[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens]) < 4) {
+      next
+    }
+    rk <- rkt(trend_data$Year_frac[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens],
+              trend_data[[input$trend]][trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens],
+              as.numeric(factor(trend_data$Station.name[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens])),
+              rep = "a")
+    lensRKTs[1:5, i] <- round(unlist(rk[c(12, 2, 4, 1, 3)]), c(3, 0, 0, 3, 3))
+  }
+  colnames(lensRKTs)[7] <- "Cape-wide"
+  rk <- rkt(trend_data$Year_frac[trend_data[[flag_name]] == 2],
+            trend_data[[input$trend]][trend_data[[flag_name]] == 2],
+            as.numeric(factor(trend_data$Station.name[trend_data[[flag_name]] == 2])),
+            rep = "a")
+  lensRKTs[1:5, 7] <- round(unlist(rk[c(12, 2, 4, 1, 3)]), c(3, 0, 0, 3, 3))
+  datatable(lensRKTs,
+            options = list(dom = "t")) %>%
+    formatStyle(0, fontWeight = "bold")
+})
+```
+
+### Regional patterns in trends, continued
+
+```{r echo = FALSE}
+selectInput("layer3", label = "Choose layer:", choices = c("Surface", "Bottom"))
+selectInput("prop5", label = "Choose x parameter:", choices = c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla"))
+
+for(i in 1:nrow(slopes_surf)) {
+  ID <- slopes_surf$pond[i]
+  slopes_surf$DepthClass[i] <- ponds$DepthClass[which.max(ponds$Station.name == ID)]
+  slopes_surf$BufferClass[i] <- ponds$BufferClass[which.max(ponds$Station.name == ID)]
+  slopes_surf$SizeClass[i] <- ponds$SizeClass[which.max(ponds$Station.name == ID)]
+  slopes_surf$Lens[i] <- ponds$Lens[which.max(ponds$Station.name == ID)]
+}
+
+for(i in 1:nrow(slopes_surf2)) {
+  ID <- slopes_surf2$pond[i]
+  slopes_surf2$DepthClass[i] <- ponds$DepthClass[which.max(ponds$Station.name == ID)]
+  slopes_surf2$BufferClass[i] <- ponds$BufferClass[which.max(ponds$Station.name == ID)]
+  slopes_surf2$SizeClass[i] <- ponds$SizeClass[which.max(ponds$Station.name == ID)]
+  slopes_surf2$Lens[i] <- ponds$Lens[which.max(ponds$Station.name == ID)]
+}
+
+for(i in 1:nrow(slopes_bott)) {
+  ID <- slopes_bott$pond[i]
+  slopes_bott$DepthClass[i] <- ponds$DepthClass[which.max(ponds$Station.name == ID)]
+  slopes_bott$BufferClass[i] <- ponds$BufferClass[which.max(ponds$Station.name == ID)]
+  slopes_bott$SizeClass[i] <- ponds$SizeClass[which.max(ponds$Station.name == ID)]
+  slopes_bott$Lens[i] <- ponds$Lens[which.max(ponds$Station.name == ID)]
+}
+
+for(i in 1:nrow(slopes_bott2)) {
+  ID <- slopes_bott2$pond[i]
+  slopes_bott2$DepthClass[i] <- ponds$DepthClass[which.max(ponds$Station.name == ID)]
+  slopes_bott2$BufferClass[i] <- ponds$BufferClass[which.max(ponds$Station.name == ID)]
+  slopes_bott2$SizeClass[i] <- ponds$SizeClass[which.max(ponds$Station.name == ID)]
+  slopes_bott2$Lens[i] <- ponds$Lens[which.max(ponds$Station.name == ID)]
+}
+
+slopes_surf$sig <- "S"
+slopes_surf2$sig <- "NS"
+slopes_bott$sig <- "S"
+slopes_bott2$sig <- "NS"
+```
+
+#### Significant trends only
+
+```{r echo = FALSE}
+renderPlot({
+  if(input$layer == "Surface") {
+    layer_data <- slopes_surf %>%
+      mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+      mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+      mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large")))
+  } else {
+    layer_data <- slopes_bott %>%
+      mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+      mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+      mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large")))
+  }
+  d <- ggplot(layer_data[!is.na(layer_data$DepthClass), ],
+              aes(x = get(input$prop5), fill = DepthClass, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  b <- ggplot(layer_data[!is.na(layer_data$BufferClass), ],
+              aes(x = get(input$prop5), fill = BufferClass, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 4,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  s <- ggplot(layer_data[!is.na(layer_data$SizeClass), ],
+              aes(x = get(input$prop5), fill = SizeClass, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 5,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  l <- ggplot(layer_data[!is.na(layer_data$Lens), ],
+              aes(x = get(input$prop5), fill = Lens, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 6.67,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  ggarrange(d, b, s, l, ncol = 2)
+})
+```
+
+#### All trends
+
+```{r echo = FALSE}
+
+renderPlot({
+  if(input$layer == "Surface") {
+    layer_data <- bind_rows(slopes_surf, slopes_surf2) %>%
+      mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+      mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+      mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
+      mutate(sig = factor(sig, levels = c("S", "NS")))
+  } else {
+    layer_data <- bind_rows(slopes_bott, slopes_bott2) %>%
+      mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+      mutate(BufferClass = factor(BufferClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+      mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large"))) %>%
+      mutate(sig = factor(sig, levels = c("S", "NS")))
+  }
+  d <- ggplot(layer_data[!is.na(layer_data$DepthClass), ],
+              aes(x = get(input$prop5), fill = DepthClass, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  b <- ggplot(layer_data[!is.na(layer_data$BufferClass), ],
+              aes(x = get(input$prop5), fill = BufferClass, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 4,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  s <- ggplot(layer_data[!is.na(layer_data$SizeClass), ],
+              aes(x = get(input$prop5), fill = SizeClass, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 5,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  l <- ggplot(layer_data[!is.na(layer_data$Lens), ],
+              aes(x = get(input$prop5), fill = Lens, alpha = sig)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 6.67,
+                   position = "dodge") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    labs(x = paste(input$prop5, "trend (slope)")) +
+    theme_bw() +
+    theme(panel.grid = element_blank()) +
+    guides(fill = guide_legend(order = 1))
+  ggarrange(d, b, s, l, ncol = 2)
+})
+```
+
 ```{r include = FALSE}
 reg_surf <- data.frame(matrix(ncol = 4, nrow = length(pondName)))
 colnames(reg_surf) <- c("pond", "Long", "Lat", "mean_DO")
@@ -1293,19 +1637,14 @@ slopes_bott$DO_lim <- reg_bott$lim[reg_bott$pond == slopes_bott$pond]
 slopes_bott2$DO_lim <- reg_bott$lim[reg_bott$pond == slopes_bott2$pond]
 ```
 
-#### Regional trends in trends ;)
-```{r echo = FALSE}
-
-```
-
 #### DO proportion of regulatory limit
 ```{r echo = FALSE}
 ## change point outline thickness
 
-selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
+selectInput("layer4", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderPlot({
-  if(input$layer2 == "Surface") {
+  if(input$layer4 == "Surface") {
     slopes <- slopes_surf
     slopes2 <- slopes_surf2
   } else {
@@ -1313,7 +1652,7 @@ renderPlot({
     slopes2 <- slopes_bott2
   }
   ggplot() +
-    geom_sf(data = mass) +
+    geom_sf(data = mass, fill = "white") +
     geom_point(data = slopes,
                aes(x = Long, y = Lat, size = abs(DO), fill = DO_lim, col = factor(sign(DO))),
                shape = 23, stroke = 2) +
