@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include = FALSE}
-knitr::opts_knit$set(root.dir = "~/Desktop/Repos/BarnstablePonds2023")
+knitr::opts_knit$set(root.dir = "~/Desktop/Repos/CapeCodPonds2023")
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
@@ -27,7 +27,7 @@ library(rkt)
 ```{r include = FALSE}
 ### Load data
 
-setwd("~/Desktop/Repos/BarnstablePonds2023")
+setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
@@ -168,7 +168,7 @@ for(i in 1:nrow(ponds)) {
 
 ```{r include = FALSE}
 ## Match ponds to metadata
-#setwd("~/Desktop/Repos/BarnstablePonds2023")
+#setwd("~/Desktop/Repos/CapeCodPonds2023")
 chars <- read.csv("data/PondCharacteristics.csv") %>%
   mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
@@ -1396,6 +1396,7 @@ renderPlot({
 ```
 
 #### Regional trends in trends ;)
+
 ```{r echo = FALSE}
 selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
@@ -1502,37 +1503,29 @@ renderPlot({
       mutate(SizeClass = factor(SizeClass, levels = c("Very Small", "Small", "Medium", "Large")))
   }
   d <- ggplot(layer_data[!is.na(layer_data$DepthClass), ],
-              aes(x = get(input$prop5), fill = DepthClass, alpha = sig)) +
-    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10,
-                   position = "dodge") +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+              aes(x = get(input$prop5), fill = DepthClass)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10) +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
     guides(fill = guide_legend(order = 1))
   b <- ggplot(layer_data[!is.na(layer_data$BufferClass), ],
-              aes(x = get(input$prop5), fill = BufferClass, alpha = sig)) +
-    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 4,
-                   position = "dodge") +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+              aes(x = get(input$prop5), fill = BufferClass)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 4) +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
     guides(fill = guide_legend(order = 1))
   s <- ggplot(layer_data[!is.na(layer_data$SizeClass), ],
-              aes(x = get(input$prop5), fill = SizeClass, alpha = sig)) +
-    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 5,
-                   position = "dodge") +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+              aes(x = get(input$prop5), fill = SizeClass)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 5) +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
     guides(fill = guide_legend(order = 1))
   l <- ggplot(layer_data[!is.na(layer_data$Lens), ],
-              aes(x = get(input$prop5), fill = Lens, alpha = sig)) +
-    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 6.67,
-                   position = "dodge") +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+              aes(x = get(input$prop5), fill = Lens)) +
+    geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 6.67) +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
@@ -1544,7 +1537,6 @@ renderPlot({
 #### All trends
 
 ```{r echo = FALSE}
-
 renderPlot({
   if(input$layer == "Surface") {
     layer_data <- bind_rows(slopes_surf, slopes_surf2) %>%
