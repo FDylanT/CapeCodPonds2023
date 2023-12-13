@@ -725,7 +725,7 @@ selectInput("prop1", label = "Choose x parameter:", choices = props)
 
 renderUI({
   selectInput("prop2", label = "Choose y parameter:",
-              choices = props[!(props %in% input$prop1)])
+              choices = props[!(props %in% input$prop1)])   ### is this preventing Chla from showing up
 })
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
@@ -1406,7 +1406,7 @@ renderUI({
               } else {
                 c("Temp", "DO", "DO_sat", "Alk", "TP", "TN")
               }
-  selectInput("trend", label = "Choose parameter:", choices = choices, selected = "Temp")
+  selectInput("trend", label = "Choose parameter:", choices = choices, selected = choices[1])
 })
 
 lensRKTs <- data.frame(matrix(nrow = 5, ncol = 8))
