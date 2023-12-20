@@ -31,60 +31,62 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
   
   # remove non-data rows
-  filter(Station.name != "") %>%
-  
-  # remove quality code columns for easier visualization
-  dplyr::select(-contains("Quality.code"))
+  filter(Station.name != "" & Station.name != " ")
 ```
 
 ```{r include = FALSE}
-### Merge same-parameter columns & reorganize data frame
+# remove WISKI-designated outliers
+ponds <- ponds_full
 
-ponds <- ponds_full %>%
-  unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1, sep = "") %>%
-  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, sep = "") %>%
-  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, sep = "") %>%
+for(qc in colnames(ponds %>% select(contains("Quality.code")))) {
+  index <- match(qc, colnames(ponds))
+  ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
+                               "",
+                               ponds[[index - 1]],
+                               missing = ponds[[index - 1]])
+}
+
+ponds <- ponds %>%
+  # merge same-parameter columns & reorganize data frame
+  unite(Alk, Alkalinity...ALK, Alkalinity...ALK.1, sep = "") %>%
+  unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1,
+        Dissolved.Oxygen...Reported...DO.2, sep = "") %>%
   unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
         Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
-  unite(Alk, Alkalinity...ALK, Alkalinity...ALK.1, sep = "") %>%
   unite(pH, pH...PH, pH...PH.1, pH...PH.2, sep = "") %>%
-  unite(TP, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
-  unite(TN, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
-  unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
   unite(Phaeo, Phaeophytin...PHAEO, Phaeophytin...PHAEO.1, sep = "") %>%
   unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
+  unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1,
+        Secchi.Depth...SECCHI.2, sep = "") %>%
+  unite(TN, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
+  unite(TP, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1,
+        Water.Temperature...TEMP.2, sep = "") %>%
   
   # split long/lat coordinates
   separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
   
   # rename columns with redundant headers
-  rename(Total.Depth = Total.Depth...DTB,
-         Secchi_pct = Percent.Secchi...SECCHI_PCT,
-         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL,
-         CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
+  rename(CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
          CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
          CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
-         ATemp = Air.Temperature...AT,
-         NH4 = Ammonium...NH4,
-         DO_Final = Dissolved.Oxygen.Concentration...Final...DO_FINAL,
-         DO_sat_Final = Dissolved.Oxygen.Saturation...Final...DO_SAT_FINAL,
-         NOX = Nitrate...Nitrite...NOX,
-         PO4 = Orthophosphate...PO4,
-         ORP = Oxidation.Reduction.Potential...ORP,
-         Wind = Qualitative.Wind.Description...WIND,
-         Cond = Specific.Conductivity...COND,
-         TDS = Total.Dissolved.Solids...TDS,
-         TPigm = Total.Pigments...TOTAL_PIGMENTS) %>%
+         Total.Depth = Total.Depth...DTB,
+         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
   
   # reorder columns
   relocate(Secchi, .after = Depth) %>%
-  relocate(Secchi_pct, .after = Secchi) %>%
-  relocate(Temp, .after = Secchi_pct) %>%
+  relocate(Temp, .after = Secchi) %>%
   relocate(DO, .after = Temp) %>%
   relocate(DO_sat, .after = DO) %>%
+  relocate(Alk, .after = DO_sat) %>%
+  relocate(TP, .after = Alk) %>%
+  relocate(TN, .after = TP) %>%
+  relocate(Chla, .after = TN) %>%
   relocate(Total.Depth, .after = last_col()) %>%
   
   # extract date from date-time column & create new column
@@ -108,33 +110,34 @@ ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
 ponds[ponds == ""] <- NA
 
 # convert null datapoints to NA
-#ponds[ponds == "n.m. 0.00"] <- NA
-#ponds[ponds == "ND 0.00"] <- NA
-#ponds[ponds == "<MDL 0.00"] <- NA
-#ponds[ponds == "BDL 0.00"] <- "0"
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
+ponds[ponds == "<MDL 0.00"] <- NA
+ponds[ponds == "BDL 0.00"] <- "0"
 
 # temporarily fix non-numeric datapoints
 ponds[ponds == "-0.15"] <- "0.15"
 ponds[ponds == "-0.04"] <- "0.04"
 ponds[ponds == "-0.3"] <- "0.3"
-#ponds[ponds == "> 15.50"] <- "15.50"
-#ponds[ponds == "< 0.05"] <- "0"
-#ponds[ponds == "< 0.10"] <- "0"
-#ponds[ponds == "< 1.50"] <- "1.50"
+ponds[ponds == "> 15.50"] <- "15.50"
+ponds[ponds == "< 0.05"] <- "0"
+ponds[ponds == "< 0.10"] <- "0"
+ponds[ponds == "< 1.50"] <- "1.50"
 
 # fix erroneous values
-#ponds[ponds == "207"] <- "20.7"
 ponds$Temp[ponds$Temp == "0"] <- NA
 
-# temporarily remove problematic row
-#ponds <- ponds[-which(ponds$pH == "n.m. 6.83"), ]
+# remove problematic row
+ponds <- ponds[-which(ponds$Alk == "n.m. 19.90"), ]
 
 # convert all numerical cols to numeric
 is_all_numeric <- function(x) {
   !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
 }
+not_all_na <- function(x) any(!is.na(x))
 ponds <- ponds %>% 
-  mutate_if(is_all_numeric, as.numeric)
+  mutate_if(is_all_numeric, as.numeric) %>%
+  select(where(not_all_na))
 
 #str(ponds)
 ```
@@ -143,7 +146,7 @@ ponds <- ponds %>%
 ## calculate DO saturation values (*in future should come from WISKI)
 for(i in 1:nrow(ponds)) {
   if(is.na(ponds$DO_sat[i])) {
-    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
     ponds$DO_sat[i] <- ponds$DO[i] / 32 / rho * 10^6 /
                         gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
   }
@@ -168,7 +171,7 @@ for(i in 1:nrow(ponds)) {
 
 ```{r include = FALSE}
 ## Match ponds to metadata
-#setwd("~/Desktop/Repos/CapeCodPonds2023")
+setwd("~/Desktop/Repos/CapeCodPonds2023")
 chars <- read.csv("data/PondCharacteristics.csv") %>%
   mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
@@ -194,6 +197,20 @@ for(i in 1:nrow(ponds)) {
 ponds <- ponds %>%
   mutate(DepthClass = case_when(Final.Depth < 3 ~ "Shallow",
                                 Final.Depth > 3 ~ "Deep"))
+
+ponds$PercentBuffer <- as.numeric(str_extract(ponds$PercentBuffer, ".*(?=%)"))
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(PercentBuffer = mean(PercentBuffer))
+# 
+# quantile(ponds_grouped$PercentBuffer, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds <- ponds %>%
+  mutate(BufferClass = case_when(ponds$PercentBuffer <= 5.00 ~ "Very Low",
+                                 ponds$PercentBuffer <= 13.00 ~ "Low",
+                                 ponds$PercentBuffer <= 23.25 ~ "Medium",
+                                 ponds$PercentBuffer > 23.25 ~ "High"))
 
 ponds$SizeClass <- NA
 
@@ -236,6 +253,8 @@ selectInput("pond", label = "Choose pond:", choices = pondName)
 ```
 
 ```{r echo = FALSE}
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
 ponds$Temp_flag <- NA
 ponds$DO_flag <- NA
 
@@ -247,6 +266,9 @@ for(pond in pondName) {
     filter(Month == 8 | Month == 9) %>%
     filter(Station.name == pond,
            !is.na(Depth))
+  if(nrow(onePond) == 0) {
+    next
+  }
   onePond$Depth[onePond$Depth == 0] <- 0.01
   clim <- data.frame(matrix(ncol = 5, nrow = length(1:ceiling(max(onePond$Depth)))))
   colnames(clim) <- c("Depth", "Temp", "Temp_sd", "DO", "DO_sd")
@@ -318,7 +340,6 @@ for(i in 1:nrow(ponds)) {
 
 # load surface-only data
 allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
-  filter(Month == 8 | Month == 9) %>%
   mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
 # calculate surface anomalies only
@@ -332,7 +353,6 @@ for(i in 1:nrow(allSurface)) {
 
 # load bottom-only data
 allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
-  filter(Month == 8 | Month == 9) %>%
   mutate(across(where(is.character), ~ na_if(., "#N/A")))
 
 # calculate bottom anomalies only
@@ -512,10 +532,10 @@ renderPlot({
 
 ```{r echo = FALSE}
 # colnames(allSurface)[c(8:14, 16:18)] <- c("Secchi Depth (m)", "Temperature (°C)", "DO (mg/L)",
-#                                           "DO_sat (%)", "pH", "Alkalinity (mg/L)", "TP (μM)",
-#                                           "TN (μM)", "Chlorophyll-a (μg/L)", "Phaeophytin (μM)")
+#                                           "DO_sat (%)", "Alkalinity (mg/L)", "TP (μM)",
+#                                           "TN (μM)", "Chlorophyll-a (μg/L)")
 
-start <- which(colnames(allSurface) == "Lat") + 1
+start <- which(colnames(allSurface) == "Secchi")
 end <- which(colnames(allSurface) == "Total.Depth") - 1
 
 selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[start:end])
@@ -557,10 +577,51 @@ renderPlot({
 })
 ```
 
+#### test code
+```{r}
+pond <- "HA-416-01 / Josephs Pond"
+
+flag_name <- "Temp_flag"
+param <- "Temp"
+
+allSurface[allSurface$Station.name == pond &
+             allSurface[[flag_name]] == 2, ] %>%
+  ggplot(aes(x = Year, y = get(param))) +
+    geom_point(size = 2.5) +
+    labs(x = "Year", y = paste("Surface", param)) +
+    theme_bw() +
+    if(FALSE) {
+      mk <- mk.test(allSurface[[param]][allSurface$Station.name == pond &
+                                              allSurface[[flag_name]] == 2])
+      slope <- sens.slope(allSurface[[param]][allSurface$Station.name == pond &
+                                          allSurface[[flag_name]] == 2])$estimates
+      intercept <- median(allSurface[[param]][allSurface$Station.name == pond &
+                                          allSurface[[flag_name]] == 2]) - 
+                   median(allSurface$Year[allSurface$Station.name == pond &
+                                          allSurface[[flag_name]] == 2]) * slope
+      list(
+        geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1),
+        annotate("text",
+                 x = min(allSurface$Year[allSurface$Station.name == pond &
+                                        allSurface[[flag_name]] == 2]) + 1,
+                 y = max(allSurface[[param]][allSurface$Station.name == pond &
+                                              allSurface[[flag_name]] == 2]) * 0.95,
+                 label = paste("slope =", round(slope, 3)), col = "black"),
+        annotate("text",
+                 x = min(allSurface$Year[allSurface$Station.name == pond &
+                                        allSurface[[flag_name]] == 2]) + 1,
+                 y = max(allSurface[[param]][allSurface$Station.name == pond &
+                                                  allSurface[[flag_name]] == 2]) * 0.92,
+                 label = paste("p =", round(mk$p.value, 3)), col = "black")
+      )
+    }
+
+```
+
 #### Bottom parameters
 
 ```{r echo = FALSE}
-start <- which(colnames(allSurface) == "Secchi_pct") + 1
+start <- which(colnames(allSurface) == "Secchi") + 1
 end <- which(colnames(allSurface) == "Total.Depth") - 1
 
 selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[start:end])
@@ -724,8 +785,9 @@ props <- c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla")
 selectInput("prop1", label = "Choose x parameter:", choices = props)
 
 renderUI({
+  props <- c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla")
   selectInput("prop2", label = "Choose y parameter:",
-              choices = props[!(props %in% input$prop1)])   ### is this preventing Chla from showing up
+              choices = props[!(props %in% input$prop1)])   ### why isn't Chla showing up
 })
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
@@ -1187,8 +1249,8 @@ renderPlot({
 ```{r include = FALSE}
 # calculate trends
 
-start <- which(colnames(allSurface) == "Lat") + 1
-end <- which(colnames(allSurface) == "Total.Depth") - 1
+start <- which(colnames(allSurface) == "Secchi")
+end <- which(colnames(allSurface) == "Chla")
 
 slopes_surf <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
 colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[start:end])
@@ -1256,8 +1318,8 @@ for(i in 1:length(pondName)) {
   }
 }
 
-start <- which(colnames(allBottom) == "Secchi_pct") + 1
-end <- which(colnames(allBottom) == "Total.Depth") - 1
+start <- which(colnames(allBottom) == "Secchi") + 1
+end <- which(colnames(allBottom) == "Chla") - 1
 
 slopes_bott <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
 colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[start:end])
@@ -1292,8 +1354,8 @@ for(i in 1:length(pondName)) {
   }
 }
 
-start <- which(colnames(allBottom) == "Secchi_pct") + 1
-end <- which(colnames(allBottom) == "Total.Depth") - 1
+start <- which(colnames(allBottom) == "Secchi") + 1
+end <- which(colnames(allBottom) == "Chla") - 1
 
 slopes_bott2 <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
 colnames(slopes_bott2) <- c("pond", "Long", "Lat", colnames(allBottom)[start:end])
