@@ -224,22 +224,6 @@ ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
                              ponds$Size <= 12.315432 ~ "Small",
                              ponds$Size <= 32.563650 ~ "Medium",
                              ponds$Size > 32.563650 ~ "Large")
-
-
-
-#unique(ponds$Station.number[is.na(ponds$Final.Depth)])
-
-# remove incorrect Secchi depths
-ponds$Secchi[ponds$Secchi > 30] <- NA
-
-# remove impossible Secchi depths
-# for(i in 1:nrow(ponds)) {
-#   if(!is.na(ponds$Secchi[i]) &
-#      !is.na(ponds$Final.Depth[i]) &
-#      ponds$Secchi[i] > ponds$Final.Depth[i]) {
-#     print(ponds$Secchi[i])
-#   }
-# }
 ```
 
 ```{r echo = FALSE}
@@ -754,13 +738,13 @@ renderUI({
               choices = props[!(props %in% input$prop1)])
 })
 
-classes <- c("Depth", "% Buffer Developed", "Surface Area", "Lens")
+classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients")
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 selectInput("class1", label = "Separate data by:", choices = classes)
 
 renderUI({
-  classes <- c("Depth", "% Buffer Developed", "Surface Area", "Lens")
+  classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients", "Year")
   selectInput("class2", label = "Color data by:",
               choices = classes[!(classes %in% input$class1)])
 })
@@ -771,17 +755,23 @@ renderPlot({
   class1 <- case_when(input$class1 == "Depth" ~ "DepthClass",
                       input$class1 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class1 == "Surface Area" ~ "SurfaceAreaClass",
-                      input$class1 == "Lens" ~ "Lens")
+                      input$class1 == "Lens" ~ "Lens",
+                      input$class1 == "Nutrients" ~ "NtPClass")
   class2 <- case_when(input$class2 == "Depth" ~ "DepthClass",
                       input$class2 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class2 == "Surface Area" ~ "SurfaceAreaClass",
-                      input$class2 == "Lens" ~ "Lens")
+                      input$class2 == "Lens" ~ "Lens",
+                      input$class2 == "Nutrients" ~ "NtPClass",
+                      input$class2 == "Year" ~ "Year")
   p <- allSurface[allSurface[[flag_name1]] == 2 &
              allSurface[[flag_name2]] == 2 &
              !is.na(allSurface[[class1]]) &
              !is.na(allSurface[[class2]]) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
+  mutate(TP = if_else(TP == 0, NA, TP),
+         TN = if_else(TN == 0, NA, TN),
+         Chla = if_else(Chla == 0, NA, Chla)) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = get(class2))) +
     geom_point(size = 2.5, shape = 1) +
     facet_wrap(~ get(class1)) +
@@ -795,12 +785,18 @@ renderPlot({
       p <- p + scale_y_log10()
     }
     if(input$prop1 == "TP" & input$prop2 == "TN") {
-      p <- p + 
-        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+      p <- p +
+        scale_x_continuous() +
+        scale_y_continuous() +
+        geom_abline(slope = 16/1, col = "black", linetype = "22", linewidth = 1) +
+        coord_trans(x = "log10", y = "log10")
     }
     if(input$prop1 == "TN" & input$prop2 == "TP") {
-      p <- p + 
-        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+      p <- p +
+        scale_x_continuous() +
+        scale_y_continuous() +
+        geom_abline(slope = 1/16, col = "black", linetype = "22", linewidth = 1) +
+        coord_trans(x = "log10", y = "log10")
     }
   p
 })
@@ -819,13 +815,13 @@ renderUI({
               choices = props[!(props %in% input$prop3)])
 })
 
-classes <- c("Depth", "% Buffer Developed", "Surface Area", "Lens")
+classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients")
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 selectInput("class3", label = "Separate data by:", choices = classes)
 
 renderUI({
-  classes <- c("Depth", "% Buffer Developed", "Surface Area", "Lens")
+  classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients", "Year")
   selectInput("class4", label = "Color data by:",
               choices = classes[!(classes %in% input$class3)])
 })
@@ -836,36 +832,47 @@ renderPlot({
   class1 <- case_when(input$class3 == "Depth" ~ "DepthClass",
                       input$class3 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class3 == "Surface Area" ~ "SurfaceAreaClass",
-                      input$class3 == "Lens" ~ "Lens")
+                      input$class3 == "Lens" ~ "Lens",
+                      input$class3 == "Nutrients" ~ "NtPClass")
   class2 <- case_when(input$class4 == "Depth" ~ "DepthClass",
                       input$class4 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class4 == "Surface Area" ~ "SurfaceAreaClass",
-                      input$class4 == "Lens" ~ "Lens")
+                      input$class4 == "Lens" ~ "Lens",
+                      input$class4 == "Nutrients" ~ "NtPClass",
+                      input$class4 == "Year" ~ "Year")
   p <- allBottom[allBottom[[flag_name1]] == 2 &
              allBottom[[flag_name2]] == 2 &
              !is.na(allBottom[[class1]]) &
              !is.na(allBottom[[class2]]) &
              allBottom$Year >= input$yearRange[1] &
              allBottom$Year <= input$yearRange[2], ] %>%
+  mutate(TP = if_else(TP == 0, NA, TP),
+         TN = if_else(TN == 0, NA, TN)) %>%
   ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = get(class2))) +
     geom_point(size = 2.5, shape = 1) +
     facet_wrap(~ get(class1)) +
     labs(x = input$prop3, y = input$prop4, col = input$class4) +
     theme_bw() +
     theme(panel.grid = element_blank())
-    if(input$prop3 == "TP" | input$prop3 == "TN" | input$prop3 == "Chla") {
+    if(input$prop3 == "TP" | input$prop3 == "TN") {
       p <- p + scale_x_log10()
     }
-    if(input$prop4 == "TP" | input$prop4 == "TN" | input$prop4 == "Chla") {
+    if(input$prop4 == "TP" | input$prop4 == "TN") {
       p <- p + scale_y_log10()
     }
     if(input$prop3 == "TP" & input$prop4 == "TN") {
-      p <- p + 
-        geom_abline(slope = log10(16)/log10(1), col = "black", linetype = "22", linewidth = 1)
+      p <- p +
+        scale_x_continuous() +
+        scale_y_continuous() +
+        geom_abline(slope = 16/1, col = "black", linetype = "22", linewidth = 1) +
+        coord_trans(x = "log10", y = "log10")
     }
     if(input$prop3 == "TN" & input$prop4 == "TP") {
-      p <- p + 
-        geom_abline(slope = log10(1)/log10(16), col = "black", linetype = "22", linewidth = 1)
+      p <- p +
+        scale_x_continuous() +
+        scale_y_continuous() +
+        geom_abline(slope = 1/16, col = "black", linetype = "22", linewidth = 1) +
+        coord_trans(x = "log10", y = "log10")
     }
   p
 })
@@ -1261,7 +1268,8 @@ DT::renderDataTable({
             rep = "a")
   lensRKTs[1:5, 8] <- round(unlist(rk[c(12, 2, 4, 1, 3)]), c(3, 0, 0, 3, 3))
   datatable(lensRKTs,
-            options = list(dom = "t")) %>%
+            options = list(dom = "t",
+                           ordering = FALSE)) %>%
     formatStyle(0, fontWeight = "bold")
 })
 ```
