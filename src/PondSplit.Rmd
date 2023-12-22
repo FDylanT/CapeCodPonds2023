@@ -29,7 +29,7 @@ for(pond in pondName) {
     # temporarily deal with NA depths
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
-    group_by(Station.name, Lens, SurfaceAreaClass, DepthClass, DevelopmentClass,
+    group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
              Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
@@ -109,7 +109,10 @@ for(pond in pondName) {
     #   outlier_frame[[param]][sum(!is.na(outlier_frame[[param]])) + 1:length(outliers)] <- outliers
     # }
   }
-  allSurface <- rbind(allSurface, oneSurface)
+   oneSurface$NtPClass <- case_when(mean(oneSurface$TN) / mean(oneSurface$TP) < 16 ~ "N-limited",
+                                    mean(oneSurface$TN) / mean(oneSurface$TP) > 16 ~ "P-limited")
+  allSurface <- rbind(allSurface, oneSurface) %>%
+    relocate(NtPClass, .after = DevelopmentClass)
 }
 
 allSurface$Station.name[allSurface$Station.name == "MA-634-01 / Mashpee-Wakeby Pond"] <-
@@ -129,7 +132,7 @@ for(pond in pondName) {
     # temporarily deal with NA depths
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
-    group_by(Station.name, Lens, SurfaceAreaClass, DepthClass, DevelopmentClass,
+    group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
              Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
@@ -253,7 +256,10 @@ for(pond in pondName) {
       # }
     }
   }
-  allBottom <- rbind(allBottom, oneBottom)
+  oneBottom$NtPClass <- case_when(mean(oneBottom$TN) / mean(oneBottom$TP) < 16 ~ "N-limited",
+                                  mean(oneBottom$TN) / mean(oneBottom$TP) > 16 ~ "P-limited")
+  allBottom <- rbind(allBottom, oneBottom) %>%
+    relocate(NtPClass, .after = DevelopmentClass)
 }
 
 allBottom$Station.name[allBottom$Station.name == "MA-634-01 / Mashpee-Wakeby Pond"] <-
