@@ -1,0 +1,147 @@
+---
+title: "PondGraphics"
+author: "Dylan Titmuss"
+date: "2023-12-26"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+## Load packages
+```{r setup, include = FALSE}
+library(tidyverse)
+library(egg)
+```
+
+## Load data
+```{r}
+# load surface-only data
+allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
+  mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
+## define "consistently sampled" ##
+
+subSurface_pre <- allSurface %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= 2005,
+         max(Year) >= 2016) %>%
+  filter(n() >= 9) %>%
+  ungroup() %>%
+  filter(Year >= 2003 & Year <= 2013)   ### inclusive or exclusive of 2003 itself?
+
+subSurface_post <- allSurface %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= 2005,
+         max(Year) >= 2016) %>%
+  filter(n() >= 9) %>%
+  ungroup() %>%
+  filter(Year >= 2014)
+
+# load bottom-only data
+allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
+allBottom_pre <- allBottom %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= 2005,
+         max(Year) >= 2016) %>%
+  filter(n() >= 9) %>%
+  ungroup() %>%
+  filter(Year >= 2003 & Year <= 2013)
+
+allBottom_post <- allBottom %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= 2005,
+         max(Year) >= 2016) %>%
+  filter(n() >= 9) %>%
+  ungroup() %>%
+  filter(Year >= 2014)
+```
+
+## Pt. 1: Summary of new data and data characteristics 
+```{r}
+params <- c("TP", "TN", "Chla", "Secchi", "Temp", "DO")
+
+### split time period in half
+### put both time periods on same panel (maybe lines instead of filled bars); diff. color for each
+### two panels (surface + bottom) per param
+### Chla & Secchi on same graphic (both surf panels)
+
+plot_list1 <- lapply(params, function(p) {
+  ggplot(allSurface_pre, aes(x = .data[[p]])) + 
+    geom_histogram() +
+    theme_bw()
+})
+
+plot_list2 <- lapply(params[c(1:3, 5:6)], function(p) {
+  ggplot(allBottom_pre, aes(x = .data[[p]])) + 
+    geom_histogram() +
+    theme_bw()
+})
+
+plot_list3 <- lapply(params, function(p) {
+  ggplot(allSurface_post, aes(x = .data[[p]])) + 
+    geom_histogram() +
+    theme_bw()
+})
+
+plot_list4 <- lapply(params[c(1:3, 5:6)], function(p) {
+  ggplot(allBottom_post, aes(x = .data[[p]])) + 
+    geom_histogram() +
+    theme_bw()
+})
+
+ggarrange(ggplot() + annotate(geom = "text", x = 1, y = 1, label = "Surface 2003-2013") + theme_void(),
+          ggplot() + annotate(geom = "text", x = 1, y = 1, label = "Bottom 2003-2013") + theme_void(),
+          ggplot() + annotate(geom = "text", x = 1, y = 1, label = "Surface 2014-present") + theme_void(),
+          ggplot() + annotate(geom = "text", x = 1, y = 1, label = "Bottom 2014-present") + theme_void(),
+          plot_list1[[1]],
+          plot_list2[[1]],
+          plot_list3[[1]],
+          plot_list4[[1]],
+          plot_list1[[2]],
+          plot_list2[[2]],
+          plot_list3[[2]],
+          plot_list4[[2]],
+          plot_list1[[3]],
+          plot_list2[[3]],
+          plot_list3[[3]],
+          plot_list4[[3]],
+          plot_list1[[4]],
+          ggplot() + theme_void(),
+          plot_list3[[4]],
+          ggplot() + theme_void(),
+          plot_list1[[5]],
+          plot_list2[[4]],
+          plot_list3[[5]],
+          plot_list4[[4]],
+          plot_list1[[6]],
+          plot_list2[[5]],
+          plot_list3[[6]],
+          plot_list4[[5]], ncol = 4)
+```
+
+### Ecoregion thresholds (Secchi, Chla, TN, TP)
+Ponds:
+-- Hathaway S (BA)
+-- Micah (BA)
+-- Slough (BR)
+-- Pine (BR)
+-- Flax (DE)
+-- Slough (TR)
+-- Duck (WE)
+-- Spectacle (WE)
+
+- Calculate 75%ile using allSurface & using ponds to compare
+- Calculate 75%ile threshold values per year using ponds
+
+### DO standard
+- Calc "recent" (2016+) & annually in table
+
+### 4a
+- All ponds on one graphic; hline @ 3 mg/L
