@@ -983,7 +983,7 @@ The region-wide anomaly values from a single year are visualized at once.
 ```{r echo = FALSE}
 selectInput("depth", label = "Choose layer:", choices = c("Surface", "Bottom"))
 selectInput("param5", label = "Choose parameter:", choices = c("Temp", "DO"))
-sliderInput("year", label = "Choose year:", min = 2001, max = 2020, value = 2001)
+sliderInput("year", label = "Choose year:", min = 2001, max = 2023, value = 2001)
 
 renderPlot({
   if(input$depth == "Surface") {
@@ -993,10 +993,10 @@ renderPlot({
   }
   anom_name <- paste0(input$param5, "_anom")
   flag_name <- paste0(input$param5, "_flag")
-  #min <- -max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
-  #max <- max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
-  min <- ifelse(anom_name == "Temp_anom", -10, -15)   # temp_anom range [-10, 10]; DO_anom range [-15, 15]
-  max <- ifelse(anom_name == "Temp_anom", 10, 15)
+  min <- -max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
+  max <- max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
+  #min <- ifelse(anom_name == "Temp_anom", -10, -15)   # temp_anom range [-10, 10]; DO_anom range [-15, 15]
+  #max <- ifelse(anom_name == "Temp_anom", 10, 15)
   ggplot() +
     geom_sf(data = mass) +
     geom_point(data = one_depth[one_depth[[flag_name]] == 2 &
