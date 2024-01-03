@@ -84,9 +84,9 @@ ponds <- ponds %>%
   relocate(DO, .after = Temp) %>%
   relocate(DO_sat, .after = DO) %>%
   relocate(Alk, .after = DO_sat) %>%
-  relocate(TP, .after = Alk) %>%
-  relocate(TN, .after = TP) %>%
-  relocate(Chla, .after = TN) %>%
+  relocate(TN, .after = Alk) %>%
+  relocate(TP, .after = TN) %>%
+  relocate(Chla, .after = TP) %>%
   relocate(Total.Depth, .after = last_col()) %>%
   
   # extract date from date-time column & create new column
@@ -728,12 +728,12 @@ renderPlot({
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-props <- c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla")
+props <- c("Secchi", "Temp", "DO", "Alk", "TN", "TP", "Chla")
 
 selectInput("prop1", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla")
+  props <- c("Secchi", "Temp", "DO", "Alk", "TN", "TP", "Chla")
   selectInput("prop2", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop1)])
 })
@@ -805,12 +805,12 @@ renderPlot({
 ### Regional patterns in bottom data
 
 ```{r echo = FALSE}
-props <- c("Temp", "DO", "Alk", "TP", "TN")
+props <- c("Temp", "DO", "Alk", "TN", "TP")
 
 selectInput("prop3", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Temp", "DO", "Alk", "TP", "TN")
+  props <- c("Temp", "DO", "Alk", "TN", "TP")
   selectInput("prop4", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop3)])
 })
@@ -937,9 +937,9 @@ selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderUI({
   choices <- if(input$layer == "Surface") {
-                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla")
+                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla")
               } else {
-                c("Temp", "DO", "DO_sat", "Alk", "TP", "TN")
+                c("Temp", "DO", "DO_sat", "Alk", "TN", "TP")
               }
   selectInput("param3", label = "Choose parameter:", choices = choices, selected = "Temp")
 })
@@ -1162,7 +1162,7 @@ for(i in 1:length(pondName)) {
 #### Surface trends over time
 
 ```{r echo = FALSE}
-selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla"))
+selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla"))
 
 renderPlot({
   ggplot() +
@@ -1195,7 +1195,7 @@ renderPlot({
 #### Bottom trends over time
 
 ```{r echo = FALSE}
-selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk", "TP", "TN"))
+selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk", "TN", "TP"))
 
 renderPlot({
   ggplot() +
@@ -1232,9 +1232,9 @@ selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderUI({
   choices <- if(input$layer2 == "Surface") {
-                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TP", "TN", "Chla")
+                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla")
               } else {
-                c("Temp", "DO", "DO_sat", "Alk", "TP", "TN")
+                c("Temp", "DO", "DO_sat", "Alk", "TN", "TP")
               }
   selectInput("trend", label = "Choose parameter:", choices = choices, selected = choices[1])
 })
@@ -1278,7 +1278,7 @@ DT::renderDataTable({
 
 ```{r echo = FALSE}
 selectInput("layer3", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("prop5", label = "Choose x parameter:", choices = c("Secchi", "Temp", "DO", "Alk", "TP", "TN", "Chla"))
+selectInput("prop5", label = "Choose x parameter:", choices = c("Secchi", "Temp", "DO", "Alk", "TN", "TP", "Chla"))
 
 for(i in 1:nrow(slopes_surf)) {
   ID <- slopes_surf$pond[i]
