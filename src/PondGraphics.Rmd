@@ -11,6 +11,7 @@ editor_options:
 ```{r setup, include = FALSE}
 library(tidyverse)
 library(egg)
+library(pals)
 library(scales)
 ```
 
@@ -60,7 +61,178 @@ allBottom_post <- allBottom_cont %>%
   filter(Year >= 2012)
 ```
 
-## Pt. 1: Summary of new data and data characteristics 
+## Pt. 1: Summary of new data and data characteristics
+```{r}
+months <- ponds %>%
+  group_by(Station.name, Date) %>%
+  summarise(Month = mean(Month))
+
+m <- ggplot(months, aes(x = Month)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", col = "black") +
+  scale_x_continuous(breaks = c(4:10)) +
+  labs(y = "Cumulative sampling events") +
+  theme_bw() +
+  theme(panel.grid.minor.x = element_blank())
+
+years <- ponds %>%
+  group_by(Station.number, Lat, Long) %>%
+  summarise(num_years = n_distinct(Year),
+            last_year = max(Year))
+
+y <- ggplot(years, aes(x = num_years)) +
+  geom_histogram(binwidth = 1, fill = "lightblue", col = "black") +
+  labs(x = "Number of years sampled", y = "Number of ponds") +
+  theme_bw()
+
+f1a.i <- ggarrange(m, y, ncol = 2)
+
+ggsave("figures/f1a.i.png", f1a, width = 6.5, height = 3, units = "in", dpi = 600)
+```
+
+## Pt. 1a cont.
+
+- outline points
+- smaller points
+
+```{r}
+sf_use_s2(FALSE)
+
+# get Massachusetts outline
+mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+  st_make_valid() %>%
+  st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
+
+N <- ggplot() +
+  geom_sf(data = mass, fill = "grey60") +
+  geom_point(data = years, aes(x = Long, y = Lat, col = num_years)) +
+  scale_color_viridis(option = "plasma", name = "N years\nsampled") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+
+L <- ggplot() +
+  geom_sf(data = mass, fill = "grey60") +
+  geom_point(data = years, aes(x = Long, y = Lat, col = last_year)) +
+  scale_color_viridis(option = "viridis", name = "Last year\nsampled") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+
+f1a.ii <- ggarrange(N, L, ncol = 2)
+
+ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi = 600)
+```
+
+## Pt. 1a cont.
+
+######
+- add missing units
+- rotate scale bars
+
+```{r}
+params <- c("Secchi", "Chla", "TN", "TP", "Temp", "DO", "Alk")
+
+recent_surf <- allSurface %>%
+  group_by(Station.name) %>%
+  filter(Year == max(Year))
+
+surf_list <- lapply(params, function(param) {
+  ggplot() +
+    geom_sf(data = mass, fill = "grey60") +
+    geom_point(data = recent_surf[recent_surf[[paste0(param, "_flag")]] == 2, ],
+               aes(x = Long, y = Lat, fill = get(param)),
+               shape = 21) +
+    scale_fill_gradientn(colors = parula(100),
+                         limits = c(sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]))[1],
+                                    sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]), decreasing = TRUE)[1]),
+                         name = param) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    labs(title = paste("Surface", param)) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank(),
+          #legend.position = "bottom",
+          plot.title = element_text(face = "bold"),
+          axis.text = element_blank(),
+          axis.ticks = element_blank())
+})
+
+recent_bott <- allBottom %>%
+  group_by(Station.name) %>%
+  filter(Year == max(Year))
+
+bott_list <- lapply(params[3:7], function(param) {
+  ggplot() +
+    geom_sf(data = mass, fill = "grey60") +
+    geom_point(data = recent_bott[recent_bott[[paste0(param, "_flag")]] == 2, ],
+               aes(x = Long, y = Lat, fill = get(param)),
+               shape = 21) +
+    scale_fill_gradientn(colors = parula(100),
+                         limits = c(sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]))[1],
+                                    sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]), decreasing = TRUE)[1]),
+                         name = param) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    labs(title = paste("Bottom", param)) +
+    theme_bw() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank(),
+          #legend.position = "bottom",
+          plot.title = element_text(face = "bold"),
+          axis.text = element_blank(),
+          axis.ticks = element_blank())
+})
+
+surf_list[[2]] <- surf_list[[2]] +
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "Chl-a (μg/L)")
+  
+surf_list[[3]] <- surf_list[[3]] +
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)")
+
+bott_list[[1]] <- bott_list[[1]] +
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)")
+
+surf_list[[4]] <- surf_list[[4]] +
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)")
+
+bott_list[[2]] <- bott_list[[2]] +
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)")
+
+quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.75, 0.9, 0.95, 1), na.rm = TRUE)
+
+surf_list[[7]] <- surf_list[[7]] +
+  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity (mg/L)")
+
+bott_list[[5]] <- bott_list[[5]] +
+  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity (mg/L)")
+
+f1a.iii <- ggarrange(surf_list[[1]], surf_list[[2]],
+                surf_list[[3]], bott_list[[1]],
+                surf_list[[4]], bott_list[[2]], ncol = 2)
+
+ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 7, units = "in", dpi = 600)
+
+f1a.iv <- ggarrange(surf_list[[5]], bott_list[[3]],
+          surf_list[[6]], bott_list[[4]],
+          surf_list[[7]], bott_list[[5]], ncol = 2)
+
+ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 7, units = "in", dpi = 600)
+```
+
+## Pt. 1b
 ```{r}
 ### split time period in half
 ### put both time periods on same panel; lines instead of filled bars; diff. color for each
@@ -562,41 +734,54 @@ ggsave("figures/f4.png", f4, width = 5, height = 3.5, units = "in", dpi = 600)
 ```
 
 ### 4c (Maps w/ trends in all parameters)
+
+######
+- add units (e.g. mg/L/yr)
+
 ```{r}
 params <- c("Secchi", "Chla", "TN", "TP", "Temp", "DO", "Alk")
 
-surf_list <- lapply(params, function(param) {
+surf_list2 <- lapply(params, function(param) {
   ggplot() +
     geom_sf(data = mass, fill = "grey60") +
     geom_point(data = slopes_surf2[!is.na(slopes_surf2[[param]]), ],
-               aes(x = Long, y = Lat, col = get(param)),
-               shape = 21, stroke = 0.75) +
-    geom_point(data = slopes_surf[!is.na(slopes_surf[[param]]), ],
-               aes(x = Long, y = Lat, fill = get(param)),
+               aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
                shape = 21) +
-    #scale_size_continuous(range = c(1, 4), name = "Trend\nmagnitude") +
-    scale_color_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-                          na.value = NA,
-                          limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-                                    sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-                          name = "Trend") +
-    scale_fill_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-                         na.value = NA,
-                         limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-                                    sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-                         name = "Trend") +
-    # scale_fill_manual(values = c("royalblue", "firebrick"), 
-    #                   breaks = c(-1, 1),
-    #                   labels = c("negative", "positive"),
-    #                   name = "Trend\ndirection",
-    #                   na.translate = FALSE,
-    #                   guide = "none") +
-    # scale_color_manual(values = c("royalblue", "black", "firebrick"),
-    #                    breaks = c(-1, 0, 1),
-    #                    labels = c("negative", "zero", "positive"),
-    #                    name = "Trend\ndirection",
-    #                    na.translate = FALSE,
-    #                    guide = "none") +
+    geom_point(data = slopes_surf[!is.na(slopes_surf[[param]]), ],
+               aes(x = Long, y = Lat, size = abs(get(param)), fill = factor(sign(get(param)))),
+               shape = 21) +
+    scale_size_continuous(range = c(1, 4),
+                          limits = c(sort(abs(c(slopes_surf[[param]],
+                                                slopes_surf2[[param]],
+                                                slopes_bott[[param]],
+                                                slopes_bott2[[param]])))[1],
+                                     sort(abs(c(slopes_surf[[param]],
+                                                slopes_surf2[[param]],
+                                                slopes_bott[[param]],
+                                                slopes_bott2[[param]])), decreasing = TRUE)[1]),
+                          name = "Trend\nmagnitude") +
+    # scale_color_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
+    #                       na.value = NA,
+    #                       limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
+    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
+    #                       name = "Trend") +
+    # scale_fill_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
+    #                      na.value = NA,
+    #                      limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
+    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
+    #                      name = "Trend") +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                       breaks = c(-1, 0, 1),
+                       labels = c("negative", "zero", "positive"),
+                       name = "Trend\ndirection",
+                       na.translate = FALSE,
+                       guide = "none") +
+    scale_fill_manual(values = c("royalblue", "firebrick"),
+                      breaks = c(-1, 1),
+                      labels = c("negative", "positive"),
+                      name = "Trend\ndirection",
+                      na.translate = FALSE,
+                      guide = "none") +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Surface", param)) +
@@ -609,38 +794,38 @@ surf_list <- lapply(params, function(param) {
           axis.ticks = element_blank())
 })
 
-bott_list <- lapply(params[3:7], function(param) {
+bott_list2 <- lapply(params[3:7], function(param) {
   ggplot() +
     geom_sf(data = mass, fill = "grey60") +
     geom_point(data = slopes_bott2[!is.na(slopes_bott2[[param]]), ],
-               aes(x = Long, y = Lat, col = get(param)),
-               shape = 21, stroke = 0.75) +
-    geom_point(data = slopes_bott[!is.na(slopes_bott[[param]]), ],
-               aes(x = Long, y = Lat, fill = get(param)),
+               aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
                shape = 21) +
-    #scale_size_continuous(range = c(1, 4), name = "Trend\nmagnitude") +
-    scale_color_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-                          na.value = NA,
-                          limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-                                    sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-                          name = "Trend") +
-    scale_fill_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-                         na.value = NA,
-                         limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-                                    sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-                         name = "Trend") +
-    # scale_fill_manual(values = c("royalblue", "firebrick"), 
-    #                   breaks = c(-1, 1),
-    #                   labels = c("negative", "positive"),
-    #                   name = "Trend\ndirection",
-    #                   na.translate = FALSE,
-    #                   guide = "none") +
-    # scale_color_manual(values = c("royalblue", "black", "firebrick"),
-    #                    breaks = c(-1, 0, 1),
-    #                    labels = c("negative", "zero", "positive"),
-    #                    name = "Trend\ndirection",
-    #                    na.translate = FALSE,
-    #                    guide = "none") +
+    geom_point(data = slopes_bott[!is.na(slopes_bott[[param]]), ],
+               aes(x = Long, y = Lat, size = abs(get(param)), fill = factor(sign(get(param)))),
+               shape = 21) +
+    scale_size_continuous(range = c(1, 4), name = "Trend\nmagnitude") +
+    # scale_color_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
+    #                       na.value = NA,
+    #                       limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
+    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
+    #                       name = "Trend") +
+    # scale_fill_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
+    #                      na.value = NA,
+    #                      limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
+    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
+    #                      name = "Trend") +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                       breaks = c(-1, 0, 1),
+                       labels = c("negative", "zero", "positive"),
+                       name = "Trend\ndirection",
+                       na.translate = FALSE,
+                       guide = "none") +
+    scale_fill_manual(values = c("royalblue", "firebrick"),
+                      breaks = c(-1, 1),
+                      labels = c("negative", "positive"),
+                      name = "Trend\ndirection",
+                      na.translate = FALSE,
+                      guide = "none") +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom", param)) +
@@ -653,45 +838,45 @@ bott_list <- lapply(params[3:7], function(param) {
           axis.ticks = element_blank())
 })
 
-# surf_list[[3]] <- surf_list[[3]] +
+# surf_list2[[3]] <- surf_list2[[3]] +
 #   scale_size_continuous(limits = c(0, 5.5), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# bott_list[[1]] <- bott_list[[1]] +
+# bott_list2[[1]] <- bott_list2[[1]] +
 #   scale_size_continuous(limits = c(0, 5.5), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# surf_list[[4]] <- surf_list[[4]] +
+# surf_list2[[4]] <- surf_list2[[4]] +
 #   scale_size_continuous(limits = c(0, 0.4), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# bott_list[[2]] <- bott_list[[2]] +
+# bott_list2[[2]] <- bott_list2[[2]] +
 #   scale_size_continuous(limits = c(0, 0.4), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# surf_list[[5]] <- surf_list[[5]] +
+# surf_list2[[5]] <- surf_list2[[5]] +
 #   scale_size_continuous(limits = c(0, 0.8), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# bott_list[[3]] <- bott_list[[3]] +
+# bott_list2[[3]] <- bott_list2[[3]] +
 #   scale_size_continuous(limits = c(0, 0.8), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# surf_list[[6]] <- surf_list[[6]] +
+# surf_list2[[6]] <- surf_list2[[6]] +
 #   scale_size_continuous(limits = c(0, 0.65), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# bott_list[[4]] <- bott_list[[4]] +
+# bott_list2[[4]] <- bott_list2[[4]] +
 #   scale_size_continuous(limits = c(0, 0.65), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# surf_list[[7]] <- surf_list[[7]] +
+# surf_list2[[7]] <- surf_list2[[7]] +
 #   scale_size_continuous(limits = c(0, 4.5), range = c(1, 4), name = "Trend\nmagnitude")
 # 
-# bott_list[[5]] <- bott_list[[5]] +
+# bott_list2[[5]] <- bott_list2[[5]] +
 #   scale_size_continuous(limits = c(0, 4.5), range = c(1, 4), name = "Trend\nmagnitude")
 
-f5 <- ggarrange(surf_list[[1]], surf_list[[2]],
-                surf_list[[3]], bott_list[[1]],
-                surf_list[[4]], bott_list[[2]], ncol = 2)
+f5 <- ggarrange(surf_list2[[1]], surf_list2[[2]],
+                surf_list2[[3]], bott_list2[[1]],
+                surf_list2[[4]], bott_list2[[2]], ncol = 2)
 
 ggsave("figures/f5.1.png", f5, width = 6.5, height = 7, units = "in", dpi = 600)
 
-f6 <- ggarrange(surf_list[[5]], bott_list[[3]],
-          surf_list[[6]], bott_list[[4]],
-          surf_list[[7]], bott_list[[5]], ncol = 2)
+f6 <- ggarrange(surf_list2[[5]], bott_list2[[3]],
+          surf_list2[[6]], bott_list2[[4]],
+          surf_list2[[7]], bott_list2[[5]], ncol = 2)
 
 ggsave("figures/f6.1.png", f6, width = 6.5, height = 7, units = "in", dpi = 600)
 ```
