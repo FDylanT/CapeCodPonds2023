@@ -7,7 +7,7 @@ editor_options:
   chunk_output_type: console
 ---
 
-## Load packages
+### Load packages
 ```{r setup, include = FALSE}
 library(tidyverse)
 library(egg)
@@ -15,7 +15,7 @@ library(pals)
 library(scales)
 ```
 
-## Load data
+### Load data
 ```{r}
 setwd("~/Desktop/Repos/CapeCodPonds2023")
 
@@ -61,13 +61,13 @@ allBottom_post <- allBottom_cont %>%
   filter(Year >= 2012)
 ```
 
-## Pt. 1: Summary of new data and data characteristics
+### Pt. 1: Summary of new data and data characteristics
 ```{r}
 months <- ponds %>%
   group_by(Station.name, Date) %>%
   summarise(Month = mean(Month))
 
-m <- ggplot(months, aes(x = Month)) +
+mo <- ggplot(months, aes(x = Month)) +
   geom_histogram(binwidth = 1, fill = "lightblue", col = "black") +
   scale_x_continuous(breaks = c(4:10)) +
   labs(y = "Cumulative sampling events") +
@@ -79,20 +79,20 @@ years <- ponds %>%
   summarise(num_years = n_distinct(Year),
             last_year = max(Year))
 
-y <- ggplot(years, aes(x = num_years)) +
+ye <- ggplot(years, aes(x = num_years)) +
   geom_histogram(binwidth = 1, fill = "lightblue", col = "black") +
   labs(x = "Number of years sampled", y = "Number of ponds") +
   theme_bw()
 
-f1a.i <- ggarrange(m, y, ncol = 2)
+f1a.i <- ggarrange(mo, ye, ncol = 2)
 
 ggsave("figures/f1a.i.png", f1a, width = 6.5, height = 3, units = "in", dpi = 600)
 ```
 
-## Pt. 1a cont.
+### Pt. 1a cont.
 
-- outline points
-- smaller points
+######
+- plot dark values on top
 
 ```{r}
 sf_use_s2(FALSE)
@@ -103,9 +103,10 @@ mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/li
   st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
 
 N <- ggplot() +
-  geom_sf(data = mass, fill = "grey60") +
-  geom_point(data = years, aes(x = Long, y = Lat, col = num_years)) +
-  scale_color_viridis(option = "plasma", name = "N years\nsampled") +
+  geom_sf(data = mass) +
+  geom_point(data = years, aes(x = Long, y = Lat, fill = num_years),
+             shape = 21, size = 1.25, stroke = 0.25) +
+  scale_fill_viridis(option = "plasma", name = "N years\nsampled") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
   theme_bw() +
@@ -115,9 +116,10 @@ N <- ggplot() +
         axis.ticks = element_blank())
 
 L <- ggplot() +
-  geom_sf(data = mass, fill = "grey60") +
-  geom_point(data = years, aes(x = Long, y = Lat, col = last_year)) +
-  scale_color_viridis(option = "viridis", name = "Last year\nsampled") +
+  geom_sf(data = mass) +
+  geom_point(data = years, aes(x = Long, y = Lat, fill = last_year),
+             shape = 21, size = 1.25, stroke = 0.25) +
+  scale_fill_viridis(option = "viridis", name = "Last year\nsampled") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
   theme_bw() +
@@ -131,11 +133,13 @@ f1a.ii <- ggarrange(N, L, ncol = 2)
 ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi = 600)
 ```
 
-## Pt. 1a cont.
+### Pt. 1a cont.
 
 ######
 - add missing units
 - rotate scale bars
+- put TP & TN on same color scale
+- use diverging scale for DO
 
 ```{r}
 params <- c("Secchi", "Chla", "TN", "TP", "Temp", "DO", "Alk")
@@ -146,7 +150,7 @@ recent_surf <- allSurface %>%
 
 surf_list <- lapply(params, function(param) {
   ggplot() +
-    geom_sf(data = mass, fill = "grey60") +
+    geom_sf(data = mass) +
     geom_point(data = recent_surf[recent_surf[[paste0(param, "_flag")]] == 2, ],
                aes(x = Long, y = Lat, fill = get(param)),
                shape = 21) +
@@ -174,7 +178,7 @@ recent_bott <- allBottom %>%
 
 bott_list <- lapply(params[3:7], function(param) {
   ggplot() +
-    geom_sf(data = mass, fill = "grey60") +
+    geom_sf(data = mass) +
     geom_point(data = recent_bott[recent_bott[[paste0(param, "_flag")]] == 2, ],
                aes(x = Long, y = Lat, fill = get(param)),
                shape = 21) +
@@ -200,24 +204,40 @@ surf_list[[2]] <- surf_list[[2]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = "Chl-a (μg/L)")
   
 surf_list[[3]] <- surf_list[[3]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)")
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)",
+                       limits = c(sort(c(recent_surf[[TN]],
+                                           recent_bott[[TN]]))[1],
+                                    sort(c(recent_surf[[TN]],
+                                           recent_bott[[TN]]), decreasing = TRUE)[1]))
 
 bott_list[[1]] <- bott_list[[1]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)")
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)",
+                       limits = c(sort(c(recent_surf[[TN]],
+                                           recent_bott[[TN]]))[1],
+                                    sort(c(recent_surf[[TN]],
+                                           recent_bott[[TN]]), decreasing = TRUE)[1]))
 
 surf_list[[4]] <- surf_list[[4]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)")
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)",
+                       limits = c(sort(c(recent_surf[[TP]],
+                                           recent_bott[[TP]]))[1],
+                                    sort(c(recent_surf[[TP]],
+                                           recent_bott[[TP]]), decreasing = TRUE)[1]))
 
 bott_list[[2]] <- bott_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)")
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)",
+                       limits = c(sort(c(recent_surf[[TP]],
+                                           recent_bott[[TP]]))[1],
+                                    sort(c(recent_surf[[TP]],
+                                           recent_bott[[TP]]), decreasing = TRUE)[1]))
 
 quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.75, 0.9, 0.95, 1), na.rm = TRUE)
 
 surf_list[[7]] <- surf_list[[7]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity (mg/L)")
+  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity\n(mg/L)")
 
 bott_list[[5]] <- bott_list[[5]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity (mg/L)")
+  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity\n(mg/L)")
 
 f1a.iii <- ggarrange(surf_list[[1]], surf_list[[2]],
                 surf_list[[3]], bott_list[[1]],
@@ -232,7 +252,7 @@ f1a.iv <- ggarrange(surf_list[[5]], bott_list[[3]],
 ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 7, units = "in", dpi = 600)
 ```
 
-## Pt. 1b
+### Pt. 1b
 ```{r}
 ### split time period in half
 ### put both time periods on same panel; lines instead of filled bars; diff. color for each
@@ -383,7 +403,7 @@ f1 <- ggarrange(Secchi1, Chla1, TN1, TN2, TP1, TP2, Temp1, Temp2, DO1, DO2, ncol
 ggsave("figures/f1.png", f1, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
-## Same as above but density plots
+### Same as above but density plots
 ```{r}
 hist(na.omit(allSurface_pre$Secchi), prob = TRUE)
 lines(density(na.omit(allSurface_pre$Secchi)))
@@ -607,7 +627,27 @@ eco_annual <- ecoregion2 %>%
             TP = quantile(TP, na.rm = TRUE)[4])
 
 # quantile(ecoregion2$Secchi[ecoregion2$Year == 2001], na.rm = TRUE)
+```
 
+- 25%/75% for Secchi -- should be inverted or not? ## negate Secchi
+
+### Use allSurface_cont/allBottom to calc 25th %iles
+```{r}
+thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
+thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
+thresh_TN_S <- quantile(allSurface_cont$TN, na.rm = TRUE)[2]
+thresh_TP_S <- quantile(allSurface_cont$TP, na.rm = TRUE)[2]
+
+thresh_TN_B <- quantile(allBottom_cont$TN, na.rm = TRUE)[2]
+thresh_TP_B <- quantile(allBottom_cont$TP, na.rm = TRUE)[2]
+```
+
+### Plot annual threshold values
+
+######
+- add 25%ile points (open) & regression line (dashed) to these plots
+
+```{r}
 m1 <- lm(eco_annual$Secchi ~ eco_annual$Year)
 summary(m1)
 
@@ -656,20 +696,6 @@ p4 <- ggplot(eco_annual, aes(x = Year, y = TP)) +
 f2 <- ggarrange(p1, p2, p3, p4, ncol = 2)
 
 ggsave("figures/f2.png", f2, width = 6.5, height = 5, units = "in", dpi = 600)
-```
-
-Questions for Jennie:
-- 25%/75% for Secchi -- should be inverted or not? ## negate Secchi
-
-### Use allSurface_cont/allBottom to calc 25th %iles
-```{r}
-thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
-thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
-thresh_TN_S <- quantile(allSurface_cont$TN, na.rm = TRUE)[2]
-thresh_TP_S <- quantile(allSurface_cont$TP, na.rm = TRUE)[2]
-
-thresh_TN_B <- quantile(allBottom_cont$TN, na.rm = TRUE)[2]
-thresh_TP_B <- quantile(allBottom_cont$TP, na.rm = TRUE)[2]
 ```
 
 ### Pt. 4: DO standard
@@ -737,13 +763,15 @@ ggsave("figures/f4.png", f4, width = 5, height = 3.5, units = "in", dpi = 600)
 
 ######
 - add units (e.g. mg/L/yr)
+- crop maps to narrower area
+- rotate & combine scale bars
 
 ```{r}
 params <- c("Secchi", "Chla", "TN", "TP", "Temp", "DO", "Alk")
 
 surf_list2 <- lapply(params, function(param) {
   ggplot() +
-    geom_sf(data = mass, fill = "grey60") +
+    geom_sf(data = mass) +
     geom_point(data = slopes_surf2[!is.na(slopes_surf2[[param]]), ],
                aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
                shape = 21) +
@@ -796,7 +824,7 @@ surf_list2 <- lapply(params, function(param) {
 
 bott_list2 <- lapply(params[3:7], function(param) {
   ggplot() +
-    geom_sf(data = mass, fill = "grey60") +
+    geom_sf(data = mass) +
     geom_point(data = slopes_bott2[!is.na(slopes_bott2[[param]]), ],
                aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
                shape = 21) +
