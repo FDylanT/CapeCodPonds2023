@@ -1322,7 +1322,7 @@ slopes_bott2$sig <- "NS"
 
 ```{r echo = FALSE}
 renderPlot({
-  if(input$layer == "Surface") {
+  if(input$layer3 == "Surface") {
     layer_data <- slopes_surf %>%
       mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
       mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
@@ -1369,7 +1369,7 @@ renderPlot({
 
 ```{r echo = FALSE}
 renderPlot({
-  if(input$layer == "Surface") {
+  if(input$layer3 == "Surface") {
     layer_data <- bind_rows(slopes_surf, slopes_surf2) %>%
       mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
       mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
