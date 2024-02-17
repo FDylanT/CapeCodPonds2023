@@ -9,7 +9,7 @@ editor_options:
 
 First run chunks 2-6 of `PondShiny.Rmd` script.
 
-# Identify surface data
+# Identify surface & bottom data
 
 ```{r}
 setwd("~/Desktop/Repos/CapeCodPonds2023")
@@ -29,7 +29,7 @@ for(pond in pondName) {
     # temporarily deal with NA depths
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
-    group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
+    group_by(Station.name, Lens, DepthClass, Strat, SurfaceAreaClass, DevelopmentClass,
              Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
@@ -132,7 +132,7 @@ for(pond in pondName) {
     # temporarily deal with NA depths
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
-    group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
+    group_by(Station.name, Lens, DepthClass, Strat, SurfaceAreaClass, DevelopmentClass,
              Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
@@ -141,21 +141,16 @@ for(pond in pondName) {
     next
   }
   
+  # skip "shallow" ponds
+  if(onePond$Final.Depth[1] < 3) {
+    next
+  }
+  
   param_start <- which(colnames(onePond) == "Secchi") + 1
   discrete_start <- which(colnames(onePond) == "DO_sat") + 1
   param_end <- which(colnames(onePond) == "Chla") - 1
   
   oneBottom <- data.frame()
-  
-  # temporary; covers ponds without depth in characteristics datasheet
-  if(is.na(onePond$Final.Depth[1]) & !is.na(onePond$Total.Depth[1])) {
-    onePond$Final.Depth <- max(onePond$Total.Depth, na.rm = TRUE)
-  }
-  
-  # second half temporary; covers ponds with no total depth data
-  if(onePond$Final.Depth[1] < 3 | is.na(onePond$Final.Depth[1])) {
-    next
-  }
   
   for(year in unique(onePond$Year)) {
     for(j in 1:nrow(onePond[onePond$Year == year, ])) {
@@ -210,7 +205,7 @@ for(pond in pondName) {
             for(m in 1:nrow(onePond[onePond$Year == year, ])) {
               depth2 = sort(onePond$Depth[onePond$Year == year],
                             decreasing = TRUE)[m]
-              if(depth2 < 0.75 * mean(onePond$Final.Depth)) {
+              if(depth2 < 0.75 * onePond$Final.Depth[1]) {
                 break
               } else if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth2])) {
                 next
