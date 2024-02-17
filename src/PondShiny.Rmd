@@ -226,6 +226,93 @@ ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
                              ponds$Size > 32.563650 ~ "Large")
 ```
 
+```{r include = FALSE}
+# calculate MLDs
+ponds$MLD <- NA
+
+allPonds <- unique(ponds$Station.name)
+
+for(pond in allPonds) {
+  onePond <- ponds[ponds$Station.name == pond, ]
+  
+  for(y in unique(onePond$Year)) {
+    oneYear <- onePond[onePond$Year == y &
+                       (onePond$Month == 8 |
+                        onePond$Month == 9) &
+                       !is.na(onePond$Depth), ]
+    if(sum(!is.na(oneYear$Temp)) < 2 |
+       n_distinct(oneYear$Depth[oneYear$Depth >= 1]) < 2) {
+      next
+    }
+    for(i in 1:(n_distinct(oneYear$Depth) - 1)) {
+      if(is.na(oneYear$Temp[i]) |
+         oneYear$Depth[i] < 1) {
+        next
+      }
+      j <- i + 1
+      while(j < n_distinct(oneYear$Depth)) {
+        if(!is.na(oneYear$Temp[j])) {
+          break
+        } else {
+          j <- j + 1
+        }
+      }
+      if(is.na(oneYear$Temp[j])) {
+        break
+      }
+      depth_diff <- oneYear$Depth[j] - oneYear$Depth[i]
+      temp_diff <- oneYear$Temp[j] - oneYear$Temp[i]
+      delta_temp <- temp_diff / depth_diff
+      if(abs(delta_temp) >= 1) {
+        ponds$MLD[ponds$Station.name == pond &
+                  ponds$Year == y &
+                  (ponds$Month == 8 |
+                   ponds$Month == 9)] <- oneYear$Depth[i]
+        break
+      }
+    }
+    if(abs(delta_temp) < 1) {
+      ponds$MLD[ponds$Station.name == pond &
+                ponds$Year == y &
+                (ponds$Month == 8 |
+                 ponds$Month == 9)] <- 99
+    }
+  }
+  
+  # temporary; covers ponds without "final depth" in characteristics datasheet
+  if(is.na(onePond$Final.Depth[1]) & !is.na(onePond$Total.Depth[1])) {
+    ponds$Final.Depth[ponds$Station.name == pond] <- max(onePond$Total.Depth, na.rm = TRUE)
+  }
+  
+  # second half temporary; covers ponds with no "final depth" or "total depth" data
+  if(is.na(ponds$Final.Depth[ponds$Station.name == pond][1])) {
+    ponds$Final.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
+  }
+}
+
+ponds <- ponds %>%
+  relocate(MLD, .before = Depth) %>%
+  relocate(Final.Depth, .before = MLD)
+
+# loose sanity check
+# ponds %>%
+#   filter((Month == 8 | Month == 9),
+#          Depth %% 1 == 0,
+#          !is.na(Temp),
+#          is.na(MLD)) %>%
+#   group_by(Station.name, Year) %>%
+#   filter(n() > 1) %>%
+#   summarize(MLD = min(MLD))
+```
+
+```{r include = FALSE}
+### determine stratified vs unstratified ponds
+ponds$Strat <- ifelse(ponds$MLD <= 0.75 * ponds$Final.Depth, "Stratified", "Mixed")
+
+ponds <- ponds %>%
+  relocate(Strat, .after = MLD)
+```
+
 ```{r echo = FALSE}
 focal_ponds <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
@@ -360,46 +447,6 @@ for(i in 1:nrow(allBottom)) {
   allBottom$DO_anom[i] <- allBottom$DO[i] - clim_all$DO[clim_all$Station.name == pond &
                                                         clim_all$Depth >= a &
                                                         clim_all$Depth <= b]
-}
-```
-
-```{r include = FALSE}
-# calculate MLDs
-
-allSurface$MLD <- NA
-
-for(pond in pondName) {
-  onePond <- ponds[ponds$Station.name == pond &
-                   !is.na(ponds$Depth) &
-                   (ponds$Month == 8 |
-                    ponds$Month == 9), ]
-  for(i in 1:n_distinct(onePond$Year)) {
-    oneYear <- onePond[onePond$Year == unique(onePond$Year)[i], ]
-    if(sum(!is.na(oneYear$Temp)) < 2 |
-       n_distinct(oneYear$Depth) < 2) {
-      next
-    }
-    for(j in 2:n_distinct(oneYear$Depth)) {
-      if(is.na(oneYear$Temp[1]) |
-         is.na(oneYear$Temp[j]) |
-         oneYear$Depth[j - 1] < 1) {
-        next
-      }
-      for(k in 1:length(oneYear$Temp)) {
-        if(!is.na(oneYear$Temp[j - k])) {
-          break
-        }
-      }
-      depth_diff <- oneYear$Depth[j] - oneYear$Depth[j - k]
-      temp_diff <- oneYear$Temp[j] - oneYear$Temp[j - k]
-      delta_temp <- temp_diff / depth_diff
-      if(abs(delta_temp) >= 1) {
-        allSurface$MLD[allSurface$Station.name == pond &
-                       allSurface$Year == unique(onePond$Year)[i]] <- oneYear$Depth[j - 1]
-        break
-      }
-    }
-  }
 }
 ```
 
@@ -636,7 +683,7 @@ renderPlot({
 })
 
 DT::renderDataTable({
-  ponds[ponds$Station.name == input$pond, c(1, 7:9, 12:15)] %>%
+  ponds[ponds$Station.name == input$pond, c(1, 7, 9, 11:15)] %>%
     rename(Date.Time = Date.Time..sampling.)
 })
 ```
@@ -696,7 +743,8 @@ renderPlot({
   ggplot(aes(x = Year_frac, y = Depth, fill = get(anom_name))) +
     geom_point(size = 4, shape = 21) +
     scale_y_reverse() +
-    scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
+    scale_fill_gradient2(low = "#3B4CC0", mid = "lightgrey", high = "#B40426",
+                         midpoint = 0, name = anom_name,
                          limits = c(min, max), na.value = "white") +
     labs(x = "Year", y = "Depth (m)") +
     theme_bw() +
@@ -738,7 +786,7 @@ renderUI({
               choices = props[!(props %in% input$prop1)])
 })
 
-classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients")
+classes <- c("None", "Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients")
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 selectInput("class1", label = "Separate data by:", choices = classes)
@@ -749,10 +797,13 @@ renderUI({
               choices = classes[!(classes %in% input$class1)])
 })
 
+allSurface$None <- "None"
+
 renderPlot({
   flag_name1 <- paste0(input$prop1, "_flag")
   flag_name2 <- paste0(input$prop2, "_flag")
-  class1 <- case_when(input$class1 == "Depth" ~ "DepthClass",
+  class1 <- case_when(input$class1 == "None" ~ "None",
+                      input$class1 == "Depth" ~ "DepthClass",
                       input$class1 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class1 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class1 == "Lens" ~ "Lens",
@@ -774,10 +825,12 @@ renderPlot({
          Chla = if_else(Chla == 0, NA, Chla)) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = get(class2))) +
     geom_point(size = 2.5, shape = 1) +
-    facet_wrap(~ get(class1)) +
     labs(x = input$prop1, y = input$prop2, col = input$class2) +
     theme_bw() +
     theme(panel.grid = element_blank())
+    if(input$class1 != "None") {
+      p <- p + facet_wrap(~ get(class1))
+    }
     if(input$prop1 == "TP" | input$prop1 == "TN" | input$prop1 == "Chla") {
       p <- p + scale_x_log10()
     }
@@ -815,45 +868,50 @@ renderUI({
               choices = props[!(props %in% input$prop3)])
 })
 
-classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients")
+classes <- c("None", "Lens", "Stratification", "Surface Area", "% Buffer Developed", "Nutrient Limitation")
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 selectInput("class3", label = "Separate data by:", choices = classes)
 
 renderUI({
-  classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients", "Year")
+  classes <- c("Lens", "Stratification", "Surface Area", "% Buffer Developed", "Nutrient Limitation", "Year")
   selectInput("class4", label = "Color data by:",
               choices = classes[!(classes %in% input$class3)])
 })
 
+allBottom$None <- "None"
+
 renderPlot({
   flag_name1 <- paste0(input$prop3, "_flag")
   flag_name2 <- paste0(input$prop4, "_flag")
-  class1 <- case_when(input$class3 == "Depth" ~ "DepthClass",
+  class3 <- case_when(input$class3 == "None" ~ "None",
+                      input$class3 == "Stratification" ~ "Strat",
                       input$class3 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class3 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class3 == "Lens" ~ "Lens",
-                      input$class3 == "Nutrients" ~ "NtPClass")
-  class2 <- case_when(input$class4 == "Depth" ~ "DepthClass",
+                      input$class3 == "Nutrient Limitation" ~ "NtPClass")
+  class4 <- case_when(input$class4 == "Stratification" ~ "Strat",
                       input$class4 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class4 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class4 == "Lens" ~ "Lens",
-                      input$class4 == "Nutrients" ~ "NtPClass",
+                      input$class4 == "Nutrient Limitation" ~ "NtPClass",
                       input$class4 == "Year" ~ "Year")
   p <- allBottom[allBottom[[flag_name1]] == 2 &
              allBottom[[flag_name2]] == 2 &
-             !is.na(allBottom[[class1]]) &
-             !is.na(allBottom[[class2]]) &
+             !is.na(allBottom[[class3]]) &
+             !is.na(allBottom[[class4]]) &
              allBottom$Year >= input$yearRange[1] &
              allBottom$Year <= input$yearRange[2], ] %>%
   mutate(TP = if_else(TP == 0, NA, TP),
          TN = if_else(TN == 0, NA, TN)) %>%
-  ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = get(class2))) +
+  ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = get(class4))) +
     geom_point(size = 2.5, shape = 1) +
-    facet_wrap(~ get(class1)) +
     labs(x = input$prop3, y = input$prop4, col = input$class4) +
     theme_bw() +
     theme(panel.grid = element_blank())
+    if(input$class3 != "None") {
+      p <- p + facet_wrap(~ get(class3))
+    }
     if(input$prop3 == "TP" | input$prop3 == "TN") {
       p <- p + scale_x_log10()
     }
