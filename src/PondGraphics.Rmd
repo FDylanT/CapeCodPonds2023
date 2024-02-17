@@ -8,11 +8,221 @@ editor_options:
 ---
 
 ### Load packages
-```{r setup, include = FALSE}
+```{r include = FALSE}
+### Load packages
+
 library(tidyverse)
+library(gsw)
+library(trend)
 library(egg)
+library(DT)
 library(pals)
 library(scales)
+library(sf)
+library(viridis)
+library(rkt)
+```
+
+```{r include = FALSE}
+### Load data
+
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+#ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+  
+  # remove non-data rows
+  filter(Station.name != "" & Station.name != " ")
+```
+
+```{r include = FALSE}
+# remove WISKI-designated outliers
+ponds <- ponds_full
+
+for(qc in colnames(ponds %>% select(contains("Quality.code")))) {
+  index <- match(qc, colnames(ponds))
+  ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
+                               "",
+                               ponds[[index - 1]],
+                               missing = ponds[[index - 1]])
+}
+
+ponds <- ponds %>%
+  # merge same-parameter columns & reorganize data frame
+  unite(Alk, Alkalinity...ALK, Alkalinity...ALK.1, sep = "") %>%
+  unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1,
+        Dissolved.Oxygen...Reported...DO.2, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
+        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, pH...PH.2, sep = "") %>%
+  unite(Phaeo, Phaeophytin...PHAEO, Phaeophytin...PHAEO.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
+  unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1,
+        Secchi.Depth...SECCHI.2, sep = "") %>%
+  unite(TN, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
+  unite(TP, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1,
+        Water.Temperature...TEMP.2, sep = "") %>%
+  
+  # split long/lat coordinates
+  separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
+  
+  # rename columns with redundant headers
+  rename(CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
+         CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
+         CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
+         Total.Depth = Total.Depth...DTB,
+         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
+  
+  # reorder columns
+  relocate(Secchi, .after = Depth) %>%
+  relocate(Temp, .after = Secchi) %>%
+  relocate(DO, .after = Temp) %>%
+  relocate(DO_sat, .after = DO) %>%
+  relocate(Alk, .after = DO_sat) %>%
+  relocate(TN, .after = Alk) %>%
+  relocate(TP, .after = TN) %>%
+  relocate(Chla, .after = TP) %>%
+  relocate(Total.Depth, .after = last_col()) %>%
+  
+  # extract date from date-time column & create new column
+  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
+         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}")) %>%
+  
+  # extract month and year from date-time column & create new column
+  mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
+         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
+  
+  # prepare columns for reordering ponds in dropdown menu
+  mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
+  mutate(Pond.number = as.numeric(str_extract(Station.number, "\\d+"))) %>%
+  mutate(Station.name = paste(Station.number, "/", Site))
+
+ponds[ponds == "MA-634-01 / Mashpee-Wakeby Pond"] <- "MA-634-01 / Mashpee Lake"
+ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
+
+# convert all empty cells to NA
+ponds[ponds == ""] <- NA
+
+# convert null datapoints to NA
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
+ponds[ponds == "<MDL 0.00"] <- NA
+ponds[ponds == "BDL 0.00"] <- "0"
+
+# temporarily fix non-numeric datapoints
+ponds[ponds == "-0.15"] <- "0.15"
+ponds[ponds == "-0.04"] <- "0.04"
+ponds[ponds == "-0.3"] <- "0.3"
+ponds[ponds == "> 15.50"] <- "15.50"
+ponds[ponds == "< 0.05"] <- "0"
+ponds[ponds == "< 0.10"] <- "0"
+ponds[ponds == "< 1.50"] <- "1.50"
+
+# fix erroneous values
+ponds$Temp[ponds$Temp == "0"] <- NA
+
+# remove problematic row
+ponds <- ponds[-which(ponds$Alk == "n.m. 19.90"), ]
+
+# convert all numerical cols to numeric
+is_all_numeric <- function(x) {
+  !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
+}
+not_all_na <- function(x) any(!is.na(x))
+ponds <- ponds %>% 
+  mutate_if(is_all_numeric, as.numeric) %>%
+  select(where(not_all_na))
+
+#str(ponds)
+```
+
+```{r echo = FALSE}
+## calculate DO saturation values (*in future should come from WISKI)
+for(i in 1:nrow(ponds)) {
+  if(is.na(ponds$DO_sat[i])) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO_sat[i] <- ponds$DO[i] / 32 / rho * 10^6 /
+                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
+  }
+}
+
+#mg/L to um/kg
+
+#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/15.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
+
+# calculate DO concentration values
+#ponds$DO_con <- NA
+
+#for(i in 1:nrow(ponds)) {
+#  rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
+#  ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+#                    ponds$DO[i] * 32 * rho / 10^6
+#}
+
+#ponds <- ponds %>%
+#  relocate(DO_con, .after = DO_sat)
+```
+
+```{r include = FALSE}
+## Match ponds to metadata
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+chars <- read.csv("data/PondCharacteristics.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+ponds$Final.Depth.ft <- NA
+ponds$Final.Depth <- NA
+ponds$Size <- NA
+ponds$Lens <- NA
+ponds$PercentDeveloped <- NA
+ponds$DevelopmentClass <- NA
+
+for(i in 1:nrow(ponds)) {
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
+  if(length(chars$Final.Depth[chars$CCC_GIS_ID == ID]) > 0) {
+    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+    ponds$Final.Depth[i] <- ponds$Final.Depth.ft[i] * 12 / 39
+    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$DevelopmentClass[i] <- chars$buffer.development.class[chars$CCC_GIS_ID == ID]
+  }
+}
+
+ponds <- ponds %>%
+  mutate(DepthClass = case_when(Final.Depth < 3 ~ "Shallow",
+                                Final.Depth > 3 ~ "Deep"))
+
+ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(PercentDeveloped = mean(PercentDeveloped))
+# 
+# quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds <- ponds %>%
+  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
+                                 ponds$PercentDeveloped <= 13.00 ~ "Low",
+                                 ponds$PercentDeveloped <= 23.25 ~ "Medium",
+                                 ponds$PercentDeveloped > 23.25 ~ "High"))
+
+ponds$SurfaceAreaClass <- NA
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(Size = mean(Size))
+# 
+# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
+                             ponds$Size <= 12.315432 ~ "Small",
+                             ponds$Size <= 32.563650 ~ "Medium",
+                             ponds$Size > 32.563650 ~ "Large")
 ```
 
 ### Load data
@@ -75,7 +285,7 @@ mo <- ggplot(months, aes(x = Month)) +
   theme(panel.grid.minor.x = element_blank())
 
 years <- ponds %>%
-  group_by(Station.number, Lat, Long) %>%
+  group_by(Station.name, Lat, Long) %>%
   summarise(num_years = n_distinct(Year),
             last_year = max(Year))
 
@@ -86,7 +296,30 @@ ye <- ggplot(years, aes(x = num_years)) +
 
 f1a.i <- ggarrange(mo, ye, ncol = 2)
 
-ggsave("figures/f1a.i.png", f1a, width = 6.5, height = 3, units = "in", dpi = 600)
+ggsave("figures/f1a.i.png", f1a.i, width = 6.5, height = 3, units = "in", dpi = 600)
+
+pie <- years %>%
+  mutate(bin = case_when(num_years <= 5 ~ "[1,5]",
+                         num_years > 5 & num_years <= 10 ~ "(5,10]",
+                         num_years > 10 & num_years <= 15 ~ "(10,15]",
+                         num_years > 15 ~ "> 15")) %>%
+  group_by(bin) %>%
+  summarise(n = n())
+
+f1a.i.i <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", "(5,10]", "(10,15]", "> 15")))) +
+  geom_bar(width = 1, stat = "identity") +
+  coord_polar("y", start = 0, direction = -1) +
+  geom_text(aes(label = paste0(n, "\n(", percent(n/sum(n)), ")")),
+            position = position_stack(vjust = 0.5), size = 3) +
+  labs(fill = "Number of\nyears sampled") +
+  theme_bw() +
+  theme(axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        panel.border = element_blank())
+
+ggsave("figures/f1a.i.i.png", f1a.i.i, width = 4, height = 3, units = "in", dpi = 600)
 ```
 
 ### Pt. 1a cont.
@@ -102,6 +335,9 @@ mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/li
   st_make_valid() %>%
   st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
 
+years <- years %>%
+  arrange(desc(num_years))
+
 N <- ggplot() +
   geom_sf(data = mass) +
   geom_point(data = years, aes(x = Long, y = Lat, fill = num_years),
@@ -114,6 +350,9 @@ N <- ggplot() +
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank())
+
+years <- years %>%
+  arrange(desc(last_year))
 
 L <- ggplot() +
   geom_sf(data = mass) +
@@ -619,9 +858,9 @@ thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
 thresh_TN2 <- quantile(ecoregion2$TN, na.rm = TRUE)[4]
 thresh_TP2 <- quantile(ecoregion2$TP, na.rm = TRUE)[4]
 
-eco_annual <- ecoregion2 %>%
+eco_annual75 <- ecoregion2 %>%
   group_by(Year) %>%
-  summarise(Secchi = quantile(Secchi, na.rm = TRUE)[4],
+  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[4],
             Chla = quantile(Chla, na.rm = TRUE)[4],
             TN = quantile(TN, na.rm = TRUE)[4],
             TP = quantile(TP, na.rm = TRUE)[4])
@@ -640,56 +879,89 @@ thresh_TP_S <- quantile(allSurface_cont$TP, na.rm = TRUE)[2]
 
 thresh_TN_B <- quantile(allBottom_cont$TN, na.rm = TRUE)[2]
 thresh_TP_B <- quantile(allBottom_cont$TP, na.rm = TRUE)[2]
+
+## annual thresholds
+eco_annual25 <- allSurface %>%
+  group_by(Year) %>%
+  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[2],
+            Chla = quantile(Chla, na.rm = TRUE)[2],
+            TN = quantile(TN, na.rm = TRUE)[2],
+            TP = quantile(TP, na.rm = TRUE)[2])
 ```
 
 ### Plot annual threshold values
 
-######
-- add 25%ile points (open) & regression line (dashed) to these plots
-
 ```{r}
-m1 <- lm(eco_annual$Secchi ~ eco_annual$Year)
+m1 <- lm(eco_annual75$Secchi ~ eco_annual75$Year)
 summary(m1)
 
-p1 <- ggplot(eco_annual, aes(x = Year, y = Secchi)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  geom_hline(yintercept = 4.5, linetype = "dashed") +
-  geom_hline(yintercept = 2, linetype = "dashed") +
-  annotate("text", x = 2004, y = 7.6, label = "slope: 0.01\nP-value: 0.765", col = "blue", size = 3) +
-  ylim(0, 8) +
+m1.1 <- lm(eco_annual25$Secchi ~ eco_annual25$Year)
+summary(m1.1)
+
+p1 <- ggplot() +
+  geom_point(data = eco_annual75, aes(x = Year, y = Secchi)) +
+  geom_point(data = eco_annual25, aes(x = Year, y = Secchi), shape = 1) +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = Secchi), method = "lm", se = FALSE) +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = Secchi), method = "lm", se = FALSE, col = "red",
+              linetype = "dashed") +
+  geom_hline(yintercept = -4.5, linetype = "dashed") +
+  geom_hline(yintercept = -2, linetype = "dashed") +
+  annotate("text", x = 2004, y = -0.4, label = "slope: -0.04\nP-value: 0.295", col = "blue", size = 3) +
+  annotate("text", x = 2020, y = -0.4, label = "slope: -0.01\nP-value: 0.604", col = "red", size = 3) +
+  ylim(-8, 0) +
   theme_bw()
   
-m2 <- lm(eco_annual$Chla ~ eco_annual$Year)
+m2 <- lm(eco_annual75$Chla ~ eco_annual75$Year)
 summary(m2)
 
-p2 <- ggplot(eco_annual, aes(x = Year, y = Chla)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
+m2.1 <- lm(eco_annual25$Chla ~ eco_annual25$Year)
+summary(m2.1)
+
+p2 <- ggplot() +
+  geom_point(data = eco_annual75, aes(x = Year, y = Chla)) +
+  geom_point(data = eco_annual25, aes(x = Year, y = Chla), shape = 1) +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = Chla), method = "lm", se = FALSE) +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = Chla), method = "lm", se = FALSE, col = "red",
+              linetype = "dashed") +
   geom_hline(yintercept = 1, linetype = "dashed") +
   annotate("text", x = 2004, y = 9, label = "slope: 0.07\nP-value: 0.396", col = "blue", size = 3) +
+  annotate("text", x = 2020, y = 9, label = "slope: -0.02\nP-value: 0.427", col = "red", size = 3) +
   scale_y_continuous(limits = c(0, 9.5), breaks = c(0, 2, 4, 6, 8)) +
   theme_bw()
 
-m3 <- lm(eco_annual$TN ~ eco_annual$Year)
+m3 <- lm(eco_annual75$TN ~ eco_annual75$Year)
 summary(m3)
 
-p3 <- ggplot(eco_annual, aes(x = Year, y = TN)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
+m3.1 <- lm(eco_annual25$TN ~ eco_annual25$Year)
+summary(m3.1)
+
+p3 <- ggplot() +
+  geom_point(data = eco_annual75, aes(x = Year, y = TN)) +
+  geom_point(data = eco_annual25, aes(x = Year, y = TN), shape = 1) +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = TN), method = "lm", se = FALSE) +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = TN), method = "lm", se = FALSE, col = "red",
+              linetype = "dashed") +
   geom_hline(yintercept = 11.42, linetype = "dashed") +
   annotate("text", x = 2004, y = 43.5, label = "slope: 0.48\nP-value: 0.139", col = "blue", size = 3) +
+  annotate("text", x = 2020, y = 43.5, label = "slope: -0.04\nP-value: 0.797", col = "red", size = 3) +
   ylim(0, 46) +
   theme_bw()
 
-m4 <- lm(eco_annual$TP ~ eco_annual$Year)
+m4 <- lm(eco_annual75$TP ~ eco_annual75$Year)
 summary(m4)
 
-p4 <- ggplot(eco_annual, aes(x = Year, y = TP)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
+m4.1 <- lm(eco_annual25$TP ~ eco_annual25$Year)
+summary(m4.1)
+
+p4 <- ggplot() +
+  geom_point(data = eco_annual75, aes(x = Year, y = TP)) +
+  geom_point(data = eco_annual25, aes(x = Year, y = TP), shape = 1) +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = TP), method = "lm", se = FALSE) +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = TP), method = "lm", se = FALSE, col = "red",
+              linetype = "dashed") +
   geom_hline(yintercept = 0.24, linetype = "dashed") +
   annotate("text", x = 2004, y = 0.9, label = "slope: 0.015\nP-value: 0.007", col = "blue", size = 3) +
+  annotate("text", x = 2020, y = 0.9, label = "slope: 0.01\nP-value: 0.002", col = "red", size = 3) +
   ylim(0, 0.95) +
   theme_bw()
 
