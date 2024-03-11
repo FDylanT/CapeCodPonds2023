@@ -837,6 +837,11 @@ ecoregion <- allSurface %>%
          Station.name == "WE-76-01 / Duck Pond" |
          Station.name == "WE-64-01 / Spectacle Pond")
 
+thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
+thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
+thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]   ### 24.5 vs 23.2
+thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
+
 ecoregion2 <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
   filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
@@ -847,11 +852,6 @@ ecoregion2 <- ponds %>%
          Station.name == "TR-53-01 / Slough Pond" |
          Station.name == "WE-76-01 / Duck Pond" |
          Station.name == "WE-64-01 / Spectacle Pond")
-
-thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
-thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
-thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]   ### 24.5 vs 23.2
-thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
 
 thresh_Secchi2 <- quantile(-ecoregion2$Secchi, na.rm = TRUE)[4]
 thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
@@ -871,6 +871,7 @@ eco_annual75 <- ecoregion2 %>%
 - 25%/75% for Secchi -- should be inverted or not? ## negate Secchi
 
 ### Use allSurface_cont/allBottom to calc 25th %iles
+
 ```{r}
 thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
 thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
