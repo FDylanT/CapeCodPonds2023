@@ -323,7 +323,7 @@ pondName <- unique(focal_ponds$Station.name)
 selectInput("pond", label = "Choose pond:", choices = pondName)
 ```
 
-```{r echo = FALSE}
+```{r include = FALSE}
 setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 ponds$Temp_flag <- NA
