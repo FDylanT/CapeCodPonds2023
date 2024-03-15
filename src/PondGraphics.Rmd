@@ -324,9 +324,6 @@ ggsave("figures/f1a.i.i.png", f1a.i.i, width = 4, height = 3, units = "in", dpi 
 
 ### Pt. 1a cont.
 
-######
-- plot dark values on top
-
 ```{r}
 sf_use_s2(FALSE)
 
@@ -345,11 +342,12 @@ N <- ggplot() +
   scale_fill_viridis(option = "plasma", name = "N years\nsampled") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid = element_blank(),
         axis.title = element_blank(),
         axis.text = element_blank(),
-        axis.ticks = element_blank())
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
 
 years <- years %>%
   arrange(desc(last_year))
@@ -361,11 +359,12 @@ L <- ggplot() +
   scale_fill_viridis(option = "viridis", name = "Last year\nsampled") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid = element_blank(),
         axis.title = element_blank(),
         axis.text = element_blank(),
-        axis.ticks = element_blank())
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
 
 f1a.ii <- ggarrange(N, L, ncol = 2)
 
@@ -387,6 +386,10 @@ recent_surf <- allSurface %>%
   group_by(Station.name) %>%
   filter(Year == max(Year))
 
+recent_bott <- allBottom %>%
+  group_by(Station.name) %>%
+  filter(Year == max(Year))
+
 surf_list <- lapply(params, function(param) {
   ggplot() +
     geom_sf(data = mass) +
@@ -402,18 +405,15 @@ surf_list <- lapply(params, function(param) {
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Surface", param)) +
-    theme_bw() +
+    theme_classic() +
     theme(panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
           plot.title = element_text(face = "bold"),
           axis.text = element_blank(),
-          axis.ticks = element_blank())
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
 })
-
-recent_bott <- allBottom %>%
-  group_by(Station.name) %>%
-  filter(Year == max(Year))
 
 bott_list <- lapply(params[3:7], function(param) {
   ggplot() +
@@ -430,14 +430,18 @@ bott_list <- lapply(params[3:7], function(param) {
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom", param)) +
-    theme_bw() +
+    theme_classic() +
     theme(panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
           plot.title = element_text(face = "bold"),
           axis.text = element_blank(),
-          axis.ticks = element_blank())
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
 })
+
+surf_list[[1]] <- surf_list[[1]] +
+  guides(fill = guide_colorbar(title = "Secchi\nDepth (m)"))
 
 surf_list[[2]] <- surf_list[[2]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = "Chl-a (μg/L)")
@@ -1086,13 +1090,14 @@ surf_list2 <- lapply(params, function(param) {
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Surface", param)) +
-    theme_bw() +
+    theme_classic() +
     theme(panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
           plot.title = element_text(face = "bold"),
           axis.text = element_blank(),
-          axis.ticks = element_blank())
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
 })
 
 bott_list2 <- lapply(params[3:7], function(param) {
@@ -1130,13 +1135,14 @@ bott_list2 <- lapply(params[3:7], function(param) {
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom", param)) +
-    theme_bw() +
+    theme_classic() +
     theme(panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
           plot.title = element_text(face = "bold"),
           axis.text = element_blank(),
-          axis.ticks = element_blank())
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
 })
 
 # surf_list2[[3]] <- surf_list2[[3]] +
