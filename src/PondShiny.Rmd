@@ -528,7 +528,7 @@ renderPlot({
 #### Mixed-layer depth
 
 ```{r echo = FALSE}
-checkboxInput("MK3", "Show Mann-Kendall trend?", value = FALSE)
+checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
   allSurface[allSurface$Station.name == input$pond, ] %>%
@@ -575,7 +575,7 @@ start <- which(colnames(allSurface) == "Secchi")
 end <- which(colnames(allSurface) == "Total.Depth") - 1
 
 selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[start:end])
-checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
+checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param, "_flag")
@@ -585,7 +585,7 @@ renderPlot({
     geom_point(size = 2.5) +
     labs(x = "Year", y = paste("Surface", input$param)) +
     theme_bw() +
-    if(input$MK) {
+    if(input$MK2) {
       mk <- mk.test(allSurface[[input$param]][allSurface$Station.name == input$pond &
                                               allSurface[[flag_name]] == 2])
       slope <- sens.slope(allSurface[[input$param]][allSurface$Station.name == input$pond &
@@ -620,7 +620,7 @@ start <- which(colnames(allSurface) == "Secchi") + 1
 end <- which(colnames(allSurface) == "Total.Depth") - 1
 
 selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[start:end])
-checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
+checkboxInput("MK3", "Show Mann-Kendall trend?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param2, "_flag")
@@ -633,7 +633,7 @@ renderPlot({
   if(input$param2 == "DO") {
     p <- p + geom_hline(yintercept = 3, col = "firebrick3", linewidth = 1)
   }
-  if(input$MK2) {
+  if(input$MK3) {
     mk <- mk.test(allBottom[[input$param2]][allBottom$Station.name == input$pond &
                                             allBottom[[flag_name]] == 2])
     slope <- sens.slope(allBottom[[input$param2]][allBottom$Station.name == input$pond &
@@ -1075,7 +1075,7 @@ renderPlot({
 ```{r include = FALSE}
 # calculate trends
 
-start <- which(colnames(allSurface) == "Secchi")
+start <- which(colnames(allSurface) == "Secchi")      ###### add MLD to these lists of params
 end <- which(colnames(allSurface) == "Chla")
 
 slopes_surf <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
