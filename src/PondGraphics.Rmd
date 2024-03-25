@@ -374,9 +374,7 @@ ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi 
 ### Pt. 1a cont.
 
 ######
-- add missing units
 - rotate scale bars
-- put TP & TN on same color scale
 - use diverging scale for DO
 
 ```{r}
@@ -448,31 +446,77 @@ surf_list[[2]] <- surf_list[[2]] +
   
 surf_list[[3]] <- surf_list[[3]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)",
-                       limits = c(sort(c(recent_surf[[TN]],
-                                           recent_bott[[TN]]))[1],
-                                    sort(c(recent_surf[[TN]],
-                                           recent_bott[[TN]]), decreasing = TRUE)[1]))
+                       limits = c(sort(c(recent_surf$TN,
+                                         recent_bott$TN))[1],
+                                  sort(c(recent_surf$TN,
+                                         recent_bott$TN), decreasing = TRUE)[1]))
 
 bott_list[[1]] <- bott_list[[1]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)",
-                       limits = c(sort(c(recent_surf[[TN]],
-                                           recent_bott[[TN]]))[1],
-                                    sort(c(recent_surf[[TN]],
-                                           recent_bott[[TN]]), decreasing = TRUE)[1]))
+                       limits = c(sort(c(recent_surf$TN,
+                                         recent_bott$TN))[1],
+                                  sort(c(recent_surf$TN,
+                                         recent_bott$TN), decreasing = TRUE)[1]))
 
 surf_list[[4]] <- surf_list[[4]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)",
-                       limits = c(sort(c(recent_surf[[TP]],
-                                           recent_bott[[TP]]))[1],
-                                    sort(c(recent_surf[[TP]],
-                                           recent_bott[[TP]]), decreasing = TRUE)[1]))
+                       limits = c(sort(c(recent_surf$TP,
+                                         recent_bott$TP))[2],
+                                  sort(c(recent_surf$TP,
+                                         recent_bott$TP), decreasing = TRUE)[1]))
 
 bott_list[[2]] <- bott_list[[2]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)",
-                       limits = c(sort(c(recent_surf[[TP]],
-                                           recent_bott[[TP]]))[1],
-                                    sort(c(recent_surf[[TP]],
-                                           recent_bott[[TP]]), decreasing = TRUE)[1]))
+                       limits = c(sort(c(recent_surf$TP,
+                                         recent_bott$TP))[2],
+                                  sort(c(recent_surf$TP,
+                                         recent_bott$TP), decreasing = TRUE)[1]))
+
+surf_list[[8]] <- ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = recent_surf[recent_surf$TN_flag == 2 & recent_surf$TP_flag == 2, ],
+               aes(x = Long, y = Lat, fill = log(TN / TP)),
+               shape = 21) +
+    scale_fill_gradientn(colors = parula(100),
+                         limits = c(sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]))[1],
+                                    sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]), decreasing = TRUE)[1]),
+                         name = param) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    labs(title = paste("Surface", param)) +
+    theme_classic() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank(),
+          #legend.position = "bottom",
+          plot.title = element_text(face = "bold"),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
+
+bott_list[[6]] <- ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = recent_surf[recent_surf[[paste0(param, "_flag")]] == 2, ],
+               aes(x = Long, y = Lat, fill = get(param)),
+               shape = 21) +
+    scale_fill_gradientn(colors = parula(100),
+                         limits = c(sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]))[1],
+                                    sort(c(recent_surf[[param]],
+                                           recent_bott[[param]]), decreasing = TRUE)[1]),
+                         name = param) +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    labs(title = paste("Surface", param)) +
+    theme_classic() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank(),
+          #legend.position = "bottom",
+          plot.title = element_text(face = "bold"),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
 
 quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.75, 0.9, 0.95, 1), na.rm = TRUE)
 
