@@ -1,6 +1,6 @@
 ---
 title: "Pond Shiny"
-date: "2023-12-06"
+date: "2024-04-02"
 runtime: shiny
 output: html_document
 ---
@@ -33,15 +33,16 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 #ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
 ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.table("03182024_CC_AllPonds_WQ.txt", header = TRUE)
   
   # remove non-data rows
   filter(Station.name != "" & Station.name != " ")
 ```
 
 ```{r include = FALSE}
-# remove WISKI-designated outliers
 ponds <- ponds_full
 
+# remove WISKI-designated outliers
 for(qc in colnames(ponds %>% select(contains("Quality.code")))) {
   index <- match(qc, colnames(ponds))
   ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
@@ -63,8 +64,8 @@ ponds <- ponds %>%
   unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
   unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1,
         Secchi.Depth...SECCHI.2, sep = "") %>%
-  unite(TN, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
-  unite(TP, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
+  unite(TN_uM, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
+  unite(TP_uM, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
   unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1,
         Water.Temperature...TEMP.2, sep = "") %>%
   
@@ -76,31 +77,29 @@ ponds <- ponds %>%
          CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
          CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
          Total.Depth = Total.Depth...DTB,
-         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
+         TP = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
   
   # reorder columns
+  relocate(Total.Depth, .before = Depth) %>%
   relocate(Secchi, .after = Depth) %>%
   relocate(Temp, .after = Secchi) %>%
   relocate(DO, .after = Temp) %>%
   relocate(DO_sat, .after = DO) %>%
   relocate(Alk, .after = DO_sat) %>%
-  relocate(TN, .after = Alk) %>%
-  relocate(TP, .after = TN) %>%
+  relocate(TP, .after = Alk) %>%
   relocate(Chla, .after = TP) %>%
-  relocate(Total.Depth, .after = last_col()) %>%
+  relocate(TN_uM, .after = Chla) %>%
+  relocate(TP_uM, .after = TN_uM) %>%
   
-  # extract date from date-time column & create new column
+  # extract date, month, year from date-time column & create new column
   mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
-         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}")) %>%
-  
-  # extract month and year from date-time column & create new column
-  mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
-         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}"),
+         Month = str_extract(Date, "\\d{1,2}(?=/)"),
+         Year = paste("20", str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
          Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
   
   # prepare columns for reordering ponds in dropdown menu
   mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
-  mutate(Pond.number = as.numeric(str_extract(Station.number, "\\d+"))) %>%
   mutate(Station.name = paste(Station.number, "/", Site))
 
 ponds[ponds == "MA-634-01 / Mashpee-Wakeby Pond"] <- "MA-634-01 / Mashpee Lake"
@@ -109,13 +108,13 @@ ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
 # convert all empty cells to NA
 ponds[ponds == ""] <- NA
 
-# convert null datapoints to NA
+# convert null datapoints to NA or 0
 ponds[ponds == "n.m. 0.00"] <- NA
 ponds[ponds == "ND 0.00"] <- NA
 ponds[ponds == "<MDL 0.00"] <- NA
 ponds[ponds == "BDL 0.00"] <- "0"
 
-# temporarily fix non-numeric datapoints
+# remove non-numeric characters
 ponds[ponds == "-0.15"] <- "0.15"
 ponds[ponds == "-0.04"] <- "0.04"
 ponds[ponds == "-0.3"] <- "0.3"
@@ -123,12 +122,20 @@ ponds[ponds == "> 15.50"] <- "15.50"
 ponds[ponds == "< 0.05"] <- "0"
 ponds[ponds == "< 0.10"] <- "0"
 ponds[ponds == "< 1.50"] <- "1.50"
+ponds[ponds == "n.m. 19.90"] <- "19.90"
+ponds[ponds == "n.m. 13.96"] <- "13.96"
+ponds[ponds == "n.m. 6.83"] <- "6.83"
+ponds[ponds == "n.m. 0.03"] <- "0.03"
+ponds[ponds == "n.m. 30.81"] <- "30.81"
+ponds[ponds == "n.m. 1.37"] <- "1.37"
+ponds[ponds == "n.m. 13.98"] <- "13.98"
 
 # fix erroneous values
 ponds$Temp[ponds$Temp == "0"] <- NA
-
-# remove problematic row
-ponds <- ponds[-which(ponds$Alk == "n.m. 19.90"), ]
+ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+         ponds$DO == 0.84] <- NA
+ponds$DO_sat[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+             ponds$DO_sat == 121.12] <- NA
 
 # convert all numerical cols to numeric
 is_all_numeric <- function(x) {
@@ -140,90 +147,55 @@ ponds <- ponds %>%
   select(where(not_all_na))
 
 #str(ponds)
+
+# copy Secchi values to all rows (esp. from rows with NA depth)
+for(i in 1:nrow(ponds)) {
+  if(!is.na(ponds$Secchi[i])) {
+    ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]] <-
+      mean(ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]], na.rm = TRUE)
+  }
+}
+
+ponds <- ponds %>%
+  group_by(Station.name, Date) %>%
+  mutate(Secchi = mean(Secchi, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Secchi = ifelse(is.nan(Secchi), NA, Secchi))
 ```
 
-```{r echo = FALSE}
-## calculate DO saturation values (*in future should come from WISKI)
+```{r include = FALSE}
+# calculate DO saturation values (*in future should come from WISKI)
 for(i in 1:nrow(ponds)) {
   if(is.na(ponds$DO_sat[i])) {
     rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
-    ponds$DO_sat[i] <- ponds$DO[i] / 32 / rho * 10^6 /
+    ponds$DO_sat[i] <- ponds$DO[i] / 31.999 / rho * 10^6 /
                         gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
+  }
+  if(is.na(ponds$DO[i])) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO_sat[i] * 31.999 * rho / 10^6
+  }
+  if(!is.na(ponds$DO[i]) & !is.na(ponds$DO_sat[i]) &
+     ponds$DO[i] == 0 & ponds$DO_sat[i] > 0) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO_sat[i] * 31.999 * rho / 10^6
   }
 }
 
 #mg/L to um/kg
+#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/31.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
 
-#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/15.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
 
-# calculate DO concentration values
-#ponds$DO_con <- NA
-
-#for(i in 1:nrow(ponds)) {
-#  rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
-#  ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
-#                    ponds$DO[i] * 32 * rho / 10^6
-#}
-
-#ponds <- ponds %>%
-#  relocate(DO_con, .after = DO_sat)
-```
-
-```{r include = FALSE}
-## Match ponds to metadata
-setwd("~/Desktop/Repos/CapeCodPonds2023")
-chars <- read.csv("data/PondCharacteristics.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A")))
-
-ponds$Final.Depth.ft <- NA
-ponds$Final.Depth <- NA
-ponds$Size <- NA
-ponds$Lens <- NA
-ponds$PercentDeveloped <- NA
-ponds$DevelopmentClass <- NA
-
-for(i in 1:nrow(ponds)) {
-  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
-  if(length(chars$Final.Depth[chars$CCC_GIS_ID == ID]) > 0) {
-    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
-    ponds$Final.Depth[i] <- ponds$Final.Depth.ft[i] * 12 / 39
-    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
-    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
-    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
-    ponds$DevelopmentClass[i] <- chars$buffer.development.class[chars$CCC_GIS_ID == ID]
-  }
-}
+# convert uM to ug/L
+ponds$TN <- ponds$TN_uM * 14.0067
+ifelse(!is.na(ponds$TP), ponds$TP, ponds$TP_uM * 30.973762)
 
 ponds <- ponds %>%
-  mutate(DepthClass = case_when(Final.Depth < 3 ~ "Shallow",
-                                Final.Depth > 3 ~ "Deep"))
+  relocate(TN, .before = TP)
 
-ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
-
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(PercentDeveloped = mean(PercentDeveloped))
-# 
-# quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds <- ponds %>%
-  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
-                                 ponds$PercentDeveloped <= 13.00 ~ "Low",
-                                 ponds$PercentDeveloped <= 23.25 ~ "Medium",
-                                 ponds$PercentDeveloped > 23.25 ~ "High"))
-
-ponds$SurfaceAreaClass <- NA
-
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(Size = mean(Size))
-# 
-# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
-                             ponds$Size <= 12.315432 ~ "Small",
-                             ponds$Size <= 32.563650 ~ "Medium",
-                             ponds$Size > 32.563650 ~ "Large")
+# uM = umol/L * mol/10^6umol = mol/10^6L * Xg/mol = g/10^6L * 10^6ug/g = ug/L
 ```
 
 ```{r include = FALSE}
@@ -237,16 +209,15 @@ for(pond in allPonds) {
   
   for(y in unique(onePond$Year)) {
     oneYear <- onePond[onePond$Year == y &
-                       (onePond$Month == 8 |
-                        onePond$Month == 9) &
+                       (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
+                        onePond$Month == 9) &     # note that doing this^^ will mess up MLD trend plots
                        !is.na(onePond$Depth), ]
     if(sum(!is.na(oneYear$Temp)) < 2 |
        n_distinct(oneYear$Depth[oneYear$Depth >= 1]) < 2) {
       next
     }
     for(i in 1:(n_distinct(oneYear$Depth) - 1)) {
-      if(is.na(oneYear$Temp[i]) |
-         oneYear$Depth[i] < 1) {
+      if(is.na(oneYear$Temp[i]) | oneYear$Depth[i] < 1) {
         next
       }
       j <- i + 1
@@ -275,24 +246,17 @@ for(pond in allPonds) {
       ponds$MLD[ponds$Station.name == pond &
                 ponds$Year == y &
                 (ponds$Month == 8 |
-                 ponds$Month == 9)] <- 99
+                 ponds$Month == 9)] <- oneYear$Depth[j]
     }
   }
   
-  # temporary; covers ponds without "final depth" in characteristics datasheet
-  if(is.na(onePond$Final.Depth[1]) & !is.na(onePond$Total.Depth[1])) {
-    ponds$Final.Depth[ponds$Station.name == pond] <- max(onePond$Total.Depth, na.rm = TRUE)
-  }
-  
-  # second half temporary; covers ponds with no "final depth" or "total depth" data
-  if(is.na(ponds$Final.Depth[ponds$Station.name == pond][1])) {
-    ponds$Final.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
-  }
+  # create column to replace "Final.Depth"
+  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
 }
 
 ponds <- ponds %>%
-  relocate(MLD, .before = Depth) %>%
-  relocate(Final.Depth, .before = MLD)
+  relocate(MLD, .before = Temp) %>%
+  relocate(Max.Depth, .before = Depth)
 
 # loose sanity check
 # ponds %>%
@@ -306,11 +270,64 @@ ponds <- ponds %>%
 ```
 
 ```{r include = FALSE}
-### determine stratified vs unstratified ponds
-ponds$Strat <- ifelse(ponds$MLD <= 0.75 * ponds$Final.Depth, "Stratified", "Mixed")
+# match ponds to metadata
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+chars <- read.csv("data/PondCharacteristics.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+ponds$Size <- NA
+ponds$Lens <- NA
+ponds$PercentDeveloped <- NA
+ponds$Final.Depth.ft <- NA
+
+for(i in 1:nrow(ponds)) {
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
+  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) > 0) {
+    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+  }
+}
 
 ponds <- ponds %>%
-  relocate(Strat, .after = MLD)
+  mutate(Final.Depth = Final.Depth.ft * 0.3048) %>%
+  relocate(Final.Depth, .before = Max.Depth)
+
+ponds <- ponds %>%
+  mutate(DepthClass = case_when(Max.Depth < 3 ~ "Shallow",
+                                Max.Depth > 3 ~ "Deep"))
+
+ponds$SurfaceAreaClass <- NA
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(Size = mean(Size))
+# 
+# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
+                                    ponds$Size <= 12.315432 ~ "Small",
+                                    ponds$Size <= 32.563650 ~ "Medium",
+                                    ponds$Size > 32.563650 ~ "Large")
+
+ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(PercentDeveloped = mean(PercentDeveloped))
+# 
+# quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds <- ponds %>%
+  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
+                                      ponds$PercentDeveloped <= 13.00 ~ "Low",
+                                      ponds$PercentDeveloped <= 23.25 ~ "Medium",
+                                      ponds$PercentDeveloped > 23.25 ~ "High"))
+
+# define stratified vs unstratified ponds
+ponds$StratClass <- ifelse(ponds$MLD <= 0.75 * ponds$Max.Depth, "Stratified", "Mixed")
 ```
 
 ```{r echo = FALSE}
@@ -344,6 +361,8 @@ for(pond in pondName) {
   clim <- data.frame(matrix(ncol = 5, nrow = length(1:ceiling(max(onePond$Depth)))))
   colnames(clim) <- c("Depth", "Temp", "Temp_sd", "DO", "DO_sd")
   for(param in c("Temp", "DO")) {
+    param_sd <- paste0(param, "_sd")
+    
     clim$Depth[1:length(1:ceiling(max(onePond$Depth)))] <- 1:ceiling(max(onePond$Depth))
     clim.v <- rep(NA, nrow(clim))
     clim.v2 <- rep(NA, nrow(clim))
@@ -355,7 +374,6 @@ for(pond in pondName) {
       clim.v2[clim$Depth == i] <- clim2
     }
     clim[[param]][1:length(clim.v)] <- clim.v
-    param_sd <- paste0(param, "_sd")
     clim[[param_sd]][1:length(clim.v2)] <- clim.v2
     clim[[param_sd]] <- ifelse(is.na(clim[[param_sd]]), 0, clim[[param_sd]])
     flag_name <- paste0(param, "_flag")
@@ -371,7 +389,21 @@ for(pond in pondName) {
         onePond[[flag_name]][j] <- 3
       }
     }
-    ponds[[flag_name]][ponds$Station.name == pond & !is.na(ponds$Depth) & (ponds$Month == 8 | ponds$Month == 9)] <- onePond[[flag_name]]
+    ponds[[flag_name]][ponds$Station.name == pond & !is.na(ponds$Depth) & (ponds$Month == 8 | ponds$Month == 9)] <-
+      onePond[[flag_name]]
+    
+    # repeat the above calcs now with outliers removed
+    for(i in 1:length(clim$Depth)) {
+      clim1 <- mean(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i &
+                                       onePond[[flag_name]] == 2], na.rm = TRUE)
+      clim.v[clim$Depth == i] <- clim1
+      clim2 <- sd(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i &
+                                       onePond[[flag_name]] == 2], na.rm = TRUE)
+      clim.v2[clim$Depth == i] <- clim2
+    }
+    clim[[param]][1:length(clim.v)] <- clim.v
+    clim[[param_sd]][1:length(clim.v2)] <- clim.v2
+    clim[[param_sd]] <- ifelse(is.na(clim[[param_sd]]), 0, clim[[param_sd]])
   }
   clim_all[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim), 2:6] <- clim
   clim_all$Station.name[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim)] <- pond
@@ -416,13 +448,18 @@ allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
   mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
 
-# calculate surface anomalies only
+allSurface$Temp_anom <- NA
+allSurface$DO_anom <- NA
+
+# copy over surface anomalies
 for(i in 1:nrow(allSurface)) {
   pond <- allSurface$Station.name[i]
-  allSurface$Temp_anom[i] <- allSurface$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
-                                                                clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
-  allSurface$DO_anom[i] <- allSurface$DO[i] - clim_all$DO[clim_all$Station.name == pond &
-                                                          clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+  allSurface$Temp_anom[i] <-
+    allSurface$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                         clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+  allSurface$DO_anom[i] <-
+    allSurface$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                     clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
 }
 
 # load bottom-only data
@@ -431,7 +468,10 @@ allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
   mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
 
-# calculate bottom anomalies only
+allBottom$Temp_anom <- NA
+allBottom$DO_anom <- NA
+
+# copy over bottom anomalies
 for(i in 1:nrow(allBottom)) {
   pond <- allBottom$Station.name[i]
   if(allBottom$Depth[i] %% 1 != 0){
@@ -463,119 +503,41 @@ renderPlot({
 })
 ```
 
-### Nutrient levels
+### Surface nutrient levels
 
 ```{r echo = FALSE}
-sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 30, value = 30)
-sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 480, value = 480)
+sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 5600, value = 5600)
+sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 420, value = 420)
 
 renderPlot({
   allSurface %>%
     filter(Station.name == input$pond) %>%
-    filter(TP_flag == 2) %>%
     filter(TN_flag == 2) %>%
-  ggplot(aes(x = TP, y = TN)) +
+    filter(TP_flag == 2) %>%
+  ggplot(aes(x = TN, y = TP)) +
     geom_point(size = 2.5) +
-    geom_abline(slope = 16/1, col = "black", linetype = "22", linewidth = 1) +
+    geom_abline(slope = 1/16, col = "black", linetype = "22", linewidth = 1) +
     scale_x_continuous(limits = c(0, input$xAxisMax)) +
     scale_y_continuous(limits = c(0, input$yAxisMax)) +
-    labs(x = "TP (μM)", y = "TN (μM)") +
+    labs(x = expression("TN (μg L"^-1*")"), y = expression("TP (μg L"^-1*")")) +
     theme_bw()
-})
-```
-
-### Surface Chlorophyll vs. Secchi Depth
-
-```{r echo = FALSE}
-checkboxInput("line", "Show linear regression?", value = FALSE)
-
-renderPlot({
-  allSurface %>%
-    filter(Station.name == input$pond) %>%
-    filter(Chla_flag == 2) %>%
-    filter(Secchi_flag == 2) %>%
-  ggplot(aes(x = Chla, y = Secchi)) +
-    geom_point(size = 2.5) +
-    labs(x = "Chlorophyll (μg/L)", y = "Secchi Depth (m)") +
-    theme_bw() +
-    if(input$line) {
-      model <- lm(Secchi ~ Chla, data = allSurface %>%
-                                          filter(Station.name == input$pond) %>%
-                                          filter(Chla_flag == 2) %>%
-                                          filter(Secchi_flag == 2))
-      list(geom_smooth(method = "lm", se = FALSE, col = "royalblue"),
-           annotate("text",
-                    x = min(allSurface$Chla[allSurface$Station.name == input$pond &
-                                        allSurface$Chla_flag == 2]) + 0.25,
-                    y = max(allSurface$Secchi[allSurface$Station.name == input$pond &
-                                              allSurface$Secchi_flag == 2]) * 0.95,
-                    label = paste0("y = ", round(summary(model)$coefficients[1], 3), " + ",
-                                   round(summary(model)$coefficients[2], 3), "x"),
-                    col = "royalblue"),
-           annotate("text",
-                    x = min(allSurface$Chla[allSurface$Station.name == input$pond &
-                                        allSurface$Chla_flag == 2]) + 0.25,
-                    y = max(allSurface$Secchi[allSurface$Station.name == input$pond &
-                                              allSurface$Secchi_flag == 2]) * 0.92,
-                    label = paste0("p = ", round(summary(model)$coefficients[2, 4], 3)),
-                    col = "royalblue"))
-    }
 })
 ```
 
 ### Time-series analysis
 
-#### Mixed-layer depth
-
-```{r echo = FALSE}
-checkboxInput("MK", "Show Mann-Kendall trend?", value = FALSE)
-
-renderPlot({
-  allSurface[allSurface$Station.name == input$pond, ] %>%
-  ggplot(aes(x = Year, y = MLD)) +
-    geom_point(size = 2.5) +
-    labs(x = "Year", y = "Mixed-layer depth") +
-    theme_bw() +
-    if(input$MK) {
-      mk <- mk.test(allSurface$MLD[allSurface$Station.name == input$pond &
-                                   !is.na(allSurface$MLD)])
-      slope <- sens.slope(allSurface$MLD[allSurface$Station.name == input$pond &
-                                         !is.na(allSurface$MLD)])$estimates
-      intercept <- median(allSurface$MLD[allSurface$Station.name == input$pond &
-                                         !is.na(allSurface$MLD)]) - 
-                   median(allSurface$Year[allSurface$Station.name == input$pond &
-                                         !is.na(allSurface$MLD)]) * slope
-      list(
-        geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1),
-        annotate("text",
-                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
-                                         !is.na(allSurface$MLD)]) + 1,
-                 y = max(allSurface$MLD[allSurface$Station.name == input$pond &
-                                        !is.na(allSurface$MLD)]) * 0.95,
-                 label = paste("slope =", round(slope, 3)), col = "black"),
-        annotate("text",
-                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
-                                         !is.na(allSurface$MLD)]) + 1,
-                 y = max(allSurface$MLD[allSurface$Station.name == input$pond &
-                                        !is.na(allSurface$MLD)]) * 0.92,
-                 label = paste("p =", round(mk$p.value, 3)), col = "black")
-      )
-    }
-})
-```
-
 #### Surface parameters
 
 ```{r echo = FALSE}
 # colnames(allSurface)[c(8:14, 16:18)] <- c("Secchi Depth (m)", "Temperature (°C)", "DO (mg/L)",
-#                                           "DO_sat (%)", "Alkalinity (mg/L)", "TP (μM)",
-#                                           "TN (μM)", "Chlorophyll-a (μg/L)")
+#                                           "DO_sat (%)", "Alkalinity (mg/L)", "TN (μg/L)",
+#                                           "TN (μg/L)", "Chlorophyll-a (μg/L)")
 
 start <- which(colnames(allSurface) == "Secchi")
-end <- which(colnames(allSurface) == "Total.Depth") - 1
+end <- which(colnames(allSurface) == "Month") - 1
 
 selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)[start:end])
-checkboxInput("MK2", "Show Mann-Kendall trend?", value = FALSE)
+checkboxInput("MK2", "Show Mann-Kendall trend & Sen's slope?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param, "_flag")
@@ -616,11 +578,11 @@ renderPlot({
 #### Bottom parameters
 
 ```{r echo = FALSE}
-start <- which(colnames(allSurface) == "Secchi") + 1
-end <- which(colnames(allSurface) == "Total.Depth") - 1
+start <- which(colnames(allSurface) == "MLD") + 1
+end <- which(colnames(allSurface) == "Month") - 1
 
 selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[start:end])
-checkboxInput("MK3", "Show Mann-Kendall trend?", value = FALSE)
+checkboxInput("MK3", "Show Mann-Kendall trend & Sen's slope?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param2, "_flag")
@@ -690,6 +652,7 @@ DT::renderDataTable({
 
 ```{r echo = FALSE}
 selectInput("param4", label = "Choose parameter:", choices = c("Temp", "DO"))
+sliderInput("profile_range", label = "Choose year range:", min = 2001, max = 2023, value = c(2001, 2023))
 
 renderPlot({
   flag_name <- paste0(input$param4, "_flag")
@@ -697,7 +660,9 @@ renderPlot({
         (ponds[[flag_name]] == 2 |
           (ponds$Month != 8 &
            ponds$Month != 9 &
-           !is.na(ponds[[input$param4]]))), ] %>%
+           !is.na(ponds[[input$param4]]))) &
+        ponds$Year >= input$profile_range[1] &
+        ponds$Year <= input$profile_range[2], ] %>%
   ggplot(aes(x = Year_frac, y = Depth, fill = get(input$param4))) +
     geom_point(size = 4, shape = 21) +
     scale_y_reverse() +
@@ -776,12 +741,12 @@ renderPlot({
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-props <- c("Secchi", "Temp", "DO", "Alk", "TN", "TP", "Chla")
+props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla")
 
 selectInput("prop1", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Secchi", "Temp", "DO", "Alk", "TN", "TP", "Chla")
+  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla")
   selectInput("prop2", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop1)])
 })
@@ -820,8 +785,8 @@ renderPlot({
              !is.na(allSurface[[class2]]) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
-  mutate(TP = if_else(TP == 0, NA, TP),
-         TN = if_else(TN == 0, NA, TN),
+  mutate(TN = if_else(TN == 0, NA, TN),
+         TP = if_else(TP == 0, NA, TP),
          Chla = if_else(Chla == 0, NA, Chla)) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = get(class2))) +
     geom_point(size = 2.5, shape = 1) +
@@ -858,12 +823,12 @@ renderPlot({
 ### Regional patterns in bottom data
 
 ```{r echo = FALSE}
-props <- c("Temp", "DO", "Alk", "TN", "TP")
+props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP")
 
 selectInput("prop3", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Temp", "DO", "Alk", "TN", "TP")
+  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP")
   selectInput("prop4", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop3)])
 })
@@ -885,12 +850,12 @@ renderPlot({
   flag_name1 <- paste0(input$prop3, "_flag")
   flag_name2 <- paste0(input$prop4, "_flag")
   class3 <- case_when(input$class3 == "None" ~ "None",
-                      input$class3 == "Stratification" ~ "Strat",
+                      input$class3 == "Stratification" ~ "StratClass",
                       input$class3 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class3 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class3 == "Lens" ~ "Lens",
                       input$class3 == "Nutrient Limitation" ~ "NtPClass")
-  class4 <- case_when(input$class4 == "Stratification" ~ "Strat",
+  class4 <- case_when(input$class4 == "Stratification" ~ "StratClass",
                       input$class4 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class4 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class4 == "Lens" ~ "Lens",
@@ -957,10 +922,10 @@ renderPlot({
   ggplot() +
     geom_sf(data = mass) +
     geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
-                                                                       col = log10(TN / TP)),
+                                                                       col = log10(TN_uM / TP_uM)),
                size = 2.5) +
     scale_color_gradientn(colors = rev(parula(100)), name = "TN:TP", trans = "log10",
-                          limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
+                          limits = c(1, 2.92), breaks = c(1, 2), labels = c(10, 100)) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -972,14 +937,16 @@ Aug-Sept average of years 2016-2023:
 ```{r echo = FALSE}
 renderPlot({
   surface_recent <- allSurface %>%
-    filter(Year >= 2016)
+    filter(Year >= 2016) %>%
+    group_by(Station.name, Long, Lat) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
   ggplot() +
     geom_sf(data = mass) +
-    geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
-                                                                       col = log10(TN / TP)),
+    geom_point(data = surface_recent[!is.na(surface_recent$TP_uM), ], aes(x = Long, y = Lat,
+                                                                       col = log10(TN_uM / TP_uM)),
                size = 2.5) +
     scale_color_gradientn(colors = rev(parula(100)), name = "TN:TP", trans = "log10",
-                          limits = c(1, 3.3), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
+                          limits = c(1, 2.92), breaks = c(1, 2), labels = c(10, 100)) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -994,27 +961,30 @@ Aug-Sept average of years 2016-2023.
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderUI({
-  choices <- if(input$layer == "Surface") {
-                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla")
-              } else {
-                c("Temp", "DO", "DO_sat", "Alk", "TN", "TP")
-              }
+  choices <- c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla")
   selectInput("param3", label = "Choose parameter:", choices = choices, selected = "Temp")
 })
 
 renderUI({
   val <- input$param3
-  sliderInput("color", label = "Choose gradient limits:", min = min(ponds[[val]], na.rm = TRUE), max = max(ponds[[val]], na.rm = TRUE),
-            value = c(min(ponds[[val]], na.rm = TRUE), max(ponds[[val]], na.rm = TRUE)))
+  sliderInput("color", label = "Choose gradient limits:",
+              min = min(rbind(allSurface, allBottom)[[val]], na.rm = TRUE),
+              max = max(rbind(allSurface, allBottom)[[val]], na.rm = TRUE),
+              value = c(min(rbind(allSurface, allBottom)[[val]], na.rm = TRUE),
+                        max(rbind(allSurface, allBottom)[[val]], na.rm = TRUE)))
 })
 
 renderPlot({
   if(input$layer == "Surface") {
     data_recent <- allSurface %>%
-    filter(Year >= 2016)
+    filter(Year >= 2016) %>%
+    group_by(Station.name, Long, Lat) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
   } else {
     data_recent <- allBottom %>%
-    filter(Year >= 2016)
+    filter(Year >= 2016) %>%
+    group_by(Station.name, Long, Lat) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
   }
   ggplot() +
     geom_sf(data = mass) +
@@ -1036,7 +1006,7 @@ renderPlot({
 
 #### Regional patterns in anomalies
 
-The region-wide anomaly values from a single year are visualized at once.
+The region-wide anomaly values are visualized from a single year at a time.
 
 ```{r echo = FALSE}
 selectInput("depth", label = "Choose layer:", choices = c("Surface", "Bottom"))
@@ -1053,8 +1023,6 @@ renderPlot({
   flag_name <- paste0(input$param5, "_flag")
   min <- -max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
   max <- max(abs(one_depth[[anom_name]][one_depth[[flag_name]] == 2]), na.rm = TRUE)
-  #min <- ifelse(anom_name == "Temp_anom", -10, -15)   # temp_anom range [-10, 10]; DO_anom range [-15, 15]
-  #max <- ifelse(anom_name == "Temp_anom", 10, 15)
   ggplot() +
     geom_sf(data = mass) +
     geom_point(data = one_depth[one_depth[[flag_name]] == 2 &
@@ -1063,7 +1031,8 @@ renderPlot({
     scale_fill_gradientn(colors = coolwarm(100), name = anom_name,
                          limits = c(min, max), na.value = "white") +
     scale_size_continuous(range = c(2, 6), name = paste(anom_name, "\nmagnitude"),
-                          limits = c(0, max)) +
+                          limits = c(0, max),
+                          guide = "none") +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -1075,7 +1044,7 @@ renderPlot({
 ```{r include = FALSE}
 # calculate trends
 
-start <- which(colnames(allSurface) == "Secchi")      ###### add MLD to these lists of params
+start <- which(colnames(allSurface) == "Secchi")
 end <- which(colnames(allSurface) == "Chla")
 
 slopes_surf <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
@@ -1095,7 +1064,7 @@ for(i in 1:length(pondName)) {
   if(year.1 > 2005 | year.n < 2016) {
     next
   }
-  if(nrow(oneSurf) < (year.n - year.1)/2) {
+  if(nrow(oneSurf) < (2023 - 2001)/2) {   # update this if/when years of data change
     next
   }
   for(param in colnames(allSurface)[start:end]) {
@@ -1107,7 +1076,7 @@ for(i in 1:length(pondName)) {
     if(mk$p.value > 0.1) {
       next
     }
-    slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]])$estimates
+    slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
   }
 }
 
@@ -1128,7 +1097,7 @@ for(i in 1:length(pondName)) {
   if(year.1 > 2005 | year.n < 2016) {
     next
   }
-  if(nrow(oneSurf) < (year.n - year.1)/2) {
+  if(nrow(oneSurf) < (2023 - 2001)/2) {   # update this if/when years of data change
     next
   }
   for(param in colnames(allSurface)[start:end]) {
@@ -1144,7 +1113,7 @@ for(i in 1:length(pondName)) {
   }
 }
 
-start <- which(colnames(allBottom) == "Secchi") + 1
+start <- which(colnames(allBottom) == "Temp")
 end <- which(colnames(allBottom) == "Chla") - 1
 
 slopes_bott <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
@@ -1164,7 +1133,7 @@ for(i in 1:length(pondName)) {
   if(year.1 > 2005 | year.n < 2016) {
     next
   }
-  if(nrow(oneBott) < (year.n - year.1)/2) {
+  if(nrow(oneBott) < (2023 - 2001)/2) {   # update this if/when years of data change
     next
   }
   for(param in colnames(allBottom)[start:end]) {
@@ -1180,7 +1149,7 @@ for(i in 1:length(pondName)) {
   }
 }
 
-start <- which(colnames(allBottom) == "Secchi") + 1
+start <- which(colnames(allBottom) == "Secchi")
 end <- which(colnames(allBottom) == "Chla") - 1
 
 slopes_bott2 <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
@@ -1200,7 +1169,7 @@ for(i in 1:length(pondName)) {
   if(year.1 > 2005 | year.n < 2016) {
     next
   }
-  if(nrow(oneBott) < (year.n - year.1)/2) {
+  if(nrow(oneBott) < (2023 - 2001)/2) {   # update this if/when years of data change
     next
   }
   for(param in colnames(allBottom)[start:end]) {
@@ -1220,7 +1189,7 @@ for(i in 1:length(pondName)) {
 #### Surface trends over time
 
 ```{r echo = FALSE}
-selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla"))
+selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla"))
 
 renderPlot({
   ggplot() +
@@ -1232,13 +1201,15 @@ renderPlot({
                aes(x = Long, y = Lat, size = abs(get(input$param6)), col = factor(sign(get(input$param6)))),
                shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param6, "trend\nmagnitude")) +
-    scale_fill_manual(values = c("royalblue", "firebrick"), 
-                      breaks = c(-1, 1),
-                      labels = c("negative", "positive"),
+    scale_fill_manual(values = c("royalblue", "black", "firebrick"),
+                      breaks = c(-1, 0, 1),
+                      limits = factor(c(-1, 0, 1)),
+                      labels = c("negative", "zero", "positive"),
                       name = paste(input$param6, "trend\ndirection"),
                       na.translate = FALSE) +
     scale_color_manual(values = c("royalblue", "black", "firebrick"),
                        breaks = c(-1, 0, 1),
+                       limits = factor(c(-1, 0, 1)),
                        labels = c("negative", "zero", "positive"),
                        name = paste(input$param6, "trend\ndirection"),
                        na.translate = FALSE) +
@@ -1246,7 +1217,9 @@ renderPlot({
     ylim(41.55, 42.07) +
     theme_bw() +
     theme(panel.grid = element_blank(),
-          axis.title = element_blank())
+          axis.title = element_blank()) +
+    guides(fill = guide_legend(order = 1),
+           col = guide_legend(order = 1))
 })
 ```
 
@@ -1265,13 +1238,15 @@ renderPlot({
                aes(x = Long, y = Lat, size = abs(get(input$param7)), col = factor(sign(get(input$param7)))),
                shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param7, "trend\nmagnitude")) +
-    scale_fill_manual(values = c("royalblue", "firebrick"), 
-                      breaks = c(-1, 1),
-                      labels = c("negative", "positive"),
+    scale_fill_manual(values = c("royalblue", "black", "firebrick"), 
+                      breaks = c(-1, 0, 1),
+                      limits = factor(c(-1, 0, 1)),
+                      labels = c("negative", "zero", "positive"),
                       name = paste(input$param7, "trend\ndirection"),
                       na.translate = FALSE) +
     scale_color_manual(values = c("royalblue", "black", "firebrick"),
                        breaks = c(-1, 0, 1),
+                       limits = factor(c(-1, 0, 1)),
                        labels = c("negative", "zero", "positive"),
                        name = paste(input$param7, "trend\ndirection"),
                        na.translate = FALSE) +
@@ -1279,7 +1254,9 @@ renderPlot({
     ylim(41.55, 42.07) +
     theme_bw() +
     theme(panel.grid = element_blank(),
-          axis.title = element_blank())
+          axis.title = element_blank()) +
+    guides(fill = guide_legend(order = 1),
+           col = guide_legend(order = 1))
 })
 ```
 
@@ -1289,11 +1266,7 @@ renderPlot({
 selectInput("layer2", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderUI({
-  choices <- if(input$layer2 == "Surface") {
-                c("Secchi", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla")
-              } else {
-                c("Temp", "DO", "DO_sat", "Alk", "TN", "TP")
-              }
+  choices <- c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "Chla")
   selectInput("trend", label = "Choose parameter:", choices = choices, selected = choices[1])
 })
 
@@ -1336,7 +1309,7 @@ DT::renderDataTable({
 
 ```{r echo = FALSE}
 selectInput("layer3", label = "Choose layer:", choices = c("Surface", "Bottom"))
-selectInput("prop5", label = "Choose x parameter:", choices = c("Secchi", "Temp", "DO", "Alk", "TN", "TP", "Chla"))
+selectInput("prop5", label = "Choose x parameter:", choices = c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla"))
 
 for(i in 1:nrow(slopes_surf)) {
   ID <- slopes_surf$pond[i]
@@ -1451,7 +1424,7 @@ renderPlot({
   b <- ggplot(layer_data[!is.na(layer_data$DevelopmentClass), ],
               aes(x = get(input$prop5), fill = DevelopmentClass, alpha = sig)) +
     geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10) +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance", guide = "none") +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
@@ -1459,7 +1432,7 @@ renderPlot({
   s <- ggplot(layer_data[!is.na(layer_data$SurfaceAreaClass), ],
               aes(x = get(input$prop5), fill = SurfaceAreaClass, alpha = sig)) +
     geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10) +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance", guide = "none") +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
@@ -1467,7 +1440,7 @@ renderPlot({
   l <- ggplot(layer_data[!is.na(layer_data$Lens), ],
               aes(x = get(input$prop5), fill = Lens, alpha = sig)) +
     geom_histogram(binwidth = max(layer_data[[input$prop5]], na.rm = TRUE) / 10) +
-    scale_alpha_manual(values = c(1, 0.5), name = "Significance") +
+    scale_alpha_manual(values = c(1, 0.5), name = "Significance", guide = "none") +
     labs(x = paste(input$prop5, "trend (slope)")) +
     theme_bw() +
     theme(panel.grid = element_blank()) +
