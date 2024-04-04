@@ -32,6 +32,7 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 #ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
 ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+#ponds_full <- read.csv("data/XXXXXX", header = TRUE) %>%
   
   # remove non-data rows
   filter(Station.name != "" & Station.name != " ")
@@ -442,31 +443,31 @@ surf_list[[1]] <- surf_list[[1]] +
   guides(fill = guide_colorbar(title = "Secchi\nDepth (m)"))
 
 surf_list[[2]] <- surf_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "Chl-a (μg/L)")
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Chla (μg L"^-1*")"))
   
 surf_list[[3]] <- surf_list[[3]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)",
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TN (μg L"^-1*")"),
                        limits = c(sort(c(recent_surf$TN,
                                          recent_bott$TN))[1],
                                   sort(c(recent_surf$TN,
                                          recent_bott$TN), decreasing = TRUE)[1]))
 
 bott_list[[1]] <- bott_list[[1]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TN (μM)",
+  scale_fill_gradientn(colors = parula(100), trans = "log10", expression("TN (μg L"^-1*")"),
                        limits = c(sort(c(recent_surf$TN,
                                          recent_bott$TN))[1],
                                   sort(c(recent_surf$TN,
                                          recent_bott$TN), decreasing = TRUE)[1]))
 
 surf_list[[4]] <- surf_list[[4]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)",
+  scale_fill_gradientn(colors = parula(100), trans = "log10", expression("TP (μg L"^-1*")"),
                        limits = c(sort(c(recent_surf$TP,
                                          recent_bott$TP))[2],
                                   sort(c(recent_surf$TP,
                                          recent_bott$TP), decreasing = TRUE)[1]))
 
 bott_list[[2]] <- bott_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = "TP (μM)",
+  scale_fill_gradientn(colors = parula(100), trans = "log10", expression("TP (μg L"^-1*")"),
                        limits = c(sort(c(recent_surf$TP,
                                          recent_bott$TP))[2],
                                   sort(c(recent_surf$TP,
@@ -521,10 +522,10 @@ bott_list[[6]] <- ggplot() +
 quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.75, 0.9, 0.95, 1), na.rm = TRUE)
 
 surf_list[[7]] <- surf_list[[7]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity\n(mg/L)")
+  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = expression("Alkalinity\n(mg L"^-1*")"))
 
 bott_list[[5]] <- bott_list[[5]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = "Alkalinity\n(mg/L)")
+  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = expression("Alkalinity\n(mg L"^-1*")"))
 
 f1a.iii <- ggarrange(surf_list[[1]], surf_list[[2]],
                 surf_list[[3]], bott_list[[1]],
@@ -574,7 +575,7 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
   geom_vline(xintercept = log10(1), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_chla), col = "gold") +
   geom_vline(xintercept = log10(thresh_chla_S)) +
-  labs(x = "log10(Chl-a) (μg/L)", y = "Proportion", title = "Surface") +
+  labs(x = expression("log10(Chl-a) (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -667,7 +668,7 @@ DO1 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_vline(xintercept = 3, linetype = "dashed") +
   xlim(-0.25, 14.75) +
   ylim(0, 0.28) +
-  labs(x = "DO (mg/L)", y = "Proportion") +
+  labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -679,7 +680,7 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_vline(xintercept = 3, linetype = "dashed") +
   xlim(-0.25, 14.75) +
   ylim(0, 0.28) +
-  labs(x = "DO (mg/L)", y = "Proportion") +
+  labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -726,7 +727,7 @@ Chla1.1 <- ggplot(mapping = aes(x = log10(Chla))) +
   geom_vline(xintercept = log10(1), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_chla), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_chla_S)) +
-  labs(x = "log10(Chl-a) (μg/L)", title = "Surface") +
+  labs(x = expression("log10(Chl-a) (μg L"^-1*")"), title = "Surface") +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -819,7 +820,7 @@ DO1.1 <- ggplot(mapping = aes(x = DO)) +
   geom_vline(xintercept = 3, linetype = "dashed") +
   xlim(-0.25, 14.75) +
   ylim(0, 0.425) +
-  labs(x = "DO (mg/L)") +
+  labs(x = expression("DO (mg L"^-1*")")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -831,7 +832,7 @@ DO2.1 <- ggplot(mapping = aes(x = DO)) +
   geom_vline(xintercept = 3, linetype = "dashed") +
   xlim(-0.25, 14.75) +
   ylim(0, 0.425) +
-  labs(x = "DO (mg/L)") +
+  labs(x = expression("DO (mg L"^-1*")")) +
   theme_bw() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
