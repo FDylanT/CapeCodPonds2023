@@ -1,8 +1,10 @@
 ---
 title: "Pond Shiny"
-date: "2024-04-02"
+date: "2024-04-10"
 runtime: shiny
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include = FALSE}
@@ -32,8 +34,8 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-#ponds_full <- read.table("03182024_CC_AllPonds_WQ.txt", header = TRUE)
+#ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.delim("data/03182024_CC_AllPonds_WQ.txt", header = TRUE) %>%
   
   # remove non-data rows
   filter(Station.name != "" & Station.name != " ")
@@ -95,47 +97,46 @@ ponds <- ponds %>%
   mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
          Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}"),
          Month = str_extract(Date, "\\d{1,2}(?=/)"),
-         Year = paste("20", str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         #Year = paste("20", str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         ## use this^ if WISKI output has M/D/YY format; use line below if output has M/D/YYYY format
+         Year = str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"),
          Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
   
   # prepare columns for reordering ponds in dropdown menu
-  mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
-  mutate(Station.name = paste(Station.number, "/", Site))
-
-ponds[ponds == "MA-634-01 / Mashpee-Wakeby Pond"] <- "MA-634-01 / Mashpee Lake"
-ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
+  mutate(Town = str_extract(Station.name, "[A-Z]{2}")) %>%
+  mutate(Station = str_extract(Station.name, ".+(?= /)")) %>%
+  mutate(Station.name = paste0(Town, " / ", Station, " (", Station.number, ")"))
 
 # convert all empty cells to NA
 ponds[ponds == ""] <- NA
 
-# convert null datapoints to NA or 0
-ponds[ponds == "n.m. 0.00"] <- NA
-ponds[ponds == "ND 0.00"] <- NA
-ponds[ponds == "<MDL 0.00"] <- NA
-ponds[ponds == "BDL 0.00"] <- "0"
+# fix non-numeric characters
 
-# remove non-numeric characters
-ponds[ponds == "-0.15"] <- "0.15"
-ponds[ponds == "-0.04"] <- "0.04"
-ponds[ponds == "-0.3"] <- "0.3"
-ponds[ponds == "> 15.50"] <- "15.50"
+# nm <- ponds %>%
+#   select(-contains("Quality.code"), -Sample.number, -Depth.Designation) %>%
+#   select(c(which(colnames(.) == "Total.Depth") : (which(colnames(.) == "Date") - 1))) %>%
+#   filter(if_any(everything(), ~ str_detect(., "[:alpha:]|<|>")))
+# 
+# sort(unique(unlist(nm)[!is.na(str_extract(unlist(nm), "[:alpha:]|<|>"))]))   ### use this to identify problem vals
+
 ponds[ponds == "< 0.05"] <- "0"
 ponds[ponds == "< 0.10"] <- "0"
+ponds[ponds == "< 1.00"] <- "1.00"
 ponds[ponds == "< 1.50"] <- "1.50"
-ponds[ponds == "n.m. 19.90"] <- "19.90"
-ponds[ponds == "n.m. 13.96"] <- "13.96"
-ponds[ponds == "n.m. 6.83"] <- "6.83"
-ponds[ponds == "n.m. 0.03"] <- "0.03"
-ponds[ponds == "n.m. 30.81"] <- "30.81"
-ponds[ponds == "n.m. 1.37"] <- "1.37"
-ponds[ponds == "n.m. 13.98"] <- "13.98"
+ponds[ponds == "> 15.50"] <- "15.50"
 
-# fix erroneous values
-ponds$Temp[ponds$Temp == "0"] <- NA
-ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
-         ponds$DO == 0.84] <- NA
-ponds$DO_sat[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
-             ponds$DO_sat == 121.12] <- NA
+ponds[ponds == "BDL 0.00"] <- "0"
+ponds[ponds == "<MDL 0.00"] <- NA
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
+
+ponds[ponds == "n.m. 0.03"] <- "0.03"
+ponds[ponds == "n.m. 1.37"] <- "1.37"
+ponds[ponds == "n.m. 6.83"] <- "6.83"
+ponds[ponds == "n.m. 13.96"] <- "13.96"
+ponds[ponds == "n.m. 13.98"] <- "13.98"
+ponds[ponds == "n.m. 19.90"] <- "19.90"
+ponds[ponds == "n.m. 30.81"] <- "30.81"
 
 # convert all numerical cols to numeric
 is_all_numeric <- function(x) {
@@ -147,6 +148,24 @@ ponds <- ponds %>%
   select(where(not_all_na))
 
 #str(ponds)
+
+# fix inappropriately negative characters
+
+# neg <- ponds %>%
+#   select(where(is.numeric), -contains(c("Long", "CTI", "ORP"))) %>%
+#   filter(if_any(everything(), ~ str_detect(., "-")))
+# 
+# sort(unique(unlist(neg)[!is.na(str_extract(unlist(neg), "-"))]))
+
+ponds[ponds == -0.04] <- 0.04
+ponds[ponds == -0.15] <- 0.15
+ponds[ponds == -0.3] <- 0.3
+
+# fix erroneous values
+ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+         ponds$DO == 0.84] <- NA
+ponds$DO_sat[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+             ponds$DO_sat == 121.12] <- NA
 
 # copy Secchi values to all rows (esp. from rows with NA depth)
 for(i in 1:nrow(ponds)) {
@@ -190,7 +209,7 @@ for(i in 1:nrow(ponds)) {
 
 # convert uM to ug/L
 ponds$TN <- ponds$TN_uM * 14.0067
-ifelse(!is.na(ponds$TP), ponds$TP, ponds$TP_uM * 30.973762)
+ponds$TP <- ifelse(!is.na(ponds$TP), ponds$TP, ponds$TP_uM * 30.973762)
 
 ponds <- ponds %>%
   relocate(TN, .before = TP)
@@ -201,6 +220,7 @@ ponds <- ponds %>%
 ```{r include = FALSE}
 # calculate MLDs
 ponds$MLD <- NA
+ponds$Max.Depth <- NA
 
 allPonds <- unique(ponds$Station.name)
 
@@ -212,12 +232,11 @@ for(pond in allPonds) {
                        (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
                         onePond$Month == 9) &     # note that doing this^^ will mess up MLD trend plots
                        !is.na(onePond$Depth), ]
-    if(sum(!is.na(oneYear$Temp)) < 2 |
-       n_distinct(oneYear$Depth[oneYear$Depth >= 1]) < 2) {
+    if(sum(!is.na(oneYear$Temp)) < 2) {           # removed: | n_distinct(oneYear$Depth[oneYear$Depth >= 1]) < 2
       next
     }
     for(i in 1:(n_distinct(oneYear$Depth) - 1)) {
-      if(is.na(oneYear$Temp[i]) | oneYear$Depth[i] < 1) {
+      if(is.na(oneYear$Temp[i])) {                # removed: | oneYear$Depth[i] < 1
         next
       }
       j <- i + 1
@@ -296,7 +315,7 @@ ponds <- ponds %>%
   relocate(Final.Depth, .before = Max.Depth)
 
 ponds <- ponds %>%
-  mutate(DepthClass = case_when(Max.Depth < 3 ~ "Shallow",
+  mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
                                 Max.Depth > 3 ~ "Deep"))
 
 ponds$SurfaceAreaClass <- NA
@@ -328,16 +347,23 @@ ponds <- ponds %>%
 
 # define stratified vs unstratified ponds
 ponds$StratClass <- ifelse(ponds$MLD <= 0.75 * ponds$Max.Depth, "Stratified", "Mixed")
+
+# define nutrient limitation
+ponds <- ponds %>%
+  group_by(Station.name, Year) %>%
+  mutate(NtPClass = ifelse(mean(TN_uM[Depth <= 1], na.rm = TRUE) / mean(TP_uM[Depth <= 1], na.rm = TRUE) < 16,
+                           "N-limited", "P-limited")) %>%
+  ungroup
 ```
 
 ```{r echo = FALSE}
 focal_ponds <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
-  arrange(Town, Site)
+  arrange(Station.name)
 
 pondName <- unique(focal_ponds$Station.name)
 
-selectInput("pond", label = "Choose pond:", choices = pondName)
+selectInput("pond", label = "Choose sampling station:", choices = pondName)
 ```
 
 ```{r include = FALSE}
@@ -644,8 +670,10 @@ renderPlot({
   ggarrange(p1, p2, ncol = 2)
 })
 
+cols <- which(colnames(ponds) == "Max.Depth") : which(colnames(ponds) == "TP")
+
 DT::renderDataTable({
-  ponds[ponds$Station.name == input$pond, c(1, 7, 9, 11:15)] %>%
+  ponds[ponds$Station.name == input$pond, c(1, cols)] %>%
     rename(Date.Time = Date.Time..sampling.)
 })
 ```
@@ -738,6 +766,20 @@ renderPlot({
 })
 ```
 
+```{r include = FALSE}
+# create function for dealing with log10(0)
+zero_sub <- function(x) {
+  str <- strsplit(as.character(x), ".", fixed = TRUE)[[1]]
+  if(str[1] != 0) {
+    exp <- str_count(str[1], "0")
+    return(10^exp)
+  } else {
+    exp <- str_count(str[2], "0") + 1
+    return(10^-exp)
+  }
+}
+```
+
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
@@ -751,15 +793,15 @@ renderUI({
               choices = props[!(props %in% input$prop1)])
 })
 
-classes <- c("None", "Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients")
+classes <- c("None", "Lens", "Depth", "Stratification", "Surface Area", "% Buffer Developed", "Nutrient Limitation")
 
 sliderInput("yearRange", label = "Year range:", min = 2001, max = 2023, value = c(2001, 2023))
 selectInput("class1", label = "Separate data by:", choices = classes)
 
 renderUI({
-  classes <- c("Lens", "Depth", "Surface Area", "% Buffer Developed", "Nutrients", "Year")
+  classes <- c("Lens", "Depth", "Stratification", "Surface Area", "% Buffer Developed", "Nutrient Limitation", "Year")
   selectInput("class2", label = "Color data by:",
-              choices = classes[!(classes %in% input$class1)])
+              choices = classes[!(classes %in% input$class1)], selected = "Depth")
 })
 
 allSurface$None <- "None"
@@ -769,15 +811,17 @@ renderPlot({
   flag_name2 <- paste0(input$prop2, "_flag")
   class1 <- case_when(input$class1 == "None" ~ "None",
                       input$class1 == "Depth" ~ "DepthClass",
+                      input$class1 == "Stratification" ~ "StratClass",
                       input$class1 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class1 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class1 == "Lens" ~ "Lens",
-                      input$class1 == "Nutrients" ~ "NtPClass")
+                      input$class1 == "Nutrient Limitation" ~ "NtPClass")
   class2 <- case_when(input$class2 == "Depth" ~ "DepthClass",
+                      input$class2 == "Stratification" ~ "StratClass",
                       input$class2 == "% Buffer Developed" ~ "DevelopmentClass",
                       input$class2 == "Surface Area" ~ "SurfaceAreaClass",
                       input$class2 == "Lens" ~ "Lens",
-                      input$class2 == "Nutrients" ~ "NtPClass",
+                      input$class2 == "Nutrient Limitation" ~ "NtPClass",
                       input$class2 == "Year" ~ "Year")
   p <- allSurface[allSurface[[flag_name1]] == 2 &
              allSurface[[flag_name2]] == 2 &
@@ -785,9 +829,9 @@ renderPlot({
              !is.na(allSurface[[class2]]) &
              allSurface$Year >= input$yearRange[1] &
              allSurface$Year <= input$yearRange[2], ] %>%
-  mutate(TN = if_else(TN == 0, NA, TN),
-         TP = if_else(TP == 0, NA, TP),
-         Chla = if_else(Chla == 0, NA, Chla)) %>%
+  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(allSurface$TN))[2]), TN),
+         TP = if_else(TP == 0, zero_sub(sort(unique(allSurface$TP))[2]), TP),
+         Chla = if_else(Chla == 0, zero_sub(sort(unique(allSurface$Chla))[2]), Chla)) %>%
   ggplot(aes(x = get(input$prop1), y = get(input$prop2), col = get(class2))) +
     geom_point(size = 2.5, shape = 1) +
     labs(x = input$prop1, y = input$prop2, col = input$class2) +
@@ -841,7 +885,7 @@ selectInput("class3", label = "Separate data by:", choices = classes)
 renderUI({
   classes <- c("Lens", "Stratification", "Surface Area", "% Buffer Developed", "Nutrient Limitation", "Year")
   selectInput("class4", label = "Color data by:",
-              choices = classes[!(classes %in% input$class3)])
+              choices = classes[!(classes %in% input$class3)], selected = "Stratification")
 })
 
 allBottom$None <- "None"
@@ -867,8 +911,8 @@ renderPlot({
              !is.na(allBottom[[class4]]) &
              allBottom$Year >= input$yearRange[1] &
              allBottom$Year <= input$yearRange[2], ] %>%
-  mutate(TP = if_else(TP == 0, NA, TP),
-         TN = if_else(TN == 0, NA, TN)) %>%
+  mutate(TP = if_else(TP == 0, zero_sub(sort(unique(allBottom$TP))[2]), TP),
+         TN = if_else(TN == 0, zero_sub(sort(unique(allBottom$TN))[2]), TN)) %>%
   ggplot(aes(x = get(input$prop3), y = get(input$prop4), col = get(class4))) +
     geom_point(size = 2.5, shape = 1) +
     labs(x = input$prop3, y = input$prop4, col = input$class4) +
@@ -915,17 +959,22 @@ mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/li
   st_make_valid() %>%
   st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
 
+# min(log10(surface_recent$TN_uM / surface_recent$TP_uM), na.rm = TRUE)
+# max(log10(surface_recent$TN_uM / surface_recent$TP_uM), na.rm = TRUE)
+
 renderPlot({
   surface_recent <- allSurface %>%
     group_by(Station.name) %>%
-    filter(Year == max(Year))
+    filter(Year == max(Year)) %>%
+    mutate(TN_uM = if_else(TN_uM == 0, NA, TN_uM),
+           TP_uM = if_else(TP_uM == 0, NA, TP_uM))
   ggplot() +
     geom_sf(data = mass) +
-    geom_point(data = surface_recent[!is.na(surface_recent$TP), ], aes(x = Long, y = Lat,
+    geom_point(data = surface_recent[!is.na(surface_recent$TN_uM), ], aes(x = Long, y = Lat,
                                                                        col = log10(TN_uM / TP_uM)),
                size = 2.5) +
     scale_color_gradientn(colors = rev(parula(100)), name = "TN:TP", trans = "log10",
-                          limits = c(1, 2.92), breaks = c(1, 2), labels = c(10, 100)) +
+                          limits = c(1, 3.03), breaks = c(1, 2, 3), labels = c(10, 100, 1000)) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -935,18 +984,22 @@ renderPlot({
 
 Aug-Sept average of years 2016-2023:
 ```{r echo = FALSE}
+# min(log10(surface_recent$TN_uM / surface_recent$TP_uM), na.rm = TRUE)
+# max(log10(surface_recent$TN_uM / surface_recent$TP_uM), na.rm = TRUE)
+
 renderPlot({
   surface_recent <- allSurface %>%
     filter(Year >= 2016) %>%
-    group_by(Station.name, Long, Lat) %>%
-    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+    group_by(Station.name) %>%
+    summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
   ggplot() +
     geom_sf(data = mass) +
-    geom_point(data = surface_recent[!is.na(surface_recent$TP_uM), ], aes(x = Long, y = Lat,
+    geom_point(data = surface_recent[!is.na(surface_recent$TN_uM), ], aes(x = Long, y = Lat,
                                                                        col = log10(TN_uM / TP_uM)),
                size = 2.5) +
     scale_color_gradientn(colors = rev(parula(100)), name = "TN:TP", trans = "log10",
-                          limits = c(1, 2.92), breaks = c(1, 2), labels = c(10, 100)) +
+                          limits = c(1, 2.98), breaks = c(1, 2), labels = c(10, 100)) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     theme_bw() +
@@ -965,26 +1018,49 @@ renderUI({
   selectInput("param3", label = "Choose parameter:", choices = choices, selected = "Temp")
 })
 
+limits <- allBottom %>%
+  mutate(layer = "b",
+         Chla = NA) %>%
+  rbind(cbind(allSurface, layer = "s")) %>%
+  filter(Year >= 2016) %>%
+    group_by(Station.name, layer) %>%
+    summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+    mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
+
+limits <- limits %>%
+    mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
+           TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP),
+           Chla = if_else(Chla == 0, zero_sub(sort(unique(limits$Chla))[2]), Chla))
+
 renderUI({
   val <- input$param3
   sliderInput("color", label = "Choose gradient limits:",
-              min = min(rbind(allSurface, allBottom)[[val]], na.rm = TRUE),
-              max = max(rbind(allSurface, allBottom)[[val]], na.rm = TRUE),
-              value = c(min(rbind(allSurface, allBottom)[[val]], na.rm = TRUE),
-                        max(rbind(allSurface, allBottom)[[val]], na.rm = TRUE)))
+              min = ifelse(floor(min(limits[[val]], na.rm = TRUE)) == 0,
+                           min(limits[[val]], na.rm = TRUE),
+                           floor(min(limits[[val]], na.rm = TRUE))),
+              max = ceiling(max(limits[[val]], na.rm = TRUE)),
+              value = c(floor(min(limits[[val]], na.rm = TRUE)),
+                        ceiling(max(limits[[val]], na.rm = TRUE))))
 })
 
 renderPlot({
   if(input$layer == "Surface") {
     data_recent <- allSurface %>%
-    filter(Year >= 2016) %>%
-    group_by(Station.name, Long, Lat) %>%
-    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+      filter(Year >= 2016) %>%
+      group_by(Station.name) %>%
+      summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+      mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .))) %>%
+      mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
+             TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP),
+             Chla = if_else(Chla == 0, zero_sub(sort(unique(limits$Chla))[2]), Chla))
   } else {
     data_recent <- allBottom %>%
-    filter(Year >= 2016) %>%
-    group_by(Station.name, Long, Lat) %>%
-    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE)))
+      filter(Year >= 2016) %>%
+      group_by(Station.name) %>%
+      summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+      mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .))) %>%
+      mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
+             TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP))
   }
   ggplot() +
     geom_sf(data = mass) +
@@ -999,7 +1075,7 @@ renderPlot({
     theme(axis.title = element_blank()) +
     if(input$param3 == "TP" | input$param3 == "TN" | input$param3 == "Chla") {
       scale_color_gradientn(colors = plasma(100), name = paste(input$layer, input$param3),
-                        limits = c(input$color[1], input$color[2]), trans = "log")
+                            limits = c(input$color[1], input$color[2]), trans = "log10")
     }
 })
 ```
