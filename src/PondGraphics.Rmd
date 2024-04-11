@@ -31,17 +31,17 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
 #ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-#ponds_full <- read.csv("data/XXXXXX", header = TRUE) %>%
+#ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
+ponds_full <- read.delim("data/03182024_CC_AllPonds_WQ.txt", header = TRUE) %>%
   
   # remove non-data rows
   filter(Station.name != "" & Station.name != " ")
 ```
 
 ```{r include = FALSE}
-# remove WISKI-designated outliers
 ponds <- ponds_full
 
+# remove WISKI-designated outliers
 for(qc in colnames(ponds %>% select(contains("Quality.code")))) {
   index <- match(qc, colnames(ponds))
   ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
@@ -63,8 +63,8 @@ ponds <- ponds %>%
   unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
   unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1,
         Secchi.Depth...SECCHI.2, sep = "") %>%
-  unite(TN, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
-  unite(TP, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
+  unite(TN_uM, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
+  unite(TP_uM, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
   unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1,
         Water.Temperature...TEMP.2, sep = "") %>%
   
@@ -76,59 +76,64 @@ ponds <- ponds %>%
          CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
          CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
          Total.Depth = Total.Depth...DTB,
-         TP_ugL = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
+         TP = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
   
   # reorder columns
+  relocate(Total.Depth, .before = Depth) %>%
   relocate(Secchi, .after = Depth) %>%
   relocate(Temp, .after = Secchi) %>%
   relocate(DO, .after = Temp) %>%
   relocate(DO_sat, .after = DO) %>%
   relocate(Alk, .after = DO_sat) %>%
-  relocate(TN, .after = Alk) %>%
-  relocate(TP, .after = TN) %>%
+  relocate(TP, .after = Alk) %>%
   relocate(Chla, .after = TP) %>%
-  relocate(Total.Depth, .after = last_col()) %>%
+  relocate(TN_uM, .after = Chla) %>%
+  relocate(TP_uM, .after = TN_uM) %>%
   
-  # extract date from date-time column & create new column
+  # extract date, month, year from date-time column & create new column
   mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
-         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}")) %>%
-  
-  # extract month and year from date-time column & create new column
-  mutate(Month = str_extract(Date.Time..sampling., "\\d{1,2}(?=/)"),
-         Year = paste("20", str_extract(Date.Time..sampling., "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}"),
+         Month = str_extract(Date, "\\d{1,2}(?=/)"),
+         #Year = paste("20", str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
+         ## use this^ if WISKI output has M/D/YY format; use line below if output has M/D/YYYY format
+         Year = str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"),
          Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
   
   # prepare columns for reordering ponds in dropdown menu
-  mutate(Town = str_extract(Station.number, "[A-Z]{2}")) %>%
-  mutate(Pond.number = as.numeric(str_extract(Station.number, "\\d+"))) %>%
-  mutate(Station.name = paste(Station.number, "/", Site))
-
-ponds[ponds == "MA-634-01 / Mashpee-Wakeby Pond"] <- "MA-634-01 / Mashpee Lake"
-ponds[ponds == "MA-1039-01 / Mashpee-Wakeby Pond"] <- "MA-1039-01 / Wakeby Pond"
+  mutate(Town = str_extract(Station.name, "[A-Z]{2}")) %>%
+  mutate(Station = str_extract(Station.name, ".+(?= /)")) %>%
+  mutate(Station.name = paste0(Town, " / ", Station, " (", Station.number, ")"))
 
 # convert all empty cells to NA
 ponds[ponds == ""] <- NA
 
-# convert null datapoints to NA
-ponds[ponds == "n.m. 0.00"] <- NA
-ponds[ponds == "ND 0.00"] <- NA
-ponds[ponds == "<MDL 0.00"] <- NA
-ponds[ponds == "BDL 0.00"] <- "0"
+# fix non-numeric characters
 
-# temporarily fix non-numeric datapoints
-ponds[ponds == "-0.15"] <- "0.15"
-ponds[ponds == "-0.04"] <- "0.04"
-ponds[ponds == "-0.3"] <- "0.3"
-ponds[ponds == "> 15.50"] <- "15.50"
+# nm <- ponds %>%
+#   select(-contains("Quality.code"), -Sample.number, -Depth.Designation) %>%
+#   select(c(which(colnames(.) == "Total.Depth") : (which(colnames(.) == "Date") - 1))) %>%
+#   filter(if_any(everything(), ~ str_detect(., "[:alpha:]|<|>")))
+# 
+# sort(unique(unlist(nm)[!is.na(str_extract(unlist(nm), "[:alpha:]|<|>"))]))   ### use this to identify problem vals
+
 ponds[ponds == "< 0.05"] <- "0"
 ponds[ponds == "< 0.10"] <- "0"
+ponds[ponds == "< 1.00"] <- "1.00"
 ponds[ponds == "< 1.50"] <- "1.50"
+ponds[ponds == "> 15.50"] <- "15.50"
 
-# fix erroneous values
-ponds$Temp[ponds$Temp == "0"] <- NA
+ponds[ponds == "BDL 0.00"] <- "0"
+ponds[ponds == "<MDL 0.00"] <- NA
+ponds[ponds == "n.m. 0.00"] <- NA
+ponds[ponds == "ND 0.00"] <- NA
 
-# remove problematic row
-ponds <- ponds[-which(ponds$Alk == "n.m. 19.90"), ]
+ponds[ponds == "n.m. 0.03"] <- "0.03"
+ponds[ponds == "n.m. 1.37"] <- "1.37"
+ponds[ponds == "n.m. 6.83"] <- "6.83"
+ponds[ponds == "n.m. 13.96"] <- "13.96"
+ponds[ponds == "n.m. 13.98"] <- "13.98"
+ponds[ponds == "n.m. 19.90"] <- "19.90"
+ponds[ponds == "n.m. 30.81"] <- "30.81"
 
 # convert all numerical cols to numeric
 is_all_numeric <- function(x) {
@@ -140,63 +145,188 @@ ponds <- ponds %>%
   select(where(not_all_na))
 
 #str(ponds)
-```
 
-```{r echo = FALSE}
-## calculate DO saturation values (*in future should come from WISKI)
+# fix inappropriately negative characters
+
+# neg <- ponds %>%
+#   select(where(is.numeric), -contains(c("Long", "CTI", "ORP"))) %>%
+#   filter(if_any(everything(), ~ str_detect(., "-")))
+# 
+# sort(unique(unlist(neg)[!is.na(str_extract(unlist(neg), "-"))]))
+
+ponds[ponds == -0.04] <- 0.04
+ponds[ponds == -0.15] <- 0.15
+ponds[ponds == -0.3] <- 0.3
+
+# fix erroneous values
+ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+         ponds$DO == 0.84] <- NA
+ponds$DO_sat[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+             ponds$DO_sat == 121.12] <- NA
+
+# copy Secchi values to all rows (esp. from rows with NA depth)
 for(i in 1:nrow(ponds)) {
-  if(is.na(ponds$DO_sat[i])) {
-    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
-    ponds$DO_sat[i] <- ponds$DO[i] / 32 / rho * 10^6 /
-                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
-  }
-}
-
-#mg/L to um/kg
-
-#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/15.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
-
-# calculate DO concentration values
-#ponds$DO_con <- NA
-
-#for(i in 1:nrow(ponds)) {
-#  rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth) # kg/m^3
-#  ponds$DO_con[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
-#                    ponds$DO[i] * 32 * rho / 10^6
-#}
-
-#ponds <- ponds %>%
-#  relocate(DO_con, .after = DO_sat)
-```
-
-```{r include = FALSE}
-## Match ponds to metadata
-setwd("~/Desktop/Repos/CapeCodPonds2023")
-chars <- read.csv("data/PondCharacteristics.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A")))
-
-ponds$Final.Depth.ft <- NA
-ponds$Final.Depth <- NA
-ponds$Size <- NA
-ponds$Lens <- NA
-ponds$PercentDeveloped <- NA
-ponds$DevelopmentClass <- NA
-
-for(i in 1:nrow(ponds)) {
-  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
-  if(length(chars$Final.Depth[chars$CCC_GIS_ID == ID]) > 0) {
-    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
-    ponds$Final.Depth[i] <- ponds$Final.Depth.ft[i] * 12 / 39
-    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
-    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
-    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
-    ponds$DevelopmentClass[i] <- chars$buffer.development.class[chars$CCC_GIS_ID == ID]
+  if(!is.na(ponds$Secchi[i])) {
+    ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]] <-
+      mean(ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]], na.rm = TRUE)
   }
 }
 
 ponds <- ponds %>%
-  mutate(DepthClass = case_when(Final.Depth < 3 ~ "Shallow",
-                                Final.Depth > 3 ~ "Deep"))
+  group_by(Station.name, Date) %>%
+  mutate(Secchi = mean(Secchi, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Secchi = ifelse(is.nan(Secchi), NA, Secchi))
+```
+
+```{r include = FALSE}
+# calculate DO saturation values (*in future should come from WISKI)
+for(i in 1:nrow(ponds)) {
+  if(is.na(ponds$DO_sat[i])) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO_sat[i] <- ponds$DO[i] / 31.999 / rho * 10^6 /
+                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
+  }
+  if(is.na(ponds$DO[i])) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO_sat[i] * 31.999 * rho / 10^6
+  }
+  if(!is.na(ponds$DO[i]) & !is.na(ponds$DO_sat[i]) &
+     ponds$DO[i] == 0 & ponds$DO_sat[i] > 0) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO_sat[i] * 31.999 * rho / 10^6
+  }
+}
+
+#mg/L to um/kg
+#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/31.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
+
+
+# convert uM to ug/L
+ponds$TN <- ponds$TN_uM * 14.0067
+ponds$TP <- ifelse(!is.na(ponds$TP), ponds$TP, ponds$TP_uM * 30.973762)
+
+ponds <- ponds %>%
+  relocate(TN, .before = TP)
+
+# uM = umol/L * mol/10^6umol = mol/10^6L * Xg/mol = g/10^6L * 10^6ug/g = ug/L
+```
+
+```{r include = FALSE}
+# calculate MLDs
+ponds$MLD <- NA
+ponds$Max.Depth <- NA
+
+allPonds <- unique(ponds$Station.name)
+
+for(pond in allPonds) {
+  onePond <- ponds[ponds$Station.name == pond, ]
+  
+  for(y in unique(onePond$Year)) {
+    oneYear <- onePond[onePond$Year == y &
+                       (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
+                        onePond$Month == 9) &     # note that doing this^^ will mess up MLD trend plots
+                       !is.na(onePond$Depth), ]
+    if(sum(!is.na(oneYear$Temp)) < 2) {           # removed: | n_distinct(oneYear$Depth[oneYear$Depth >= 1]) < 2
+      next
+    }
+    for(i in 1:(n_distinct(oneYear$Depth) - 1)) {
+      if(is.na(oneYear$Temp[i])) {                # removed: | oneYear$Depth[i] < 1
+        next
+      }
+      j <- i + 1
+      while(j < n_distinct(oneYear$Depth)) {
+        if(!is.na(oneYear$Temp[j])) {
+          break
+        } else {
+          j <- j + 1
+        }
+      }
+      if(is.na(oneYear$Temp[j])) {
+        break
+      }
+      depth_diff <- oneYear$Depth[j] - oneYear$Depth[i]
+      temp_diff <- oneYear$Temp[j] - oneYear$Temp[i]
+      delta_temp <- temp_diff / depth_diff
+      if(abs(delta_temp) >= 1) {
+        ponds$MLD[ponds$Station.name == pond &
+                  ponds$Year == y &
+                  (ponds$Month == 8 |
+                   ponds$Month == 9)] <- oneYear$Depth[i]
+        break
+      }
+    }
+    if(abs(delta_temp) < 1) {
+      ponds$MLD[ponds$Station.name == pond &
+                ponds$Year == y &
+                (ponds$Month == 8 |
+                 ponds$Month == 9)] <- oneYear$Depth[j]
+    }
+  }
+  
+  # create column to replace "Final.Depth"
+  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
+}
+
+ponds <- ponds %>%
+  relocate(MLD, .before = Temp) %>%
+  relocate(Max.Depth, .before = Depth)
+
+# loose sanity check
+# ponds %>%
+#   filter((Month == 8 | Month == 9),
+#          Depth %% 1 == 0,
+#          !is.na(Temp),
+#          is.na(MLD)) %>%
+#   group_by(Station.name, Year) %>%
+#   filter(n() > 1) %>%
+#   summarize(MLD = min(MLD))
+```
+
+```{r include = FALSE}
+# match ponds to metadata
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+chars <- read.csv("data/PondCharacteristics.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+ponds$Size <- NA
+ponds$Lens <- NA
+ponds$PercentDeveloped <- NA
+ponds$Final.Depth.ft <- NA
+
+for(i in 1:nrow(ponds)) {
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
+  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) > 0) {
+    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+  }
+}
+
+ponds <- ponds %>%
+  mutate(Final.Depth = Final.Depth.ft * 0.3048) %>%
+  relocate(Final.Depth, .before = Max.Depth)
+
+ponds <- ponds %>%
+  mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
+                                Max.Depth > 3 ~ "Deep"))
+
+ponds$SurfaceAreaClass <- NA
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(Size = mean(Size))
+# 
+# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
+                                    ponds$Size <= 12.315432 ~ "Small",
+                                    ponds$Size <= 32.563650 ~ "Medium",
+                                    ponds$Size > 32.563650 ~ "Large")
 
 ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
 
@@ -208,22 +338,18 @@ ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%
 
 ponds <- ponds %>%
   mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
-                                 ponds$PercentDeveloped <= 13.00 ~ "Low",
-                                 ponds$PercentDeveloped <= 23.25 ~ "Medium",
-                                 ponds$PercentDeveloped > 23.25 ~ "High"))
+                                      ponds$PercentDeveloped <= 13.00 ~ "Low",
+                                      ponds$PercentDeveloped <= 23.25 ~ "Medium",
+                                      ponds$PercentDeveloped > 23.25 ~ "High"))
 
-ponds$SurfaceAreaClass <- NA
+# define stratified vs unstratified ponds
+ponds$StratClass <- ifelse(ponds$MLD <= 0.75 * ponds$Max.Depth, "Stratified", "Mixed")
 
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(Size = mean(Size))
-# 
-# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
-                             ponds$Size <= 12.315432 ~ "Small",
-                             ponds$Size <= 32.563650 ~ "Medium",
-                             ponds$Size > 32.563650 ~ "Large")
+# define nutrient limitation
+ponds <- ponds %>%
+  group_by(Station.name, Year) %>%
+  mutate(NtPClass = ifelse(mean(TN, na.rm = TRUE) / mean(TP, na.rm = TRUE) < 16,
+                           "N-limited", "P-limited"))
 ```
 
 ### Load data
