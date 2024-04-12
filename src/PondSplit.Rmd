@@ -16,7 +16,7 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 ##########
 # This script assumes "Secchi" is the first measured parameter column,
-# "TN_uM" is the last, discrete-sample columns begin after "DO_sat", and
+# "TP_uM" is the last, discrete-sample columns begin after "DO_sat", and
 # there are three columns between Secchi & DO_sat.
 ##########
 
@@ -45,11 +45,11 @@ for(pond in pondName) {
   
   param_start <- which(colnames(onePond) == "Secchi")
   discrete_start <- which(colnames(onePond) == "DO_sat") + 1
-  param_end <- which(colnames(onePond) == "TN_uM")
+  param_end <- which(colnames(onePond) == "TP_uM")
   
   oneSurface <- data.frame()
   
-  for(year in unique(onePond$Year)) {
+  for(year in sort(unique(onePond$Year))) {
     if(nrow(onePond[onePond$Year == year & onePond$Depth <= 1, ]) == 0) {
       next
     } else if(nrow(onePond[onePond$Year == year & onePond$Depth <= 1, ]) == 1) {
@@ -112,6 +112,14 @@ for(pond in pondName) {
   allSurface <- rbind(allSurface, oneSurface)
 }
 
+# calculate N:P ratios
+allSurface <- allSurface %>%
+  mutate(NtP = ifelse((TN_uM_flag == 2 & TP_uM_flag == 2),
+                      TN_uM / TP_uM,
+                      NA),
+         NtP_flag = ifelse(!is.na(NtP), 2, 4)) %>%
+  relocate(NtP, .after = TP)
+
 write.csv(allSurface, "data/AllPonds_Surface.csv", row.names = FALSE)
 
 ##########
@@ -141,11 +149,11 @@ for(pond in pondName) {
   # same as above for allSurface
   param_start <- which(colnames(onePond) == "Secchi")
   discrete_start <- which(colnames(onePond) == "DO_sat") + 1
-  param_end <- which(colnames(onePond) == "TN_uM")
+  param_end <- which(colnames(onePond) == "TP_uM")
   
   oneBottom <- data.frame()
   
-  for(year in unique(onePond$Year)) {
+  for(year in sort(unique(onePond$Year))) {
     if(nrow(onePond[onePond$Year == year & onePond$Depth >= 0.75 * onePond$Max.Depth, ]) == 0) {
       next
     } else if(nrow(onePond[onePond$Year == year & onePond$Depth >= 0.75 * onePond$Max.Depth, ]) == 1) {
@@ -211,6 +219,14 @@ for(pond in pondName) {
   }
   allBottom <- rbind(allBottom, oneBottom)
 }
+
+# calculate N:P ratios
+allBottom <- allBottom %>%
+  mutate(NtP = ifelse((TN_uM_flag == 2 & TP_uM_flag == 2),
+                      TN_uM / TP_uM,
+                      NA),
+         NtP_flag = ifelse(!is.na(NtP), 2, 4)) %>%
+  relocate(NtP, .after = TP)
 
 write.csv(allBottom, "data/AllPonds_Bottom.csv", row.names = FALSE)
 ```
