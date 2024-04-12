@@ -102,6 +102,11 @@ ponds <- ponds %>%
          Year = str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"),
          Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
   
+  # note last year sampled for later reference
+  group_by(Station.name) %>%
+  mutate(Last_year = max(Year)) %>%
+  ungroup() %>%
+  
   # prepare columns for reordering ponds in dropdown menu
   mutate(Town = str_extract(Station.name, "[A-Z]{2}")) %>%
   mutate(Station = str_extract(Station.name, ".+(?= /)")) %>%
@@ -227,6 +232,13 @@ allPonds <- unique(ponds$Station.name)
 for(pond in allPonds) {
   onePond <- ponds[ponds$Station.name == pond, ]
   
+  # create column as alternative to "Final.Depth"
+  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
+  
+  if(max(onePond$Depth, na.rm = TRUE) < 5) {
+    next
+  }
+  
   for(y in unique(onePond$Year)) {
     oneYear <- onePond[onePond$Year == y &
                        (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
@@ -268,14 +280,11 @@ for(pond in allPonds) {
                  ponds$Month == 9)] <- oneYear$Depth[j]
     }
   }
-  
-  # create column to replace "Final.Depth"
-  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
 }
 
 ponds <- ponds %>%
-  relocate(MLD, .before = Temp) %>%
-  relocate(Max.Depth, .before = Depth)
+  relocate(Max.Depth, .before = Depth) %>%
+  relocate(MLD, .before = Temp)
 
 # loose sanity check
 # ponds %>%
@@ -285,7 +294,7 @@ ponds <- ponds %>%
 #          is.na(MLD)) %>%
 #   group_by(Station.name, Year) %>%
 #   filter(n() > 1) %>%
-#   summarize(MLD = min(MLD))
+#   summarize(MLD = MLD[1])
 ```
 
 ```{r include = FALSE}
@@ -322,7 +331,7 @@ ponds$SurfaceAreaClass <- NA
 
 # ponds_grouped <- ponds %>%
 #   group_by(Station.name) %>%
-#   summarize(Size = mean(Size))
+#   summarize(Size = Size[1])
 # 
 # quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
 
@@ -335,7 +344,7 @@ ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%
 
 # ponds_grouped <- ponds %>%
 #   group_by(Station.name) %>%
-#   summarize(PercentDeveloped = mean(PercentDeveloped))
+#   summarize(PercentDeveloped = PercentDeveloped[1])
 # 
 # quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
 
@@ -358,10 +367,9 @@ ponds <- ponds %>%
 
 ```{r echo = FALSE}
 focal_ponds <- ponds %>%
-  filter(Month == 8 | Month == 9) %>%
-  arrange(Station.name)
+  filter(Month == 8 | Month == 9)
 
-pondName <- unique(focal_ponds$Station.name)
+pondName <- sort(unique(focal_ponds$Station.name))
 
 selectInput("pond", label = "Choose sampling station:", choices = pondName)
 ```
@@ -469,7 +477,7 @@ for(i in 1:nrow(ponds)) {
 
 # load surface-only data
 allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
+  #mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
   mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
   mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
@@ -490,7 +498,7 @@ for(i in 1:nrow(allSurface)) {
 
 # load bottom-only data
 allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
+  #mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
   mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
   mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
 
@@ -519,7 +527,7 @@ for(i in 1:nrow(allBottom)) {
 ```{r echo = FALSE}
 months <- ponds %>%
   group_by(Station.name, Date) %>%
-  summarise(Month = mean(Month))
+  summarise(Month = Month[1])
 
 renderPlot({
   hist(months$Month[months$Station.name == input$pond], right = FALSE,
@@ -670,7 +678,7 @@ renderPlot({
   ggarrange(p1, p2, ncol = 2)
 })
 
-cols <- which(colnames(ponds) == "Max.Depth") : which(colnames(ponds) == "TP")
+cols <- which(colnames(ponds) == "Max.Depth") : which(colnames(ponds) == "NtP")
 
 DT::renderDataTable({
   ponds[ponds$Station.name == input$pond, c(1, cols)] %>%
@@ -790,7 +798,8 @@ selectInput("prop1", label = "Choose x parameter:", choices = props)
 renderUI({
   props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla")
   selectInput("prop2", label = "Choose y parameter:",
-              choices = props[!(props %in% input$prop1)])
+              choices = props[!(props %in% input$prop1)],
+              selected = "Temp")
 })
 
 classes <- c("None", "Lens", "Depth", "Stratification", "Surface Area", "% Buffer Developed", "Nutrient Limitation")
@@ -1123,8 +1132,8 @@ renderPlot({
 start <- which(colnames(allSurface) == "Secchi")
 end <- which(colnames(allSurface) == "Chla")
 
-slopes_surf <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
-colnames(slopes_surf) <- c("pond", "Long", "Lat", colnames(allSurface)[start:end])
+slopes_surf <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_surf) <- c("pond", "Long", "Lat", "Last_year", colnames(allSurface)[start:end])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -1132,15 +1141,15 @@ for(i in 1:length(pondName)) {
   oneSurf <- allSurface[allSurface$Station.name == pond, ]
   slopes_surf$Long[i] <- oneSurf$Long[1]
   slopes_surf$Lat[i] <- oneSurf$Lat[1]
+  slopes_surf$Last_year[i] <- oneSurf$Last_year[1]
   if(nrow(oneSurf) < 3) {
     next
   }
-  year.1 <- min(oneSurf$Year)
-  year.n <- max(oneSurf$Year)
-  if(year.1 > 2005 | year.n < 2016) {
+  if(min(oneSurf$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneSurf$Year) < quantile(2001:2023)[4]) {
     next
   }
-  if(nrow(oneSurf) < (2023 - 2001)/2) {   # update this if/when years of data change
+  if(nrow(oneSurf) < (2023 - 2001)/2) {               # update this when years of data change
     next
   }
   for(param in colnames(allSurface)[start:end]) {
@@ -1156,8 +1165,13 @@ for(i in 1:length(pondName)) {
   }
 }
 
-slopes_surf2 <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
-colnames(slopes_surf2) <- c("pond", "Long", "Lat", colnames(allSurface)[start:end])
+## count trends
+# slopes_surf <- slopes_surf %>%
+#   rowwise() %>%
+#   mutate(t = sum(!is.na(c(Secchi, MLD, Temp, DO, DO_sat, Alk, TN, TP, Chla))))
+
+slopes_surf2 <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_surf2) <- c("pond", "Long", "Lat", "Last_year", colnames(allSurface)[start:end])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -1165,15 +1179,15 @@ for(i in 1:length(pondName)) {
   oneSurf <- allSurface[allSurface$Station.name == pond, ]
   slopes_surf2$Long[i] <- oneSurf$Long[1]
   slopes_surf2$Lat[i] <- oneSurf$Lat[1]
+  slopes_surf2$Last_year[i] <- oneSurf$Last_year[1]
   if(nrow(oneSurf) < 3) {
     next
   }
-  year.1 <- min(oneSurf$Year)
-  year.n <- max(oneSurf$Year)
-  if(year.1 > 2005 | year.n < 2016) {
+  if(min(oneSurf$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneSurf$Year) < quantile(2001:2023)[4]) {
     next
   }
-  if(nrow(oneSurf) < (2023 - 2001)/2) {   # update this if/when years of data change
+  if(nrow(oneSurf) < (2023 - 2001)/2) {               # update this when years of data change
     next
   }
   for(param in colnames(allSurface)[start:end]) {
@@ -1189,11 +1203,16 @@ for(i in 1:length(pondName)) {
   }
 }
 
+## count trends
+# slopes_surf2 <- slopes_surf2 %>%
+#   rowwise() %>%
+#   mutate(t = sum(!is.na(c(Secchi, MLD, Temp, DO, DO_sat, Alk, TN, TP, Chla))))
+
 start <- which(colnames(allBottom) == "Temp")
 end <- which(colnames(allBottom) == "Chla") - 1
 
-slopes_bott <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
-colnames(slopes_bott) <- c("pond", "Long", "Lat", colnames(allBottom)[start:end])
+slopes_bott <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_bott) <- c("pond", "Long", "Lat", "Last_year", colnames(allBottom)[start:end])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -1201,15 +1220,15 @@ for(i in 1:length(pondName)) {
   oneBott <- allBottom[allBottom$Station.name == pond, ]
   slopes_bott$Long[i] <- oneBott$Long[1]
   slopes_bott$Lat[i] <- oneBott$Lat[1]
+  slopes_bott$Last_year[i] <- oneBott$Last_year[1]
   if(nrow(oneBott) < 3) {
     next
   }
-  year.1 <- min(oneBott$Year)
-  year.n <- max(oneBott$Year)
-  if(year.1 > 2005 | year.n < 2016) {
+  if(min(oneBott$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneBott$Year) < quantile(2001:2023)[4]) {
     next
   }
-  if(nrow(oneBott) < (2023 - 2001)/2) {   # update this if/when years of data change
+  if(nrow(oneBott) < (2023 - 2001)/2) {               # update this when years of data change
     next
   }
   for(param in colnames(allBottom)[start:end]) {
@@ -1228,8 +1247,8 @@ for(i in 1:length(pondName)) {
 start <- which(colnames(allBottom) == "Secchi")
 end <- which(colnames(allBottom) == "Chla") - 1
 
-slopes_bott2 <- data.frame(matrix(ncol = length(start:end) + 3, nrow = length(pondName)))
-colnames(slopes_bott2) <- c("pond", "Long", "Lat", colnames(allBottom)[start:end])
+slopes_bott2 <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_bott2) <- c("pond", "Long", "Lat", "Last_year", colnames(allBottom)[start:end])
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -1237,15 +1256,15 @@ for(i in 1:length(pondName)) {
   oneBott <- allBottom[allBottom$Station.name == pond, ]
   slopes_bott2$Long[i] <- oneBott$Long[1]
   slopes_bott2$Lat[i] <- oneBott$Lat[1]
+  slopes_bott2$Last_year[i] <- oneBott$Last_year[1]
   if(nrow(oneBott) < 3) {
     next
   }
-  year.1 <- min(oneBott$Year)
-  year.n <- max(oneBott$Year)
-  if(year.1 > 2005 | year.n < 2016) {
+  if(min(oneBott$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneBott$Year) < quantile(2001:2023)[4]) {
     next
   }
-  if(nrow(oneBott) < (2023 - 2001)/2) {   # update this if/when years of data change
+  if(nrow(oneBott) < (2023 - 2001)/2) {               # update this when years of data change
     next
   }
   for(param in colnames(allBottom)[start:end]) {
