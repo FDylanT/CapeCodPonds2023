@@ -17,15 +17,13 @@ library(trend)
 library(egg)
 library(DT)
 library(pals)
-library(scales)
 library(sf)
 library(viridis)
 library(rkt)
 ```
 
-```{r include = FALSE}
 ### Load data
-
+```{r include = FALSE}
 setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
@@ -98,6 +96,11 @@ ponds <- ponds %>%
          ## use this^ if WISKI output has M/D/YY format; use line below if output has M/D/YYYY format
          Year = str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"),
          Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
+  
+  # note last year sampled for later reference
+  group_by(Station.name) %>%
+  mutate(Last_year = max(Year)) %>%
+  ungroup() %>%
   
   # prepare columns for reordering ponds in dropdown menu
   mutate(Town = str_extract(Station.name, "[A-Z]{2}")) %>%
@@ -224,6 +227,13 @@ allPonds <- unique(ponds$Station.name)
 for(pond in allPonds) {
   onePond <- ponds[ponds$Station.name == pond, ]
   
+  # create column as alternative to "Final.Depth"
+  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
+  
+  if(max(onePond$Depth, na.rm = TRUE) < 5) {
+    next
+  }
+  
   for(y in unique(onePond$Year)) {
     oneYear <- onePond[onePond$Year == y &
                        (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
@@ -265,14 +275,11 @@ for(pond in allPonds) {
                  ponds$Month == 9)] <- oneYear$Depth[j]
     }
   }
-  
-  # create column to replace "Final.Depth"
-  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
 }
 
 ponds <- ponds %>%
-  relocate(MLD, .before = Temp) %>%
-  relocate(Max.Depth, .before = Depth)
+  relocate(Max.Depth, .before = Depth) %>%
+  relocate(MLD, .before = Temp)
 
 # loose sanity check
 # ponds %>%
@@ -282,7 +289,7 @@ ponds <- ponds %>%
 #          is.na(MLD)) %>%
 #   group_by(Station.name, Year) %>%
 #   filter(n() > 1) %>%
-#   summarize(MLD = min(MLD))
+#   summarize(MLD = MLD[1])
 ```
 
 ```{r include = FALSE}
@@ -319,7 +326,7 @@ ponds$SurfaceAreaClass <- NA
 
 # ponds_grouped <- ponds %>%
 #   group_by(Station.name) %>%
-#   summarize(Size = mean(Size))
+#   summarize(Size = Size[1])
 # 
 # quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
 
@@ -332,7 +339,7 @@ ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%
 
 # ponds_grouped <- ponds %>%
 #   group_by(Station.name) %>%
-#   summarize(PercentDeveloped = mean(PercentDeveloped))
+#   summarize(PercentDeveloped = PercentDeveloped[1])
 # 
 # quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
 
@@ -348,67 +355,22 @@ ponds$StratClass <- ifelse(ponds$MLD <= 0.75 * ponds$Max.Depth, "Stratified", "M
 # define nutrient limitation
 ponds <- ponds %>%
   group_by(Station.name, Year) %>%
-  mutate(NtPClass = ifelse(mean(TN, na.rm = TRUE) / mean(TP, na.rm = TRUE) < 16,
-                           "N-limited", "P-limited"))
-```
-
-### Load data
-```{r}
-setwd("~/Desktop/Repos/CapeCodPonds2023")
-
-# load surface-only data
-allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
-  mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
-  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
-  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
-
-## define "consistently sampled" ##
-
-allSurface_cont <- allSurface %>%
-  group_by(Station.name) %>%
-  filter(min(Year) <= 2005,
-         max(Year) >= 2016) %>%
-  filter(n() >= 9) %>%
-  ungroup()
-
-allSurface_pre <- allSurface_cont %>%
-  filter(Year <= 2011)
-
-allSurface_post <- allSurface_cont %>%
-  filter(Year >= 2012)
-
-# load bottom-only data
-allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
-  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
-  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
-
-allBottom_cont <- allBottom %>%
-  group_by(Station.name) %>%
-  filter(min(Year) <= 2005,
-         max(Year) >= 2016) %>%
-  filter(n() >= 9) %>%
-  ungroup()
-
-allBottom_pre <- allBottom_cont %>%
-  filter(Year <= 2011)
-
-allBottom_post <- allBottom_cont %>%
-  filter(Year >= 2012)
+  mutate(NtPClass = ifelse(mean(TN_uM[Depth <= 1], na.rm = TRUE) / mean(TP_uM[Depth <= 1], na.rm = TRUE) < 16,
+                           "N-limited", "P-limited")) %>%
+  ungroup
 ```
 
 ### Pt. 1: Summary of new data and data characteristics
 ```{r}
 months <- ponds %>%
   group_by(Station.name, Date) %>%
-  summarise(Month = mean(Month))
+  summarise(Month = Month[1])
 
 mo <- ggplot(months, aes(x = Month)) +
   geom_histogram(binwidth = 1, fill = "lightblue", col = "black") +
-  scale_x_continuous(breaks = c(4:10)) +
+  scale_x_continuous(breaks = c(min(months$Month, na.rm = TRUE):max(months$Month, na.rm = TRUE))) +
   labs(y = "Cumulative sampling events") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor.x = element_blank())
 
 years <- ponds %>%
@@ -419,9 +381,9 @@ years <- ponds %>%
 ye <- ggplot(years, aes(x = num_years)) +
   geom_histogram(binwidth = 1, fill = "lightblue", col = "black") +
   labs(x = "Number of years sampled", y = "Number of ponds") +
-  theme_bw()
+  theme_classic()
 
-f1a.i <- ggarrange(mo, ye, ncol = 2)
+f1a.i <- ggarrange(ye, mo, ncol = 2)
 
 ggsave("figures/f1a.i.png", f1a.i, width = 6.5, height = 3, units = "in", dpi = 600)
 
@@ -433,8 +395,8 @@ pie <- years %>%
   group_by(bin) %>%
   summarise(n = n())
 
-f1a.i.i <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", "(5,10]", "(10,15]", "> 15")))) +
-  geom_bar(width = 1, stat = "identity") +
+f1a.i2 <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", "(5,10]", "(10,15]", "> 15")))) +
+  geom_bar(width = 1, stat = "identity", col = "black") +
   coord_polar("y", start = 0, direction = -1) +
   geom_text(aes(label = paste0(n, "\n(", percent(n/sum(n)), ")")),
             position = position_stack(vjust = 0.5), size = 3) +
@@ -446,11 +408,10 @@ f1a.i.i <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]",
         panel.grid = element_blank(),
         panel.border = element_blank())
 
-ggsave("figures/f1a.i.i.png", f1a.i.i, width = 4, height = 3, units = "in", dpi = 600)
+ggsave("figures/f1a.i2.png", f1a.i2, width = 4.5, height = 3, units = "in", dpi = 600)
 ```
 
 ### Pt. 1a cont.
-
 ```{r}
 sf_use_s2(FALSE)
 
@@ -495,7 +456,53 @@ L <- ggplot() +
 
 f1a.ii <- ggarrange(N, L, ncol = 2)
 
-ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi = 600)
+ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi = 600, bg = "white")
+```
+
+### Load layer-specific data
+```{r}
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+# load surface-only data
+allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
+  #mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
+  mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
+## define "consistently sampled" ##
+
+allSurface_cont <- allSurface %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= quantile(2001:2023)[2],
+         max(Year) >= quantile(2001:2023)[4]) %>%
+  filter(n() >= (2023 - 2001)/2) %>%
+  ungroup()
+
+allSurface_pre <- allSurface_cont %>%
+  filter(Year <= 2011)                    # change if desired
+
+allSurface_post <- allSurface_cont %>%
+  filter(Year >= 2012)                    # change if desired
+
+# load bottom-only data
+allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
+  #mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
+allBottom_cont <- allBottom %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= quantile(2001:2023)[2],
+         max(Year) >= quantile(2001:2023)[4]) %>%
+  filter(n() >= (2023 - 2001)/2) %>%
+  ungroup()
+
+allBottom_pre <- allBottom_cont %>%
+  filter(Year <= 2011)                    # change if desired
+
+allBottom_post <- allBottom_cont %>%
+  filter(Year >= 2012)                    # change if desired
 ```
 
 ### Pt. 1a cont.
@@ -505,15 +512,17 @@ ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi 
 - use diverging scale for DO
 
 ```{r}
-params <- c("Secchi", "Chla", "TN", "TP", "Temp", "DO", "Alk")
+params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
 
 recent_surf <- allSurface %>%
   group_by(Station.name) %>%
-  filter(Year == max(Year))
+  filter(Year == max(Year)) %>%
+  ungroup()
 
 recent_bott <- allBottom %>%
   group_by(Station.name) %>%
-  filter(Year == max(Year))
+  filter(Year == max(Year)) %>%
+  ungroup()
 
 surf_list <- lapply(params, function(param) {
   ggplot() +
@@ -522,14 +531,14 @@ surf_list <- lapply(params, function(param) {
                aes(x = Long, y = Lat, fill = get(param)),
                shape = 21) +
     scale_fill_gradientn(colors = parula(100),
-                         limits = c(sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]))[1],
-                                    sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]), decreasing = TRUE)[1]),
+                         limits = c(min(c(recent_surf[[param]],
+                                          recent_bott[[param]]), na.rm = TRUE),
+                                    max(c(recent_surf[[param]],
+                                          recent_bott[[param]]), na.rm = TRUE)),
                          name = param) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
-    labs(title = paste("Surface", param)) +
+    labs(title = paste("Surface")) +
     theme_classic() +
     theme(panel.grid = element_blank(),
           axis.title = element_blank(),
@@ -540,21 +549,21 @@ surf_list <- lapply(params, function(param) {
           axis.line = element_blank())
 })
 
-bott_list <- lapply(params[3:7], function(param) {
+bott_list <- lapply(params[3:10], function(param) {
   ggplot() +
     geom_sf(data = mass) +
     geom_point(data = recent_bott[recent_bott[[paste0(param, "_flag")]] == 2, ],
                aes(x = Long, y = Lat, fill = get(param)),
                shape = 21) +
     scale_fill_gradientn(colors = parula(100),
-                         limits = c(sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]))[1],
-                                    sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]), decreasing = TRUE)[1]),
+                         limits = c(min(c(recent_surf[[param]],
+                                          recent_bott[[param]]), na.rm = TRUE),
+                                    max(c(recent_surf[[param]],
+                                          recent_bott[[param]]), na.rm = TRUE)),
                          name = param) +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
-    labs(title = paste("Bottom", param)) +
+    labs(title = paste("Bottom")) +
     theme_classic() +
     theme(panel.grid = element_blank(),
           axis.title = element_blank(),
@@ -566,7 +575,14 @@ bott_list <- lapply(params[3:7], function(param) {
 })
 
 surf_list[[1]] <- surf_list[[1]] +
-  guides(fill = guide_colorbar(title = "Secchi\nDepth (m)"))
+  scale_fill_gradientn(colors = parula(100),
+                       limits = c(min(recent_surf$Secchi, na.rm = TRUE),
+                                  max(recent_surf$Secchi, na.rm = TRUE)),
+                       name = "Secchi\nDepth (m)")
+
+
+#### PICK UP HERE ####
+
 
 surf_list[[2]] <- surf_list[[2]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Chla (μg L"^-1*")"))
@@ -599,7 +615,7 @@ bott_list[[2]] <- bott_list[[2]] +
                                   sort(c(recent_surf$TP,
                                          recent_bott$TP), decreasing = TRUE)[1]))
 
-surf_list[[8]] <- ggplot() +
+surf_list[[9]] <- ggplot() +
     geom_sf(data = mass) +
     geom_point(data = recent_surf[recent_surf$TN_flag == 2 & recent_surf$TP_flag == 2, ],
                aes(x = Long, y = Lat, fill = log(TN / TP)),
