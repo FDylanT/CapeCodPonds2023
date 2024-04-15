@@ -18,12 +18,14 @@ library(egg)
 library(DT)
 library(pals)
 library(sf)
-library(viridis)
+library(cowplot)
 library(rkt)
 ```
 
 ### Load data
 ```{r include = FALSE}
+### Load data
+
 setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 #ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
@@ -225,54 +227,55 @@ ponds$Max.Depth <- NA
 allPonds <- unique(ponds$Station.name)
 
 for(pond in allPonds) {
-  onePond <- ponds[ponds$Station.name == pond, ]
+  onePond <- ponds[ponds$Station.name == pond, ] %>%
+    arrange(Date, Depth)
   
-  # create column as alternative to "Final.Depth"
+  # create full-depth column
   ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
   
   if(max(onePond$Depth, na.rm = TRUE) < 5) {
     next
   }
   
-  for(y in unique(onePond$Year)) {
-    oneYear <- onePond[onePond$Year == y &
+  for(d in unique(onePond$Date)) {
+    oneDate <- onePond[onePond$Date == d &
                        (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
                         onePond$Month == 9) &     # note that doing this^^ will mess up MLD trend plots
                        !is.na(onePond$Depth), ]
-    if(sum(!is.na(oneYear$Temp)) < 2) {           # removed: | n_distinct(oneYear$Depth[oneYear$Depth >= 1]) < 2
+    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth > 1]) < 2) {  # can MLD == 1??
       next
     }
-    for(i in 1:(n_distinct(oneYear$Depth) - 1)) {
-      if(is.na(oneYear$Temp[i])) {                # removed: | oneYear$Depth[i] < 1
+    for(i in 1:(n_distinct(oneDate$Depth) - 1)) {
+      if(is.na(oneDate$Temp[i]) | oneDate$Depth[i] <= 1) {
         next
       }
       j <- i + 1
-      while(j < n_distinct(oneYear$Depth)) {
-        if(!is.na(oneYear$Temp[j])) {
+      while(j < n_distinct(oneDate$Depth)) {
+        if(!is.na(oneDate$Temp[j])) {
           break
         } else {
           j <- j + 1
         }
       }
-      if(is.na(oneYear$Temp[j])) {
+      if(is.na(oneDate$Temp[j])) {
         break
       }
-      depth_diff <- oneYear$Depth[j] - oneYear$Depth[i]
-      temp_diff <- oneYear$Temp[j] - oneYear$Temp[i]
+      depth_diff <- oneDate$Depth[j] - oneDate$Depth[i]
+      temp_diff <- oneDate$Temp[j] - oneDate$Temp[i]
       delta_temp <- temp_diff / depth_diff
-      if(abs(delta_temp) >= 1) {
+      if(delta_temp < -1) {
         ponds$MLD[ponds$Station.name == pond &
-                  ponds$Year == y &
+                  ponds$Date == d &
                   (ponds$Month == 8 |
-                   ponds$Month == 9)] <- oneYear$Depth[i]
+                   ponds$Month == 9)] <- oneDate$Depth[i]
         break
       }
     }
-    if(abs(delta_temp) < 1) {
+    if(delta_temp >= -1) {
       ponds$MLD[ponds$Station.name == pond &
-                ponds$Year == y &
+                ponds$Date == d &
                 (ponds$Month == 8 |
-                 ponds$Month == 9)] <- oneYear$Depth[j]
+                 ponds$Month == 9)] <- oneDate$Depth[j]
     }
   }
 }
@@ -280,16 +283,6 @@ for(pond in allPonds) {
 ponds <- ponds %>%
   relocate(Max.Depth, .before = Depth) %>%
   relocate(MLD, .before = Temp)
-
-# loose sanity check
-# ponds %>%
-#   filter((Month == 8 | Month == 9),
-#          Depth %% 1 == 0,
-#          !is.na(Temp),
-#          is.na(MLD)) %>%
-#   group_by(Station.name, Year) %>%
-#   filter(n() > 1) %>%
-#   summarize(MLD = MLD[1])
 ```
 
 ```{r include = FALSE}
@@ -302,7 +295,7 @@ chars <- read.csv("data/PondCharacteristics.csv") %>%
 ponds$Size <- NA
 ponds$Lens <- NA
 ponds$PercentDeveloped <- NA
-ponds$Final.Depth.ft <- NA
+ponds$Char.Depth.ft <- NA
 
 for(i in 1:nrow(ponds)) {
   ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
@@ -310,13 +303,13 @@ for(i in 1:nrow(ponds)) {
     ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
     ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
     ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
-    ponds$Final.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+    ponds$Char.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
   }
 }
 
 ponds <- ponds %>%
-  mutate(Final.Depth = Final.Depth.ft * 0.3048) %>%
-  relocate(Final.Depth, .before = Max.Depth)
+  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
+  relocate(Char.Depth, .before = Max.Depth)
 
 ponds <- ponds %>%
   mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
@@ -348,16 +341,6 @@ ponds <- ponds %>%
                                       ponds$PercentDeveloped <= 13.00 ~ "Low",
                                       ponds$PercentDeveloped <= 23.25 ~ "Medium",
                                       ponds$PercentDeveloped > 23.25 ~ "High"))
-
-# define stratified vs unstratified ponds
-ponds$StratClass <- ifelse(ponds$MLD <= 0.75 * ponds$Max.Depth, "Stratified", "Mixed")
-
-# define nutrient limitation
-ponds <- ponds %>%
-  group_by(Station.name, Year) %>%
-  mutate(NtPClass = ifelse(mean(TN_uM[Depth <= 1], na.rm = TRUE) / mean(TP_uM[Depth <= 1], na.rm = TRUE) < 16,
-                           "N-limited", "P-limited")) %>%
-  ungroup
 ```
 
 ### Pt. 1: Summary of new data and data characteristics
@@ -401,7 +384,7 @@ f1a.i2 <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", 
   geom_text(aes(label = paste0(n, "\n(", percent(n/sum(n)), ")")),
             position = position_stack(vjust = 0.5), size = 3) +
   labs(fill = "Number of\nyears sampled") +
-  theme_bw() +
+  theme_classic() +
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
@@ -509,20 +492,37 @@ allBottom_post <- allBottom_cont %>%
 
 ######
 - rotate scale bars
-- use diverging scale for DO
 
 ```{r}
 params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
 
+# function for dealing with log10(0)
+zero_sub <- function(x) {
+  str <- strsplit(as.character(x), ".", fixed = TRUE)[[1]]
+  if(str[1] != 0) {
+    exp <- str_count(str[1], "0")
+    return(10^exp)
+  } else {
+    exp <- str_count(str[2], "0") + 1
+    return(10^-exp)
+  }
+}
+
 recent_surf <- allSurface %>%
   group_by(Station.name) %>%
   filter(Year == max(Year)) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(recent_surf$TN))[2]), TN),
+         TP = if_else(TP == 0, zero_sub(sort(unique(recent_surf$TP))[2]), TP),
+         Chla = if_else(Chla == 0, zero_sub(sort(unique(recent_surf$Chla))[2]), Chla))
 
 recent_bott <- allBottom %>%
   group_by(Station.name) %>%
   filter(Year == max(Year)) %>%
-  ungroup()
+  ungroup() %>%
+  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(recent_bott$TN))[2]), TN),
+         TP = if_else(TP == 0, zero_sub(sort(unique(recent_bott$TP))[2]), TP),
+         Chla = if_else(Chla == 0, zero_sub(sort(unique(recent_bott$Chla))[2]), Chla))
 
 surf_list <- lapply(params, function(param) {
   ggplot() +
@@ -549,7 +549,7 @@ surf_list <- lapply(params, function(param) {
           axis.line = element_blank())
 })
 
-bott_list <- lapply(params[3:10], function(param) {
+bott_list <- lapply(params[c(3:4, 7:10)], function(param) {
   ggplot() +
     geom_sf(data = mass) +
     geom_point(data = recent_bott[recent_bott[[paste0(param, "_flag")]] == 2, ],
@@ -575,111 +575,144 @@ bott_list <- lapply(params[3:10], function(param) {
 })
 
 surf_list[[1]] <- surf_list[[1]] +
-  scale_fill_gradientn(colors = parula(100),
-                       limits = c(min(recent_surf$Secchi, na.rm = TRUE),
-                                  max(recent_surf$Secchi, na.rm = TRUE)),
-                       name = "Secchi\nDepth (m)")
-
-
-#### PICK UP HERE ####
-
+  scale_fill_gradientn(colors = parula(100), name = "Secchi\ndepth (m)") +
+  labs(title = "")
 
 surf_list[[2]] <- surf_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Chla (μg L"^-1*")"))
-  
+  scale_fill_gradientn(colors = parula(100), name = "Mixed-layer\ndepth (m)") +     # not working inside `labs()`
+  labs(title = "")
+
 surf_list[[3]] <- surf_list[[3]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TN (μg L"^-1*")"),
-                       limits = c(sort(c(recent_surf$TN,
-                                         recent_bott$TN))[1],
-                                  sort(c(recent_surf$TN,
-                                         recent_bott$TN), decreasing = TRUE)[1]))
+                       limits = c(min(c(recent_surf$TN,
+                                        recent_bott$TN), na.rm = TRUE),
+                                  max(c(recent_surf$TN,
+                                        recent_bott$TN), na.rm = TRUE)))
 
 bott_list[[1]] <- bott_list[[1]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", expression("TN (μg L"^-1*")"),
-                       limits = c(sort(c(recent_surf$TN,
-                                         recent_bott$TN))[1],
-                                  sort(c(recent_surf$TN,
-                                         recent_bott$TN), decreasing = TRUE)[1]))
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TN (μg L"^-1*")"),
+                       limits = c(min(c(recent_surf$TN,
+                                        recent_bott$TN), na.rm = TRUE),
+                                  max(c(recent_surf$TN,
+                                        recent_bott$TN), na.rm = TRUE)))
 
 surf_list[[4]] <- surf_list[[4]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", expression("TP (μg L"^-1*")"),
-                       limits = c(sort(c(recent_surf$TP,
-                                         recent_bott$TP))[2],
-                                  sort(c(recent_surf$TP,
-                                         recent_bott$TP), decreasing = TRUE)[1]))
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TP (μg L"^-1*")"),
+                       limits = c(min(c(recent_surf$TP,
+                                        recent_bott$TP), na.rm = TRUE),
+                                  max(c(recent_surf$TP,
+                                        recent_bott$TP), na.rm = TRUE)))
 
 bott_list[[2]] <- bott_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", expression("TP (μg L"^-1*")"),
-                       limits = c(sort(c(recent_surf$TP,
-                                         recent_bott$TP))[2],
-                                  sort(c(recent_surf$TP,
-                                         recent_bott$TP), decreasing = TRUE)[1]))
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TP (μg L"^-1*")"),
+                       limits = c(min(c(recent_surf$TP,
+                                        recent_bott$TP), na.rm = TRUE),
+                                  max(c(recent_surf$TP,
+                                        recent_bott$TP), na.rm = TRUE)))
 
-surf_list[[9]] <- ggplot() +
-    geom_sf(data = mass) +
-    geom_point(data = recent_surf[recent_surf$TN_flag == 2 & recent_surf$TP_flag == 2, ],
-               aes(x = Long, y = Lat, fill = log(TN / TP)),
-               shape = 21) +
-    scale_fill_gradientn(colors = parula(100),
-                         limits = c(sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]))[1],
-                                    sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]), decreasing = TRUE)[1]),
-                         name = param) +
-    xlim(-70.65, -69.95) +
-    ylim(41.55, 42.07) +
-    labs(title = paste("Surface", param)) +
-    theme_classic() +
-    theme(panel.grid = element_blank(),
-          axis.title = element_blank(),
-          #legend.position = "bottom",
-          plot.title = element_text(face = "bold"),
-          axis.text = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank())
+# ggplot(recent_surf, aes(NtP)) + geom_histogram()  ## not really log-distributed
 
-bott_list[[6]] <- ggplot() +
-    geom_sf(data = mass) +
-    geom_point(data = recent_surf[recent_surf[[paste0(param, "_flag")]] == 2, ],
-               aes(x = Long, y = Lat, fill = get(param)),
-               shape = 21) +
-    scale_fill_gradientn(colors = parula(100),
-                         limits = c(sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]))[1],
-                                    sort(c(recent_surf[[param]],
-                                           recent_bott[[param]]), decreasing = TRUE)[1]),
-                         name = param) +
-    xlim(-70.65, -69.95) +
-    ylim(41.55, 42.07) +
-    labs(title = paste("Surface", param)) +
-    theme_classic() +
-    theme(panel.grid = element_blank(),
-          axis.title = element_blank(),
-          #legend.position = "bottom",
-          plot.title = element_text(face = "bold"),
-          axis.text = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank())
+# quantile(recent_surf$NtP, probs = c(0.9, 0.95, 0.975, 1), na.rm = TRUE)
+# min(c(recent_surf$NtP, recent_bott$NtP), na.rm = TRUE)
 
-quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.75, 0.9, 0.95, 1), na.rm = TRUE)
+top <- 130   # upper bound of color scale
+
+surf_list[[5]] <- surf_list[[5]] +
+  geom_point(data = recent_surf[recent_surf[["NtP"]] < 16, ],   ### this puts N-limited ponds on top
+             aes(x = Long, y = Lat, fill = NtP),
+             shape = 21) +
+  scale_fill_gradientn(colors = c("firebrick4", "firebrick2", parula(11)), name = "N:P",
+                       limits = c(0.01, top),
+                       values = rescale(c(0, (16 - 0.000000000000001),
+                                          16, 16 + ((top-16)/10) * (1:10))),
+                       breaks = c(16, 50, 100, 150),
+                       na.value = "#F9FB0E")
+
+surf_list[[6]] <- surf_list[[6]] +
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Chl-a (μg L"^-1*")"))
 
 surf_list[[7]] <- surf_list[[7]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = expression("Alkalinity\n(mg L"^-1*")"))
+  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)",
+                       limits = c(min(c(recent_surf$Temp,
+                                        recent_bott$Temp), na.rm = TRUE),
+                                  max(c(recent_surf$Temp,
+                                        recent_bott$Temp), na.rm = TRUE)))
+
+bott_list[[3]] <- bott_list[[3]] +
+  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)",
+                       limits = c(min(c(recent_surf$Temp,
+                                        recent_bott$Temp), na.rm = TRUE),
+                                  max(c(recent_surf$Temp,
+                                        recent_bott$Temp), na.rm = TRUE)))
+
+surf_list[[8]] <- surf_list[[8]] +
+  scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"), expression("DO (mg L"^-1*")"),
+                       limits = c(min(c(recent_surf$DO,
+                                        recent_bott$DO), na.rm = TRUE),
+                                  max(c(recent_surf$DO,
+                                        recent_bott$DO), na.rm = TRUE)),
+                       values = rescale(c(min(c(recent_surf$DO,
+                                                recent_bott$DO), na.rm = TRUE),
+                                          (3 - 0.000000000000001), 3,
+                                          max(c(recent_surf$DO,
+                                                recent_bott$DO), na.rm = TRUE))))
+
+bott_list[[4]] <- bott_list[[4]] +
+  scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"), expression("DO (mg L"^-1*")"),
+                       limits = c(min(c(recent_surf$DO,
+                                        recent_bott$DO), na.rm = TRUE),
+                                  max(c(recent_surf$DO,
+                                        recent_bott$DO), na.rm = TRUE)),
+                       values = rescale(c(min(c(recent_surf$DO,
+                                                recent_bott$DO), na.rm = TRUE),
+                                          (3 - 0.000000000000001), 3,
+                                          max(c(recent_surf$DO,
+                                                recent_bott$DO), na.rm = TRUE))))
+
+surf_list[[9]] <- surf_list[[9]] +
+  scale_fill_gradientn(colors = parula(100), name = "DO sat. (%)",
+                       limits = c(min(c(recent_surf$DO_sat,
+                                        recent_bott$DO_sat), na.rm = TRUE),
+                                  max(c(recent_surf$DO_sat,
+                                        recent_bott$DO_sat), na.rm = TRUE)))
 
 bott_list[[5]] <- bott_list[[5]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, 41), name = expression("Alkalinity\n(mg L"^-1*")"))
+  scale_fill_gradientn(colors = parula(100), name = "DO sat. (%)",
+                       limits = c(min(c(recent_surf$DO_sat,
+                                        recent_bott$DO_sat), na.rm = TRUE),
+                                  max(c(recent_surf$DO_sat,
+                                        recent_bott$DO_sat), na.rm = TRUE)))
 
-f1a.iii <- ggarrange(surf_list[[1]], surf_list[[2]],
-                surf_list[[3]], bott_list[[1]],
-                surf_list[[4]], bott_list[[2]], ncol = 2)
+# quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.9, 0.95, 0.975, 1), na.rm = TRUE)
+# min(c(recent_surf$Alk, recent_bott$Alk), na.rm = TRUE)
 
-ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 7, units = "in", dpi = 600)
+top <- 60   # upper bound of color scale
 
-f1a.iv <- ggarrange(surf_list[[5]], bott_list[[3]],
-          surf_list[[6]], bott_list[[4]],
-          surf_list[[7]], bott_list[[5]], ncol = 2)
+surf_list[[10]] <- surf_list[[10]] +
+  scale_fill_gradientn(colors = parula(100), limits = c(0, top),
+                       breaks = c(20, 40, 60),
+                       name = expression("Alk (mg L"^-1*")"),
+                       na.value = "#F9FB0E")
 
-ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 7, units = "in", dpi = 600)
+bott_list[[6]] <- bott_list[[6]] +
+  scale_fill_gradientn(colors = parula(100), limits = c(0, top),
+                       breaks = c(20, 40, 60),
+                       name = expression("Alk (mg L"^-1*")"),
+                       na.value = "#F9FB0E")
+
+f1a.iii <- plot_grid(surf_list[[1]], surf_list[[2]],
+                     surf_list[[3]], bott_list[[1]],
+                     surf_list[[4]], bott_list[[2]],
+                     surf_list[[5]], surf_list[[6]], ncol = 2, nrow = 4, align = "hv")
+
+ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 9, units = "in", dpi = 600, bg = "white")
+
+f1a.iv <- plot_grid(surf_list[[7]], bott_list[[3]],
+                    surf_list[[8]], bott_list[[4]],
+                    surf_list[[9]], bott_list[[5]],
+                    surf_list[[10]], bott_list[[6]], ncol = 2, nrow = 4, align = "hv")
+
+ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
 ### Pt. 1b
@@ -700,7 +733,7 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
   geom_vline(xintercept = -thresh_Secchi_S) +
   labs(x = "Secchi Depth (m)", y = "Proportion", title = "Surface") +
   scale_fill_manual(values = colors) +
-  theme_bw() +
+  theme_classic() +
   theme(legend.position = c(0.85, 0.8),
         panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -718,7 +751,7 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
   geom_vline(xintercept = log10(thresh_chla), col = "gold") +
   geom_vline(xintercept = log10(thresh_chla_S)) +
   labs(x = expression("log10(Chl-a) (μg L"^-1*")"), y = "Proportion", title = "Surface") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -733,7 +766,7 @@ TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
   xlim(0, 3) +
   ylim(0, 0.125) +
   labs(x = "log10(TN) (μM)", y = "Proportion", title = "Surface") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -748,7 +781,7 @@ TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
   xlim(0, 3) +
   ylim(0, 0.125) +
   labs(x = "log10(TN) (μM)", y = "Proportion", title = "Bottom") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -763,7 +796,7 @@ TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
   xlim(-2, 2) +
   ylim(0, 0.105) +
   labs(x = "log10(TP) (μM)", y = "Proportion") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -777,7 +810,7 @@ TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
   xlim(-2, 2) +
   ylim(0, 0.105) +
   labs(x = "log10(TP) (μM)", y = "Proportion") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -788,7 +821,7 @@ Temp1 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   xlim(0.5, 30.5) +
   ylim(0, 0.115) +
   labs(x = "Temperature (°C)", y = "Proportion") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -799,7 +832,7 @@ Temp2 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   xlim(0.5, 30.5) +
   ylim(0, 0.115) +
   labs(x = "Temperature (°C)", y = "Proportion") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -811,7 +844,7 @@ DO1 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   xlim(-0.25, 14.75) +
   ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -823,7 +856,7 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   xlim(-0.25, 14.75) +
   ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -852,7 +885,7 @@ Secchi1.1 <- ggplot(mapping = aes(x = Secchi)) +
   geom_vline(xintercept = -thresh_Secchi_S) +
   labs(x = "Secchi Depth (m)", title = "Surface") +
   scale_color_manual(values = colors) +
-  theme_bw() +
+  theme_classic() +
   theme(legend.position = c(0.85, 0.8),
         panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -870,7 +903,7 @@ Chla1.1 <- ggplot(mapping = aes(x = log10(Chla))) +
   geom_vline(xintercept = log10(thresh_chla), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_chla_S)) +
   labs(x = expression("log10(Chl-a) (μg L"^-1*")"), title = "Surface") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -885,7 +918,7 @@ TN1.1 <- ggplot(mapping = aes(x = log10(TN))) +
   xlim(0, 3) +
   ylim(0, 2.05) +
   labs(x = "log10(TN) (μM)", title = "Surface") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -900,7 +933,7 @@ TN2.1 <- ggplot(mapping = aes(x = log10(TN))) +
   xlim(0, 3) +
   ylim(0, 2.05) +
   labs(x = "log10(TN) (μM)", title = "Bottom") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -915,7 +948,7 @@ TP1.1 <- ggplot(mapping = aes(x = log10(TP))) +
   xlim(-2, 2) +
   ylim(0, 1.55) +
   labs(x = "log10(TP) (μM)") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -929,7 +962,7 @@ TP2.1 <- ggplot(mapping = aes(x = log10(TP))) +
   xlim(-2, 2) +
   ylim(0, 1.55) +
   labs(x = "log10(TP) (μM)") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -940,7 +973,7 @@ Temp1.1 <- ggplot(mapping = aes(x = Temp)) +
   xlim(0.5, 30.5) +
   ylim(0, 0.19) +
   labs(x = "Temperature (°C)") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -951,7 +984,7 @@ Temp2.1 <- ggplot(mapping = aes(x = Temp)) +
   xlim(0.5, 30.5) +
   ylim(0, 0.19) +
   labs(x = "Temperature (°C)") +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -963,7 +996,7 @@ DO1.1 <- ggplot(mapping = aes(x = DO)) +
   xlim(-0.25, 14.75) +
   ylim(0, 0.425) +
   labs(x = expression("DO (mg L"^-1*")")) +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -975,7 +1008,7 @@ DO2.1 <- ggplot(mapping = aes(x = DO)) +
   xlim(-0.25, 14.75) +
   ylim(0, 0.425) +
   labs(x = expression("DO (mg L"^-1*")")) +
-  theme_bw() +
+  theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -1101,7 +1134,7 @@ p1 <- ggplot() +
   annotate("text", x = 2004, y = -0.4, label = "slope: -0.04\nP-value: 0.295", col = "blue", size = 3) +
   annotate("text", x = 2020, y = -0.4, label = "slope: -0.01\nP-value: 0.604", col = "red", size = 3) +
   ylim(-8, 0) +
-  theme_bw()
+  theme_classic()
   
 m2 <- lm(eco_annual75$Chla ~ eco_annual75$Year)
 summary(m2)
@@ -1119,7 +1152,7 @@ p2 <- ggplot() +
   annotate("text", x = 2004, y = 9, label = "slope: 0.07\nP-value: 0.396", col = "blue", size = 3) +
   annotate("text", x = 2020, y = 9, label = "slope: -0.02\nP-value: 0.427", col = "red", size = 3) +
   scale_y_continuous(limits = c(0, 9.5), breaks = c(0, 2, 4, 6, 8)) +
-  theme_bw()
+  theme_classic()
 
 m3 <- lm(eco_annual75$TN ~ eco_annual75$Year)
 summary(m3)
@@ -1137,7 +1170,7 @@ p3 <- ggplot() +
   annotate("text", x = 2004, y = 43.5, label = "slope: 0.48\nP-value: 0.139", col = "blue", size = 3) +
   annotate("text", x = 2020, y = 43.5, label = "slope: -0.04\nP-value: 0.797", col = "red", size = 3) +
   ylim(0, 46) +
-  theme_bw()
+  theme_classic()
 
 m4 <- lm(eco_annual75$TP ~ eco_annual75$Year)
 summary(m4)
@@ -1155,7 +1188,7 @@ p4 <- ggplot() +
   annotate("text", x = 2004, y = 0.9, label = "slope: 0.015\nP-value: 0.007", col = "blue", size = 3) +
   annotate("text", x = 2020, y = 0.9, label = "slope: 0.01\nP-value: 0.002", col = "red", size = 3) +
   ylim(0, 0.95) +
-  theme_bw()
+  theme_classic()
 
 f2 <- ggarrange(p1, p2, p3, p4, ncol = 2)
 
@@ -1190,7 +1223,7 @@ f3 <- ggplot(mapping = aes(x = Year, y = DO)) +
   geom_point(data = allBottom_post, col = "firebrick3") +
   geom_hline(yintercept = 3, linetype = "dashed") +
   scale_y_continuous(breaks = c(0, 4, 8, 12)) +
-  theme_bw()
+  theme_classic()
 
 ggsave("figures/f3.png", f3, width = 5, height = 3.5, units = "in", dpi = 600)
 
@@ -1218,7 +1251,7 @@ f4 <- ggplot(mapping = aes(x = Year, y = DO)) +
   geom_point(data = allBottom_post[allBottom_post$Final.Depth > 9, ], col = "firebrick3") +
   geom_hline(yintercept = 3, linetype = "dashed") +
   scale_y_continuous(limits = c(0, 12.25), breaks = c(0, 4, 8, 12)) +
-  theme_bw()
+  theme_classic()
 
 ggsave("figures/f4.png", f4, width = 5, height = 3.5, units = "in", dpi = 600)
 ```
@@ -1231,7 +1264,7 @@ ggsave("figures/f4.png", f4, width = 5, height = 3.5, units = "in", dpi = 600)
 - rotate & combine scale bars
 
 ```{r}
-params <- c("Secchi", "Chla", "TN", "TP", "Temp", "DO", "Alk")
+params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
 
 surf_list2 <- lapply(params, function(param) {
   ggplot() +
