@@ -245,11 +245,11 @@ for(pond in allPonds) {
                        (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
                         onePond$Month == 9) &     # note that doing this^^ will mess up MLD trend plots
                        !is.na(onePond$Depth), ]
-    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth > 1]) < 2) {  # can MLD == 1??
+    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth >= 1]) < 2) {
       next
     }
     for(i in 1:(n_distinct(oneDate$Depth) - 1)) {
-      if(is.na(oneDate$Temp[i]) | oneDate$Depth[i] <= 1) {
+      if(is.na(oneDate$Temp[i]) | oneDate$Depth[i] < 1) {
         next
       }
       j <- i + 1
