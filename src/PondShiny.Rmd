@@ -1147,7 +1147,7 @@ for(i in 1:length(pondName)) {
     }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
-    if(mk$p.value > 0.1) {
+    if(mk$p.value >= 0.1) {
       next
     }
     slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
@@ -1185,7 +1185,7 @@ for(i in 1:length(pondName)) {
     }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
-    if(mk$p.value <= 0.1) {
+    if(mk$p.value < 0.1) {
       next
     }
     slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]])$estimates
@@ -1226,7 +1226,7 @@ for(i in 1:length(pondName)) {
     }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
-    if(mk$p.value > 0.1) {
+    if(mk$p.value >= 0.1) {
       next
     }
     slopes_bott[[param]][i] <- sens.slope(oneBott[[param]])$estimates
@@ -1259,7 +1259,7 @@ for(i in 1:length(pondName)) {
     }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
-    if(mk$p.value <= 0.1) {
+    if(mk$p.value < 0.1) {
       next
     }
     slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]])$estimates
