@@ -715,6 +715,74 @@ f1a.iv <- plot_grid(surf_list[[7]], bott_list[[3]],
 ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
+### Calculate eco thresholds
+- Calculate 75%ile using allSurface & using ponds; compare
+- Calculate 75%ile threshold values per year using ponds
+
+```{r}
+ecoregion <- allSurface %>%
+  filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
+         Station.name == "BA-797-01 / Micah Pond" |
+         Station.name == "BR-321-01 / Slough Pond" |
+         Station.name == "BR-335-01 / Pine Pond" |
+         Station.name == "DE-355-01 / Flax Pond" |
+         Station.name == "TR-53-01 / Slough Pond" |
+         Station.name == "WE-76-01 / Duck Pond" |
+         Station.name == "WE-64-01 / Spectacle Pond")
+
+thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
+thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
+thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]   ### 24.5 vs 23.2
+thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
+
+ecoregion2 <- ponds %>%
+  filter(Month == 8 | Month == 9) %>%
+  filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
+         Station.name == "BA-797-01 / Micah Pond" |
+         Station.name == "BR-321-01 / Slough Pond" |
+         Station.name == "BR-335-01 / Pine Pond" |
+         Station.name == "DE-355-01 / Flax Pond" |
+         Station.name == "TR-53-01 / Slough Pond" |
+         Station.name == "WE-76-01 / Duck Pond" |
+         Station.name == "WE-64-01 / Spectacle Pond")
+
+thresh_Secchi2 <- quantile(-ecoregion2$Secchi, na.rm = TRUE)[4]
+thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
+thresh_TN2 <- quantile(ecoregion2$TN, na.rm = TRUE)[4]
+thresh_TP2 <- quantile(ecoregion2$TP, na.rm = TRUE)[4]
+
+eco_annual75 <- ecoregion2 %>%
+  group_by(Year) %>%
+  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[4],
+            Chla = quantile(Chla, na.rm = TRUE)[4],
+            TN = quantile(TN, na.rm = TRUE)[4],
+            TP = quantile(TP, na.rm = TRUE)[4])
+
+# quantile(ecoregion2$Secchi[ecoregion2$Year == 2001], na.rm = TRUE)
+```
+
+- 25%/75% for Secchi -- should be inverted or not? ## negate Secchi
+
+### Use allSurface_cont/allBottom to calc 25th %iles
+
+```{r}
+thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
+thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
+thresh_TN_S <- quantile(allSurface_cont$TN, na.rm = TRUE)[2]
+thresh_TP_S <- quantile(allSurface_cont$TP, na.rm = TRUE)[2]
+
+thresh_TN_B <- quantile(allBottom_cont$TN, na.rm = TRUE)[2]
+thresh_TP_B <- quantile(allBottom_cont$TP, na.rm = TRUE)[2]
+
+## annual thresholds
+eco_annual25 <- allSurface %>%
+  group_by(Year) %>%
+  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[2],
+            Chla = quantile(Chla, na.rm = TRUE)[2],
+            TN = quantile(TN, na.rm = TRUE)[2],
+            TP = quantile(TP, na.rm = TRUE)[2])
+```
+
 ### Pt. 1b
 ```{r}
 ### split time period in half
@@ -744,6 +812,20 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
         legend.text = element_text(size = 6),
         legend.key.size = unit(0.1, "in"))
 
+MLD1 <- ggplot(mapping = aes(x = MLD, y = after_stat(count / sum(count)))) +
+  geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, fill = "dodgerblue", alpha = 0.5, bins = 25) +
+  geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, fill = "violetred", alpha = 0.5, bins = 25) +
+  #geom_vline(xintercept = 2, linetype = "dashed") +
+  #geom_vline(xintercept = 4.5, linetype = "dashed") +
+  #geom_vline(xintercept = -thresh_Secchi, col = "gold") +
+  #geom_vline(xintercept = -thresh_Secchi_S) +
+  labs(x = "Mixed-layer Depth (m)", y = "Proportion", title = "Surface") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
 Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
@@ -757,15 +839,17 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
+###### 11.42 etc are in uM
+
 TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, binwidth = 0.05) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, binwidth = 0.05) +
-  geom_vline(xintercept = log10(11.42), linetype = "dashed") +
+  geom_vline(xintercept = log10(11.42 * 14.01), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "gold") +
   geom_vline(xintercept = log10(thresh_TN_S)) +
-  xlim(0, 3) +
+  #xlim(0, 3) +
   ylim(0, 0.125) +
-  labs(x = "log10(TN) (μM)", y = "Proportion", title = "Surface") +
+  labs(x = "log10(TN) (μg/L)", y = "Proportion", title = "Surface") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -775,12 +859,12 @@ TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
 TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, binwidth = 0.05) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, binwidth = 0.05) +
-  geom_vline(xintercept = log10(11.42), linetype = "dashed") +
+  geom_vline(xintercept = log10(11.42 * 14.01), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "gold") +
   geom_vline(xintercept = log10(thresh_TN_B)) +
   xlim(0, 3) +
   ylim(0, 0.125) +
-  labs(x = "log10(TN) (μM)", y = "Proportion", title = "Bottom") +
+  labs(x = "log10(TN) (μg/L)", y = "Proportion", title = "Bottom") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -790,12 +874,12 @@ TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
 TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  geom_vline(xintercept = log10(0.24), linetype = "dashed") +
+  geom_vline(xintercept = log10(0.24 * 30.973762), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TP), col = "gold") +
   geom_vline(xintercept = log10(thresh_TP_S)) +
-  xlim(-2, 2) +
+  #xlim(-2, 2) +
   ylim(0, 0.105) +
-  labs(x = "log10(TP) (μM)", y = "Proportion") +
+  labs(x = "log10(TP) (μg/L)", y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -804,12 +888,12 @@ TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
 TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  geom_vline(xintercept = log10(0.24), linetype = "dashed") +
+  geom_vline(xintercept = log10(0.24 * 30.973762), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TP), col = "gold") +
   geom_vline(xintercept = log10(thresh_TP_B)) +
   xlim(-2, 2) +
   ylim(0, 0.105) +
-  labs(x = "log10(TP) (μM)", y = "Proportion") +
+  labs(x = "log10(TP) (μg/L)", y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -1021,6 +1105,7 @@ ggsave("figures/f1.1.png", f1.1, width = 6.5, height = 9, units = "in", dpi = 60
 ### Stats for above
 ```{r}
 ks.test(allSurface_pre$Secchi, allSurface_post$Secchi)
+ks.test(allSurface_pre$MLD, allSurface_post$MLD)
 ks.test(allSurface_pre$Chla, allSurface_post$Chla)
 ks.test(log10(allSurface_pre$Chla), log10(allSurface_post$Chla))
 ks.test(allSurface_pre$TN, allSurface_post$TN)
@@ -1029,11 +1114,13 @@ ks.test(allSurface_pre$TP, allSurface_post$TP)
 ks.test(log10(allSurface_pre$TP), log10(allSurface_post$TP))
 ks.test(allSurface_pre$Temp, allSurface_post$Temp)
 ks.test(allSurface_pre$DO, allSurface_post$DO)
+ks.test(allSurface_pre$DO_sat, allSurface_post$DO_sat)
 
 ks.test(allBottom_pre$TN, allBottom_post$TN)
 ks.test(allBottom_pre$TP, allBottom_post$TP)
 ks.test(allBottom_pre$Temp, allBottom_post$Temp)
 ks.test(allBottom_pre$DO, allBottom_post$DO)
+ks.test(allBottom_pre$DO_sat, allBottom_post$DO_sat)
 ```
 
 ### Pt. 2: Ecoregion thresholds (Secchi, Chla, TN, TP)

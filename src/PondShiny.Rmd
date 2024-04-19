@@ -1128,6 +1128,8 @@ for(i in 1:length(pondName)) {
   pond <- pondName[i]
   slopes_surf$pond[i] <- pond
   oneSurf <- allSurface[allSurface$Station.name == pond, ]
+  # add noise to MLD values
+  #oneSurf$MLD <- oneSurf$MLD + runif(length(oneSurf$MLD), -0.01, 0.01)
   slopes_surf$Long[i] <- oneSurf$Long[1]
   slopes_surf$Lat[i] <- oneSurf$Lat[1]
   slopes_surf$Last_year[i] <- oneSurf$Last_year[1]
@@ -1166,6 +1168,8 @@ for(i in 1:length(pondName)) {
   pond <- pondName[i]
   slopes_surf2$pond[i] <- pond
   oneSurf <- allSurface[allSurface$Station.name == pond, ]
+  # add noise to MLD values
+  oneSurf$MLD <- oneSurf$MLD + runif(length(oneSurf$MLD), -0.01, 0.01)
   slopes_surf2$Long[i] <- oneSurf$Long[1]
   slopes_surf2$Lat[i] <- oneSurf$Lat[1]
   slopes_surf2$Last_year[i] <- oneSurf$Last_year[1]
