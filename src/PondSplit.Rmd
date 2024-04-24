@@ -120,6 +120,7 @@ allSurface <- allSurface %>%
                       TN_uM / TP_uM,
                       NA),
          NtP_flag = ifelse(!is.na(NtP), 2, 4),
+         NtP_flag = ifelse(!is.infinite(NtP), NtP_flag, 4),   # add flag 4 where NtP == Inf
          NtPClass = ifelse(NtP < 16,
                            "N-limited", "P-limited")) %>%
   relocate(StratClass, .before = Year) %>%
@@ -236,6 +237,7 @@ allBottom <- allBottom %>%
                       TN_uM / TP_uM,
                       NA),
          NtP_flag = ifelse(!is.na(NtP), 2, 4),
+         NtP_flag = ifelse(!is.infinite(NtP), NtP_flag, 4),   # add flag 4 where NtP == Inf
          NtPClass = ifelse(NtP < 16,
                            "N-limited", "P-limited")) %>%
   relocate(StratClass, .before = Year) %>%
