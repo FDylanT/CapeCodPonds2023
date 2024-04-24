@@ -1139,14 +1139,14 @@ Ponds:
 
 ```{r}
 ecoregion <- allSurface %>%
-  filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
-         Station.name == "BA-797-01 / Micah Pond" |
-         Station.name == "BR-321-01 / Slough Pond" |
-         Station.name == "BR-335-01 / Pine Pond" |
-         Station.name == "DE-355-01 / Flax Pond" |
-         Station.name == "TR-53-01 / Slough Pond" |
-         Station.name == "WE-76-01 / Duck Pond" |
-         Station.name == "WE-64-01 / Spectacle Pond")
+  filter(Station.name == "BA / Hathaway Pond (South) (BA-594-01)" |
+         Station.name == "BA / Micah Pond (BA-797-01)" |
+         Station.name == "BR / Slough Pond (BR-321-01)" |
+         Station.name == "BR / Pine Pond (BR-335-01)" |
+         Station.name == "DE / Flax Pond (DE-355-01)" |
+         Station.name == "TR / Slough Pond (TR-53-01)" |
+         Station.name == "WE / Duck Pond (WE-76-01)" |
+         Station.name == "WE / Spectacle Pond (WE-64-01)")
 
 thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
 thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
@@ -1155,14 +1155,14 @@ thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
 
 ecoregion2 <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
-  filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
-         Station.name == "BA-797-01 / Micah Pond" |
-         Station.name == "BR-321-01 / Slough Pond" |
-         Station.name == "BR-335-01 / Pine Pond" |
-         Station.name == "DE-355-01 / Flax Pond" |
-         Station.name == "TR-53-01 / Slough Pond" |
-         Station.name == "WE-76-01 / Duck Pond" |
-         Station.name == "WE-64-01 / Spectacle Pond")
+  filter(Station.name == "BA / Hathaway Pond (South) (BA-594-01)" |
+         Station.name == "BA / Micah Pond (BA-797-01)" |
+         Station.name == "BR / Slough Pond (BR-321-01)" |
+         Station.name == "BR / Pine Pond (BR-335-01)" |
+         Station.name == "DE / Flax Pond (DE-355-01)" |
+         Station.name == "TR / Slough Pond (TR-53-01)" |
+         Station.name == "WE / Duck Pond (WE-76-01)" |
+         Station.name == "WE / Spectacle Pond (WE-64-01)")
 
 thresh_Secchi2 <- quantile(-ecoregion2$Secchi, na.rm = TRUE)[4]
 thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
