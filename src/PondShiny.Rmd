@@ -45,7 +45,7 @@ ponds_full <- read.delim("data/03182024_CC_AllPonds_WQ.txt", header = TRUE) %>%
 ponds <- ponds_full
 
 # remove WISKI-designated outliers
-for(qc in colnames(ponds %>% select(contains("Quality.code")))) {
+for(qc in colnames(ponds %>% dplyr::select(contains("Quality.code")))) {
   index <- match(qc, colnames(ponds))
   ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
                                "",
@@ -150,7 +150,7 @@ is_all_numeric <- function(x) {
 not_all_na <- function(x) any(!is.na(x))
 ponds <- ponds %>% 
   mutate_if(is_all_numeric, as.numeric) %>%
-  select(where(not_all_na))
+  dplyr::select(where(not_all_na))
 
 #str(ponds)
 
@@ -545,6 +545,8 @@ renderPlot({
 ### Time-series analysis
 
 #### Surface parameters
+
+Note that choosing to show the Mann-Kendall trend will allow calculation of a trend for any parameter with 3+ measurements throughout time; thus not all of these trends will show up in the long-term trend plots below. (Those must meet the criteria of having at least 1 measurement in the first 25% of the data record, 1 in the last 25%, and a measurement in at least 50% of all years.)
 
 ```{r echo = FALSE}
 # colnames(allSurface)[c(8:14, 16:18)] <- c("Secchi Depth (m)", "Temperature (°C)", "DO (mg/L)",
@@ -1144,7 +1146,15 @@ for(i in 1:length(pondName)) {
     next
   }
   for(param in colnames(allSurface)[start:end]) {
-    if(is.na(sum(oneSurf[[param]]))) {
+    if(sum(!is.na(oneSurf[[param]])) < 1) {
+      next
+      allSurface
+    }
+    if(min(oneSurf$Year[!is.na(oneSurf[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneSurf$Year[!is.na(oneSurf[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneSurf[!is.na(oneSurf[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
     flag_name <- paste0(param, "_flag")
@@ -1184,7 +1194,14 @@ for(i in 1:length(pondName)) {
     next
   }
   for(param in colnames(allSurface)[start:end]) {
-    if(is.na(sum(oneSurf[[param]]))) {
+    if(sum(!is.na(oneSurf[[param]])) < 1) {
+      next
+    }
+    if(min(oneSurf$Year[!is.na(oneSurf[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneSurf$Year[!is.na(oneSurf[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneSurf[!is.na(oneSurf[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
     flag_name <- paste0(param, "_flag")
@@ -1192,7 +1209,7 @@ for(i in 1:length(pondName)) {
     if(mk$p.value < 0.1) {
       next
     }
-    slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]])$estimates
+    slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
   }
 }
 
@@ -1225,7 +1242,14 @@ for(i in 1:length(pondName)) {
     next
   }
   for(param in colnames(allBottom)[start:end]) {
-    if(is.na(sum(oneBott[[param]]))) {
+    if(sum(!is.na(oneBott[[param]])) < 1) {
+      next
+    }
+    if(min(oneBott$Year[!is.na(oneBott[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneBott$Year[!is.na(oneBott[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneBott[!is.na(oneBott[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
     flag_name <- paste0(param, "_flag")
@@ -1233,7 +1257,7 @@ for(i in 1:length(pondName)) {
     if(mk$p.value >= 0.1) {
       next
     }
-    slopes_bott[[param]][i] <- sens.slope(oneBott[[param]])$estimates
+    slopes_bott[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
   }
 }
 
@@ -1258,7 +1282,14 @@ for(i in 1:length(pondName)) {
     next
   }
   for(param in colnames(allBottom)[start:end]) {
-    if(is.na(sum(oneBott[[param]]))) {
+    if(sum(!is.na(oneBott[[param]])) < 1) {
+      next
+    }
+    if(min(oneBott$Year[!is.na(oneBott[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneBott$Year[!is.na(oneBott[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneBott[!is.na(oneBott[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
     flag_name <- paste0(param, "_flag")
@@ -1266,12 +1297,14 @@ for(i in 1:length(pondName)) {
     if(mk$p.value < 0.1) {
       next
     }
-    slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]])$estimates
+    slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
   }
 }
 ```
 
 #### Surface trends over time
+
+For a trend to be calculated, a given parameter in a given pond must meet the criteria of having at least 1 measurement in the first 25% of the data record, 1 in the last 25%, and a measurement in at least 50% of all years.
 
 ```{r echo = FALSE}
 selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk",
@@ -1370,6 +1403,9 @@ DT::renderDataTable({
   for(i in 1:length(unique(ponds$Lens[!is.na(ponds$Lens)]))) {
     lens <- sort(unique(ponds$Lens[!is.na(ponds$Lens)]))[i]
     colnames(lensRKTs)[i] <- lens
+    
+    ###### add quartile filtering
+    
     if(length(trend_data$Year_frac[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens]) < 4) {
       next
     }
