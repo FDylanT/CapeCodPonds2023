@@ -1126,11 +1126,16 @@ end <- which(colnames(allSurface) == "Chla")
 slopes_surf <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
 colnames(slopes_surf) <- c("pond", "Long", "Lat", "Last_year", colnames(allSurface)[start:end])
 
+# add trend columns to allSurface for later use
+for(param in colnames(allSurface)[start:end]) {
+  allSurface[[paste0(param, "_trend")]] <- NA
+}
+
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
   slopes_surf$pond[i] <- pond
   oneSurf <- allSurface[allSurface$Station.name == pond, ]
-  # add noise to MLD values
+  # add noise to MLD values -- not needed if no slopes of 0
   #oneSurf$MLD <- oneSurf$MLD + runif(length(oneSurf$MLD), -0.01, 0.01)
   slopes_surf$Long[i] <- oneSurf$Long[1]
   slopes_surf$Lat[i] <- oneSurf$Lat[1]
@@ -1148,7 +1153,6 @@ for(i in 1:length(pondName)) {
   for(param in colnames(allSurface)[start:end]) {
     if(sum(!is.na(oneSurf[[param]])) < 1) {
       next
-      allSurface
     }
     if(min(oneSurf$Year[!is.na(oneSurf[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
        max(oneSurf$Year[!is.na(oneSurf[[param]])]) < quantile(2001:2023)[4]) {
@@ -1163,6 +1167,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
+    allSurface[[paste0(param, "_trend")]][allSurface$Station.name == pond] <- mk$p.value
   }
 }
 
@@ -1210,6 +1215,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
+    allSurface[[paste0(param, "_trend")]][allSurface$Station.name == pond] <- mk$p.value
   }
 }
 
@@ -1223,6 +1229,11 @@ end <- which(colnames(allBottom) == "Chla") - 1
 
 slopes_bott <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
 colnames(slopes_bott) <- c("pond", "Long", "Lat", "Last_year", colnames(allBottom)[start:end])
+
+# add trend columns to allBottom for later use
+for(param in colnames(allBottom)[start:end]) {
+  allBottom[[paste0(param, "_trend")]] <- NA
+}
 
 for(i in 1:length(pondName)) {
   pond <- pondName[i]
@@ -1258,6 +1269,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_bott[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
+    allBottom[[paste0(param, "_trend")]][allBottom$Station.name == pond] <- mk$p.value
   }
 }
 
@@ -1298,6 +1310,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
+    allBottom[[paste0(param, "_trend")]][allBottom$Station.name == pond] <- mk$p.value
   }
 }
 ```
@@ -1313,11 +1326,11 @@ selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "MLD", 
 renderPlot({
   ggplot() +
     geom_sf(data = mass) +
-    geom_point(data = slopes_surf,
-               aes(x = Long, y = Lat, size = abs(get(input$param6)), fill = factor(sign(get(input$param6)))),
-               shape = 21) +
     geom_point(data = slopes_surf2,
                aes(x = Long, y = Lat, size = abs(get(input$param6)), col = factor(sign(get(input$param6)))),
+               shape = 21) +
+    geom_point(data = slopes_surf,
+               aes(x = Long, y = Lat, size = abs(get(input$param6)), fill = factor(sign(get(input$param6)))),
                shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param6, "trend\nmagnitude")) +
     scale_fill_manual(values = c("royalblue", "black", "firebrick"),
@@ -1351,11 +1364,11 @@ selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO
 renderPlot({
   ggplot() +
     geom_sf(data = mass) +
-    geom_point(data = slopes_bott,
-               aes(x = Long, y = Lat, size = abs(get(input$param7)), fill = factor(sign(get(input$param7)))),
-               shape = 21) +
     geom_point(data = slopes_bott2,
                aes(x = Long, y = Lat, size = abs(get(input$param7)), col = factor(sign(get(input$param7)))),
+               shape = 21) +
+    geom_point(data = slopes_bott,
+               aes(x = Long, y = Lat, size = abs(get(input$param7)), fill = factor(sign(get(input$param7)))),
                shape = 21) +
     scale_size_continuous(range = c(2, 6), name = paste(input$param7, "trend\nmagnitude")) +
     scale_fill_manual(values = c("royalblue", "black", "firebrick"), 
@@ -1395,7 +1408,8 @@ rownames(lensRKTs) <- c("tau", "S", "varS", "p-value", "slope")
 
 DT::renderDataTable({
   if(input$layer2 == "Surface") {
-    trend_data <- allSurface
+    trend_data <- allSurface %>%
+      filter(!is.na(get(paste0(input$trend, "_trend"))))  # remove observations not used for earlier trend calcs
   } else {
     trend_data <- allBottom
   }
@@ -1404,9 +1418,9 @@ DT::renderDataTable({
     lens <- sort(unique(ponds$Lens[!is.na(ponds$Lens)]))[i]
     colnames(lensRKTs)[i] <- lens
     
-    ###### add quartile filtering
-    
-    if(length(trend_data$Year_frac[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens]) < 4) {
+    if(length(trend_data$Year_frac[trend_data[[flag_name]] == 2 &
+                                   !is.na(trend_data$Lens) &
+                                   trend_data$Lens == lens]) < 4) {
       next
     }
     rk <- rkt(trend_data$Year_frac[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens],
