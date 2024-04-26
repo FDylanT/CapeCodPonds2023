@@ -646,7 +646,8 @@ bott_list[[3]] <- bott_list[[3]] +
                                         recent_bott$Temp), na.rm = TRUE)))
 
 surf_list[[8]] <- surf_list[[8]] +
-  scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"), expression("DO (mg L"^-1*")"),
+  scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"),
+                       name = expression("DO (mg L"^-1*")"),
                        limits = c(min(c(recent_surf$DO,
                                         recent_bott$DO), na.rm = TRUE),
                                   max(c(recent_surf$DO,
@@ -658,7 +659,8 @@ surf_list[[8]] <- surf_list[[8]] +
                                                 recent_bott$DO), na.rm = TRUE))))
 
 bott_list[[4]] <- bott_list[[4]] +
-  scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"), expression("DO (mg L"^-1*")"),
+  scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"),
+                       name = expression("DO (mg L"^-1*")"),
                        limits = c(min(c(recent_surf$DO,
                                         recent_bott$DO), na.rm = TRUE),
                                   max(c(recent_surf$DO,
@@ -715,11 +717,19 @@ f1a.iv <- plot_grid(surf_list[[7]], bott_list[[3]],
 ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
-### Calculate eco thresholds
-- Calculate 75%ile using allSurface & using ponds; compare
-- Calculate 75%ile threshold values per year using ponds
+### Pt. 2: Ecoregion thresholds (Secchi, Chla, TN, TP)
+Ponds:
+-- Hathaway S (BA)
+-- Micah (BA)
+-- Slough (BR)
+-- Pine (BR)
+-- Flax (DE)
+-- Slough (TR)
+-- Duck (WE)
+-- Spectacle (WE)
 
 ```{r}
+# calculate 75%ile using allSurface
 ecoregion <- allSurface %>%
   filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
          Station.name == "BA-797-01 / Micah Pond" |
@@ -730,11 +740,13 @@ ecoregion <- allSurface %>%
          Station.name == "WE-76-01 / Duck Pond" |
          Station.name == "WE-64-01 / Spectacle Pond")
 
+  # Secchi negated to account for inverted significance of values
 thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
 thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
 thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]   ### 24.5 vs 23.2
 thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
 
+## calculate 75%ile using "ponds" for comparison
 ecoregion2 <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
   filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
@@ -751,6 +763,7 @@ thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
 thresh_TN2 <- quantile(ecoregion2$TN, na.rm = TRUE)[4]
 thresh_TP2 <- quantile(ecoregion2$TP, na.rm = TRUE)[4]
 
+# calculate 75%ile threshold values per year (using "ponds")
 eco_annual75 <- ecoregion2 %>%
   group_by(Year) %>%
   summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[4],
@@ -760,8 +773,6 @@ eco_annual75 <- ecoregion2 %>%
 
 # quantile(ecoregion2$Secchi[ecoregion2$Year == 2001], na.rm = TRUE)
 ```
-
-- 25%/75% for Secchi -- should be inverted or not? ## negate Secchi
 
 ### Use allSurface_cont/allBottom to calc 25th %iles
 
@@ -783,7 +794,7 @@ eco_annual25 <- allSurface %>%
             TP = quantile(TP, na.rm = TRUE)[2])
 ```
 
-### Pt. 1b
+### Distribution plots
 ```{r}
 ### split time period in half
 ### put both time periods on same panel; lines instead of filled bars; diff. color for each
@@ -1123,85 +1134,7 @@ ks.test(allBottom_pre$DO, allBottom_post$DO)
 ks.test(allBottom_pre$DO_sat, allBottom_post$DO_sat)
 ```
 
-### Pt. 2: Ecoregion thresholds (Secchi, Chla, TN, TP)
-Ponds:
--- Hathaway S (BA)
--- Micah (BA)
--- Slough (BR)
--- Pine (BR)
--- Flax (DE)
--- Slough (TR)
--- Duck (WE)
--- Spectacle (WE)
-
-- Calculate 75%ile using allSurface & using ponds; compare
-- Calculate 75%ile threshold values per year using ponds
-
-```{r}
-ecoregion <- allSurface %>%
-  filter(Station.name == "BA / Hathaway Pond (South) (BA-594-01)" |
-         Station.name == "BA / Micah Pond (BA-797-01)" |
-         Station.name == "BR / Slough Pond (BR-321-01)" |
-         Station.name == "BR / Pine Pond (BR-335-01)" |
-         Station.name == "DE / Flax Pond (DE-355-01)" |
-         Station.name == "TR / Slough Pond (TR-53-01)" |
-         Station.name == "WE / Duck Pond (WE-76-01)" |
-         Station.name == "WE / Spectacle Pond (WE-64-01)")
-
-thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
-thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
-thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]   ### 24.5 vs 23.2
-thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
-
-ecoregion2 <- ponds %>%
-  filter(Month == 8 | Month == 9) %>%
-  filter(Station.name == "BA / Hathaway Pond (South) (BA-594-01)" |
-         Station.name == "BA / Micah Pond (BA-797-01)" |
-         Station.name == "BR / Slough Pond (BR-321-01)" |
-         Station.name == "BR / Pine Pond (BR-335-01)" |
-         Station.name == "DE / Flax Pond (DE-355-01)" |
-         Station.name == "TR / Slough Pond (TR-53-01)" |
-         Station.name == "WE / Duck Pond (WE-76-01)" |
-         Station.name == "WE / Spectacle Pond (WE-64-01)")
-
-thresh_Secchi2 <- quantile(-ecoregion2$Secchi, na.rm = TRUE)[4]
-thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
-thresh_TN2 <- quantile(ecoregion2$TN, na.rm = TRUE)[4]
-thresh_TP2 <- quantile(ecoregion2$TP, na.rm = TRUE)[4]
-
-eco_annual75 <- ecoregion2 %>%
-  group_by(Year) %>%
-  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[4],
-            Chla = quantile(Chla, na.rm = TRUE)[4],
-            TN = quantile(TN, na.rm = TRUE)[4],
-            TP = quantile(TP, na.rm = TRUE)[4])
-
-# quantile(ecoregion2$Secchi[ecoregion2$Year == 2001], na.rm = TRUE)
-```
-
-- 25%/75% for Secchi -- should be inverted or not? ## negate Secchi
-
-### Use allSurface_cont/allBottom to calc 25th %iles
-
-```{r}
-thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
-thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
-thresh_TN_S <- quantile(allSurface_cont$TN, na.rm = TRUE)[2]
-thresh_TP_S <- quantile(allSurface_cont$TP, na.rm = TRUE)[2]
-
-thresh_TN_B <- quantile(allBottom_cont$TN, na.rm = TRUE)[2]
-thresh_TP_B <- quantile(allBottom_cont$TP, na.rm = TRUE)[2]
-
-## annual thresholds
-eco_annual25 <- allSurface %>%
-  group_by(Year) %>%
-  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[2],
-            Chla = quantile(Chla, na.rm = TRUE)[2],
-            TN = quantile(TN, na.rm = TRUE)[2],
-            TP = quantile(TP, na.rm = TRUE)[2])
-```
-
-### Plot annual threshold values
+### Pt. 3: Plot annual threshold values
 
 ```{r}
 m1 <- lm(eco_annual75$Secchi ~ eco_annual75$Year)
@@ -1282,10 +1215,193 @@ f2 <- ggarrange(p1, p2, p3, p4, ncol = 2)
 ggsave("figures/f2.png", f2, width = 6.5, height = 5, units = "in", dpi = 600)
 ```
 
-### Pt. 4: DO standard
+### Pt. 4: Maps w/ trends in all parameters
 - Calc "recent" (2016+) & annually in table
 
-### 4a
+######
+- add units (e.g. mg/L/yr)
+- crop maps to narrower area
+- rotate & combine scale bars
+
+```{r}
+params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
+
+surf_list2 <- lapply(params, function(param) {
+  ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = slopes_surf2[!is.na(slopes_surf2[[param]]), ],
+               aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
+               shape = 21) +
+    geom_point(data = slopes_surf[!is.na(slopes_surf[[param]]), ],
+               aes(x = Long, y = Lat, size = abs(get(param)), fill = factor(sign(get(param)))),
+               shape = 21) +
+    scale_size_continuous(range = c(1, 4),
+                          limits = c(sort(abs(c(slopes_surf[[param]],
+                                                slopes_surf2[[param]],
+                                                slopes_bott[[param]],
+                                                slopes_bott2[[param]])))[1],
+                                     sort(abs(c(slopes_surf[[param]],
+                                                slopes_surf2[[param]],
+                                                slopes_bott[[param]],
+                                                slopes_bott2[[param]])), decreasing = TRUE)[1]),
+                          name = "Trend\nmagnitude") +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                       breaks = c(-1, 0, 1),
+                       limits = factor(c(-1, 0, 1)),
+                       labels = c("negative", "zero", "positive"),
+                       name = paste(param, "trend\ndirection"),
+                       na.translate = FALSE,
+                       guide = "none") +
+    scale_fill_manual(values = c("royalblue", "black", "firebrick"),
+                      breaks = c(-1, 0, 1),
+                      limits = factor(c(-1, 0, 1)),
+                      labels = c("negative", "zero", "positive"),
+                      name = paste(param, "trend\ndirection"),
+                      na.translate = FALSE,
+                      guide = "none") +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    labs(title = paste("Surface", param)) +
+    theme_classic() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank(),
+          #legend.position = "bottom",
+          plot.title = element_text(face = "bold"),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
+})
+
+bott_list2 <- lapply(params[c(3:4, 7:10)], function(param) {
+  ggplot() +
+    geom_sf(data = mass) +
+    geom_point(data = slopes_bott2[!is.na(slopes_bott2[[param]]), ],
+               aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
+               shape = 21) +
+    geom_point(data = slopes_bott[!is.na(slopes_bott[[param]]), ],
+               aes(x = Long, y = Lat, size = abs(get(param)), fill = factor(sign(get(param)))),
+               shape = 21) +
+    scale_size_continuous(range = c(1, 4),
+                          limits = c(sort(abs(c(slopes_surf[[param]],
+                                                slopes_surf2[[param]],
+                                                slopes_bott[[param]],
+                                                slopes_bott2[[param]])))[1],
+                                     sort(abs(c(slopes_surf[[param]],
+                                                slopes_surf2[[param]],
+                                                slopes_bott[[param]],
+                                                slopes_bott2[[param]])), decreasing = TRUE)[1]),
+                          name = "Trend\nmagnitude") +
+    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                       breaks = c(-1, 0, 1),
+                       limits = factor(c(-1, 0, 1)),
+                       labels = c("negative", "zero", "positive"),
+                       name = paste(param, "trend\ndirection"),
+                       na.translate = FALSE,
+                       guide = "none") +
+    scale_fill_manual(values = c("royalblue", "black", "firebrick"), 
+                      breaks = c(-1, 0, 1),
+                      limits = factor(c(-1, 0, 1)),
+                      labels = c("negative", "zero", "positive"),
+                      name = paste(param, "trend\ndirection"),
+                      na.translate = FALSE,
+                      guide = "none") +
+    xlim(-70.65, -69.95) +
+    ylim(41.55, 42.07) +
+    labs(title = paste("Bottom", param)) +
+    theme_classic() +
+    theme(panel.grid = element_blank(),
+          axis.title = element_blank(),
+          #legend.position = "bottom",
+          plot.title = element_text(face = "bold"),
+          axis.text = element_blank(),
+          axis.ticks = element_blank(),
+          axis.line = element_blank())
+})
+
+surf_list2[[1]] <- surf_list2[[1]] +
+  labs(title = "Secchi Depth (m)")
+
+surf_list2[[2]] <- surf_list2[[2]] +
+  labs(title = "Mixed-layer Depth (m)")
+
+surf_list2[[3]] <- surf_list2[[3]] +
+  labs(title = expression(bold("Surface TN (μg L"^-1*")")))
+
+bott_list2[[1]] <- bott_list2[[1]] +
+  labs(title = expression(bold("Bottom TN (μg L"^-1*")")))
+  
+surf_list2[[4]] <- surf_list2[[4]] +
+  labs(title = expression(bold("Surface TP (μg L"^-1*")")))
+
+bott_list2[[2]] <- bott_list2[[2]] +
+  labs(title = expression(bold("Bottom TP (μg L"^-1*")")))
+
+surf_list2[[5]] <- surf_list2[[5]] +
+  labs(title = "Surface N:P Ratio")
+
+surf_list2[[6]] <- surf_list2[[6]] +
+  labs(title = expression(bold("Surface Chlorophyll-a (μg L"^-1*")")))
+
+surf_list2[[7]] <- surf_list2[[7]] +
+  labs(title = "Surface Temp (°C)")
+
+bott_list2[[3]] <- bott_list2[[3]] +
+  labs(title = "Bottom Temp (°C)")
+
+surf_list2[[8]] <- surf_list2[[8]] +
+  labs(title = expression(bold("Surface DO (mg L"^-1*")")))
+
+bott_list2[[4]] <- bott_list2[[4]] +
+  labs(title = expression(bold("Bottom DO (mg L"^-1*")")))
+
+surf_list2[[9]] <- surf_list2[[9]] +
+  labs(title = "Surface DO Saturation (%)")
+
+bott_list2[[5]] <- bott_list2[[5]] +
+  labs(title = "Bottom DO Saturation (%)")
+
+surf_list2[[10]] <- surf_list2[[10]] +
+  labs(title = expression(bold("Surface Alkalinity (mg L"^-1*")")))
+
+bott_list2[[6]] <- bott_list2[[6]] +
+  labs(title = expression(bold("Bottom Alkalinity (mg L"^-1*")")))
+
+f4.1 <- ggarrange(surf_list2[[1]], surf_list2[[2]],
+                surf_list2[[3]], bott_list2[[1]],
+                surf_list2[[4]], bott_list2[[2]],
+                surf_list2[[5]], surf_list2[[6]], ncol = 2)
+
+ggsave("figures/f4.1.png", f4.1, width = 6.5, height = 9, units = "in", dpi = 600)
+
+f4.2 <- ggarrange(surf_list2[[7]], bott_list2[[3]],
+                surf_list2[[8]], bott_list2[[4]],
+                surf_list2[[9]], bott_list2[[5]],
+                surf_list2[[10]], bott_list2[[6]], ncol = 2)
+
+ggsave("figures/f4.2.png", f4.2, width = 6.5, height = 9, units = "in", dpi = 600)
+```
+
+```{r}
+surf_list[[10]] <- surf_list[[10]] +
+  scale_fill_gradientn(colors = parula(100), limits = c(0, top),
+                       breaks = c(20, 40, 60),
+                       name = expression("Alk (mg L"^-1*")"),
+                       na.value = "#F9FB0E")
+
+bott_list[[6]] <- bott_list[[6]] +
+  scale_fill_gradientn(colors = parula(100), limits = c(0, top),
+                       breaks = c(20, 40, 60),
+                       name = expression("Alk (mg L"^-1*")"),
+                       na.value = "#F9FB0E")
+```
+
+
+
+
+
+###### Old
+
+### DO standard
 - All ponds on one graphic; hline @ 3 mg/L
 ```{r}
 allBottom_pre %>%
@@ -1341,156 +1457,4 @@ f4 <- ggplot(mapping = aes(x = Year, y = DO)) +
   theme_classic()
 
 ggsave("figures/f4.png", f4, width = 5, height = 3.5, units = "in", dpi = 600)
-```
-
-### 4c (Maps w/ trends in all parameters)
-
-######
-- add units (e.g. mg/L/yr)
-- crop maps to narrower area
-- rotate & combine scale bars
-
-```{r}
-params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
-
-surf_list2 <- lapply(params, function(param) {
-  ggplot() +
-    geom_sf(data = mass) +
-    geom_point(data = slopes_surf2[!is.na(slopes_surf2[[param]]), ],
-               aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
-               shape = 21) +
-    geom_point(data = slopes_surf[!is.na(slopes_surf[[param]]), ],
-               aes(x = Long, y = Lat, size = abs(get(param)), fill = factor(sign(get(param)))),
-               shape = 21) +
-    scale_size_continuous(range = c(1, 4),
-                          limits = c(sort(abs(c(slopes_surf[[param]],
-                                                slopes_surf2[[param]],
-                                                slopes_bott[[param]],
-                                                slopes_bott2[[param]])))[1],
-                                     sort(abs(c(slopes_surf[[param]],
-                                                slopes_surf2[[param]],
-                                                slopes_bott[[param]],
-                                                slopes_bott2[[param]])), decreasing = TRUE)[1]),
-                          name = "Trend\nmagnitude") +
-    # scale_color_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-    #                       na.value = NA,
-    #                       limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-    #                       name = "Trend") +
-    # scale_fill_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-    #                      na.value = NA,
-    #                      limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-    #                      name = "Trend") +
-    scale_color_manual(values = c("royalblue", "black", "firebrick"),
-                       breaks = c(-1, 0, 1),
-                       labels = c("negative", "zero", "positive"),
-                       name = "Trend\ndirection",
-                       na.translate = FALSE,
-                       guide = "none") +
-    scale_fill_manual(values = c("royalblue", "firebrick"),
-                      breaks = c(-1, 1),
-                      labels = c("negative", "positive"),
-                      name = "Trend\ndirection",
-                      na.translate = FALSE,
-                      guide = "none") +
-    xlim(-70.65, -69.95) +
-    ylim(41.55, 42.07) +
-    labs(title = paste("Surface", param)) +
-    theme_classic() +
-    theme(panel.grid = element_blank(),
-          axis.title = element_blank(),
-          #legend.position = "bottom",
-          plot.title = element_text(face = "bold"),
-          axis.text = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank())
-})
-
-bott_list2 <- lapply(params[3:7], function(param) {
-  ggplot() +
-    geom_sf(data = mass) +
-    geom_point(data = slopes_bott2[!is.na(slopes_bott2[[param]]), ],
-               aes(x = Long, y = Lat, size = abs(get(param)), col = factor(sign(get(param)))),
-               shape = 21) +
-    geom_point(data = slopes_bott[!is.na(slopes_bott[[param]]), ],
-               aes(x = Long, y = Lat, size = abs(get(param)), fill = factor(sign(get(param)))),
-               shape = 21) +
-    scale_size_continuous(range = c(1, 4), name = "Trend\nmagnitude") +
-    # scale_color_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-    #                       na.value = NA,
-    #                       limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-    #                       name = "Trend") +
-    # scale_fill_gradientn(colors = c("royalblue3", "royalblue2", "white", "firebrick", "firebrick4"),
-    #                      na.value = NA,
-    #                      limits = c(-sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4],
-    #                                 sort(abs(c(slopes_surf[[param]], slopes_surf2[[param]])), decreasing = TRUE)[4]),
-    #                      name = "Trend") +
-    scale_color_manual(values = c("royalblue", "black", "firebrick"),
-                       breaks = c(-1, 0, 1),
-                       labels = c("negative", "zero", "positive"),
-                       name = "Trend\ndirection",
-                       na.translate = FALSE,
-                       guide = "none") +
-    scale_fill_manual(values = c("royalblue", "firebrick"),
-                      breaks = c(-1, 1),
-                      labels = c("negative", "positive"),
-                      name = "Trend\ndirection",
-                      na.translate = FALSE,
-                      guide = "none") +
-    xlim(-70.65, -69.95) +
-    ylim(41.55, 42.07) +
-    labs(title = paste("Bottom", param)) +
-    theme_classic() +
-    theme(panel.grid = element_blank(),
-          axis.title = element_blank(),
-          #legend.position = "bottom",
-          plot.title = element_text(face = "bold"),
-          axis.text = element_blank(),
-          axis.ticks = element_blank(),
-          axis.line = element_blank())
-})
-
-# surf_list2[[3]] <- surf_list2[[3]] +
-#   scale_size_continuous(limits = c(0, 5.5), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# bott_list2[[1]] <- bott_list2[[1]] +
-#   scale_size_continuous(limits = c(0, 5.5), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# surf_list2[[4]] <- surf_list2[[4]] +
-#   scale_size_continuous(limits = c(0, 0.4), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# bott_list2[[2]] <- bott_list2[[2]] +
-#   scale_size_continuous(limits = c(0, 0.4), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# surf_list2[[5]] <- surf_list2[[5]] +
-#   scale_size_continuous(limits = c(0, 0.8), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# bott_list2[[3]] <- bott_list2[[3]] +
-#   scale_size_continuous(limits = c(0, 0.8), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# surf_list2[[6]] <- surf_list2[[6]] +
-#   scale_size_continuous(limits = c(0, 0.65), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# bott_list2[[4]] <- bott_list2[[4]] +
-#   scale_size_continuous(limits = c(0, 0.65), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# surf_list2[[7]] <- surf_list2[[7]] +
-#   scale_size_continuous(limits = c(0, 4.5), range = c(1, 4), name = "Trend\nmagnitude")
-# 
-# bott_list2[[5]] <- bott_list2[[5]] +
-#   scale_size_continuous(limits = c(0, 4.5), range = c(1, 4), name = "Trend\nmagnitude")
-
-f5 <- ggarrange(surf_list2[[1]], surf_list2[[2]],
-                surf_list2[[3]], bott_list2[[1]],
-                surf_list2[[4]], bott_list2[[2]], ncol = 2)
-
-ggsave("figures/f5.1.png", f5, width = 6.5, height = 7, units = "in", dpi = 600)
-
-f6 <- ggarrange(surf_list2[[5]], bott_list2[[3]],
-          surf_list2[[6]], bott_list2[[4]],
-          surf_list2[[7]], bott_list2[[5]], ncol = 2)
-
-ggsave("figures/f6.1.png", f6, width = 6.5, height = 7, units = "in", dpi = 600)
 ```
