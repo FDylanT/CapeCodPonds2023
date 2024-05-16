@@ -717,6 +717,65 @@ f1a.iv <- plot_grid(surf_list[[7]], bott_list[[3]],
 ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
+### Temporary: Fish space map
+```{r}
+ggplot() +
+  geom_point(data = ponds, aes(x = FishSpace, y = FishSpace * Size * 4046.86)) +
+  labs(x = "Vertical Fish Space (m)", y = expression("Volumetric Fish Space (m"^3*")")) +
+  theme_linedraw()
+
+ggsave("figures/FishSpace_prop.png", width = 6.5, height = 4, units = "in", dpi = 600)
+
+fish1 <- ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = ponds[ponds$FishSpace == 0, ],
+             aes(x = Long, y = Lat), fill = "firebrick2",
+             shape = 21) +
+  geom_point(data = ponds[(!is.na(ponds$FishSpace) & ponds$FishSpace != 0), ],
+             aes(x = Long, y = Lat, fill = log10(FishSpace)),
+             shape = 21) +
+  scale_fill_gradientn(colors = parula(100),
+                       breaks = c(log10(1), log10(3), log10(10)),
+                       labels = c(1, 3, 10),
+                       name = "Vertical\nFish Space (m)") +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_classic() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(face = "bold"),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+fish2 <- ggplot() +
+  geom_sf(data = mass) +
+  geom_point(data = ponds[ponds$FishSpace == 0, ],
+             aes(x = Long, y = Lat), fill = "firebrick2",
+             shape = 21) +
+  geom_point(data = ponds[(!is.na(ponds$FishSpace) & ponds$FishSpace != 0), ],
+             aes(x = Long, y = Lat, fill = log10(FishSpace * Size * 4046.86)),    # conversion to m^2
+             shape = 21) +
+  scale_fill_gradientn(colors = parula(100),
+                       breaks = c(log10(3*10^4), 5, log10(3*10^5), 6, log10(3*10^6)),
+                       labels = c(3*10^4, 1*10^5, 3*10^5, 1*10^6, 3*10^6),
+                       name = expression("Volumetric\nFish Space (m"^3*")")) +
+  xlim(-70.65, -69.95) +
+  ylim(41.55, 42.07) +
+  theme_classic() +
+  theme(panel.grid = element_blank(),
+        axis.title = element_blank(),
+        plot.title = element_text(face = "bold"),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_blank())
+
+f1a.v <- plot_grid(fish1, fish2,
+                   ncol = 2, nrow = 1, align = "hv")
+
+ggsave("figures/f1a.v.png", f1a.v, width = 6.5, height = 2.5, units = "in", dpi = 600, bg = "white")
+```
+
 ### Pt. 2: Ecoregion thresholds (Secchi, Chla, TN, TP)
 Ponds:
 -- Hathaway S (BA)
@@ -810,7 +869,7 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
   geom_vline(xintercept = 4.5, linetype = "dashed") +
   geom_vline(xintercept = -thresh_Secchi, col = "gold") +
   geom_vline(xintercept = -thresh_Secchi_S) +
-  labs(x = "Secchi Depth (m)", y = "Proportion", title = "Surface") +
+  labs(x = "Secchi Depth (m)", y = "Proportion", title = "") +
   scale_fill_manual(values = colors) +
   theme_classic() +
   theme(legend.position = c(0.85, 0.8),
@@ -826,11 +885,7 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
 MLD1 <- ggplot(mapping = aes(x = MLD, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, fill = "dodgerblue", alpha = 0.5, bins = 25) +
   geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, fill = "violetred", alpha = 0.5, bins = 25) +
-  #geom_vline(xintercept = 2, linetype = "dashed") +
-  #geom_vline(xintercept = 4.5, linetype = "dashed") +
-  #geom_vline(xintercept = -thresh_Secchi, col = "gold") +
-  #geom_vline(xintercept = -thresh_Secchi_S) +
-  labs(x = "Mixed-layer Depth (m)", y = "Proportion", title = "Surface") +
+  labs(x = "Mixed-layer Depth (m)", y = "Proportion", title = "") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -850,16 +905,14 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
-###### 11.42 etc are in uM
-
 TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, binwidth = 0.05) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, binwidth = 0.05) +
-  geom_vline(xintercept = log10(11.42 * 14.01), linetype = "dashed") +
+  geom_vline(xintercept = log10(11.42 * 14.0067), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "gold") +
   geom_vline(xintercept = log10(thresh_TN_S)) +
-  #xlim(0, 3) +
-  ylim(0, 0.125) +
+  #xlim(1.8, 3.6) +
+  #ylim(0, 0.125) +
   labs(x = "log10(TN) (μg/L)", y = "Proportion", title = "Surface") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -870,10 +923,10 @@ TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
 TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, binwidth = 0.05) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, binwidth = 0.05) +
-  geom_vline(xintercept = log10(11.42 * 14.01), linetype = "dashed") +
+  geom_vline(xintercept = log10(11.42 * 14.0067), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "gold") +
   geom_vline(xintercept = log10(thresh_TN_B)) +
-  xlim(0, 3) +
+  xlim(1.75, 3.75) +
   ylim(0, 0.125) +
   labs(x = "log10(TN) (μg/L)", y = "Proportion", title = "Bottom") +
   theme_classic() +
@@ -956,7 +1009,53 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
-f1 <- ggarrange(Secchi1, Chla1, TN1, TN2, TP1, TP2, Temp1, Temp2, DO1, DO2, ncol = 2)
+DO_sat1 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count)))) +
+  geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
+  geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
+  #xlim(-0.25, 14.75) +
+  #ylim(0, 0.28) +
+  labs(x = expression("DO Saturation (%)"), y = "Proportion") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+DO_sat2 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count)))) +
+  geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
+  geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
+  #xlim(-0.25, 14.75) +
+  #ylim(0, 0.28) +
+  labs(x = expression("DO Saturation (%)"), y = "Proportion") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+Alk1 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
+  geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
+  geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
+  # xlim(0.5, 30.5) +
+  # ylim(0, 0.115) +
+  labs(x = "Alkalinity (mg L"^-1*")", y = "Proportion") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+Alk2 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
+  geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
+  geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
+  # xlim(0.5, 30.5) +
+  # ylim(0, 0.115) +
+  labs(x = "Alkalinity (mg L"^-1*")", y = "Proportion") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+f1 <- ggarrange(Secchi1, MLD1, Chla1, TN1, TN2, TP1, TP2, Temp1, Temp2, DO1, DO2, ncol = 2)
+
+# DO_sat1, DO_sat2, Alk1, Alk2
 
 ggsave("figures/f1.png", f1, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
@@ -1381,19 +1480,9 @@ f4.2 <- ggarrange(surf_list2[[7]], bott_list2[[3]],
 ggsave("figures/f4.2.png", f4.2, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
-```{r}
-surf_list[[10]] <- surf_list[[10]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, top),
-                       breaks = c(20, 40, 60),
-                       name = expression("Alk (mg L"^-1*")"),
-                       na.value = "#F9FB0E")
 
-bott_list[[6]] <- bott_list[[6]] +
-  scale_fill_gradientn(colors = parula(100), limits = c(0, top),
-                       breaks = c(20, 40, 60),
-                       name = expression("Alk (mg L"^-1*")"),
-                       na.value = "#F9FB0E")
-```
+
+
 
 
 
