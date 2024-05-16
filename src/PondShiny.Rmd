@@ -236,7 +236,7 @@ for(pond in allPonds) {
   # create full-depth column
   ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
   
-  if(max(onePond$Depth, na.rm = TRUE) < 5) {
+  if(max(onePond$Depth, na.rm = TRUE) < 5) {   # pond must be deeper than 5m to have a MLD
     next
   }
   
@@ -274,7 +274,7 @@ for(pond in allPonds) {
         break
       }
     }
-    if(delta_temp >= -1) {
+    if(delta_temp >= -1 & oneDate$Depth[j] >= 0.75 * max(onePond$Depth, na.rm = TRUE)) {
       ponds$MLD[ponds$Station.name == pond &
                 ponds$Date == d &
                 (ponds$Month == 8 |
@@ -344,6 +344,65 @@ ponds <- ponds %>%
                                       ponds$PercentDeveloped <= 13.00 ~ "Low",
                                       ponds$PercentDeveloped <= 23.25 ~ "Medium",
                                       ponds$PercentDeveloped > 23.25 ~ "High"))
+```
+
+## Fish space calcs
+```{r}
+# calculate MLDs using 1st derivative
+ponds$hypo <- NA
+ponds$DO.4 <- NA
+ponds$FishSpace <- NA
+
+allPonds <- unique(ponds$Station.name)
+
+for(pond in allPonds) {
+  ID <- str_extract(pond, "\\(.*")
+  if(sum(str_detect(allSurface$Station.name, ID)) == 0) {
+    next
+  }
+  
+  onePond <- ponds[ponds$Station.name == pond, ] %>%
+    arrange(Date, Depth)
+  
+  for(d in unique(onePond$Date)) {
+    if(str_extract(d, "^\\d{1,2}") != "8" & str_extract(d, "^\\d{1,2}") != "9") {
+      next
+    }
+    if(sum(allSurface$Year[allSurface$Station.name == pond &
+                           !is.na(allSurface$MLD)] == str_extract(d, "\\d{4}")) == 0) {
+      next
+    }
+    if(allSurface$StratClass[allSurface$Station.name == pond &
+                             allSurface$Year == str_extract(d, "\\d{4}")] != "Stratified") {
+      next
+    }
+    
+    oneDate <- onePond[onePond$Date == d &
+                       (onePond$Month == 8 |      # delete this + next line to eval. MLD in all months
+                        onePond$Month == 9) &     # note that doing this^^ will mess up plots
+                       !is.na(onePond$Depth), ] %>%
+      arrange(Depth)
+    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth >= 1]) < 2) {
+      next
+    }
+    index <- tail(which((oneDate$Temp - lag(oneDate$Temp)) / (oneDate$Depth - lag(oneDate$Depth)) ==
+      min((oneDate$Temp - lag(oneDate$Temp)) / (oneDate$Depth - lag(oneDate$Depth)), na.rm = TRUE)), 1)
+    # if(length(index) > 1) {
+    #   print(paste(pond, "--", d))
+    # }
+    ponds$hypo[ponds$Station.name == pond & ponds$Date == d] <- oneDate$Depth[index]
+    if(length(which(oneDate$DO >= 4)) > 0) {
+      ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
+        oneDate$Depth[tail(which(oneDate$DO >= 4), 1)]
+    }
+    ponds$FishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
+  }
+}
+
+ponds <- ponds %>%
+  relocate(hypo, .after = MLD) %>%
+  relocate(DO.4, .after = hypo) %>%
+  relocate(FishSpace, .after = DO.4)
 ```
 
 ```{r echo = FALSE}
@@ -1135,7 +1194,7 @@ for(i in 1:length(pondName)) {
   pond <- pondName[i]
   slopes_surf$pond[i] <- pond
   oneSurf <- allSurface[allSurface$Station.name == pond, ]
-  # add noise to MLD values -- not needed if no slopes of 0
+  # add noise to MLD values (not needed if no slopes of 0)
   #oneSurf$MLD <- oneSurf$MLD + runif(length(oneSurf$MLD), -0.01, 0.01)
   slopes_surf$Long[i] <- oneSurf$Long[1]
   slopes_surf$Lat[i] <- oneSurf$Lat[1]
@@ -1409,7 +1468,9 @@ rownames(lensRKTs) <- c("tau", "S", "varS", "p-value", "slope")
 DT::renderDataTable({
   if(input$layer2 == "Surface") {
     trend_data <- allSurface %>%
-      filter(!is.na(get(paste0(input$trend, "_trend"))))  # remove observations not used for earlier trend calcs
+      filter(!is.na(get(paste0(input$trend, "_trend")))) %>%  # remove observations not used for earlier trend calcs
+      # jitter MLD values (noise prevents slopes of 0)
+      mutate(MLD = MLD + runif(length(MLD), -0.05, 0.05))
   } else {
     trend_data <- allBottom
   }
