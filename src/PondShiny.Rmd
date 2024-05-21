@@ -393,7 +393,7 @@ for(pond in allPonds) {
     ponds$hypo[ponds$Station.name == pond & ponds$Date == d] <- oneDate$Depth[index]
     if(length(which(oneDate$DO >= 4)) > 0) {
       ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
-        oneDate$Depth[tail(which(oneDate$DO >= 4), 1)]
+        oneDate$Depth[which(oneDate$DO < 4)[1]]
     }
     ponds$FishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
   }
