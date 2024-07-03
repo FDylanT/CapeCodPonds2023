@@ -152,7 +152,7 @@ for(pond in pondName) {
     filter(!is.na(Depth)) %>%
     # deal with replicate year samples
     group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
-             Year, Depth, MLD_full) %>%
+             Year, Depth) %>%
     summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
     ungroup() %>%
     mutate(across(everything(), ~ replace_na(.x, NA)))
@@ -191,7 +191,8 @@ for(pond in pondName) {
               onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
                 onePond[[param]][onePond$Year == year & onePond$Depth == depth2]
             }
-          } else if(index == nrow(onePond[onePond$Year == year & onePond$Depth >= 0.75 * onePond$Max.Depth, ])) {
+          } else if(index == nrow(onePond[onePond$Year == year &
+                                          onePond$Depth >= 0.75 * onePond$Max.Depth, ])) {
             depth2 <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index - 1]
             if(abs(depth2 - depth) <= 1) {
               onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
