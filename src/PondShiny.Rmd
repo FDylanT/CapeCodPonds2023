@@ -171,6 +171,8 @@ ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
          ponds$DO == 0.84] <- NA
 ponds$DO_sat[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
              ponds$DO_sat == 121.12] <- NA
+ponds$DO[ponds$Station.name == "HA / Seymour Pond (HA-306-01)" &
+         ponds$DO == 0 & ponds$Depth == 0.05] <- NA
 
 # copy Secchi values to all rows (esp. from rows with NA depth)
 for(i in 1:nrow(ponds)) {
@@ -261,24 +263,25 @@ for(pond in allPonds) {
         }
       }
       if(is.na(oneDate$Temp[j])) {
-        break
+        next
+      } else {
+        depth_diff <- oneDate$Depth[j] - oneDate$Depth[i]
+        temp_diff <- oneDate$Temp[j] - oneDate$Temp[i]
+        delta_temp <- temp_diff / depth_diff
+        if(delta_temp < -1) {
+          ponds$MLD[ponds$Station.name == pond &
+                    ponds$Date == d &
+                    (ponds$Month == 8 |
+                     ponds$Month == 9)] <- oneDate$Depth[i]
+          break
+        }
       }
-      depth_diff <- oneDate$Depth[j] - oneDate$Depth[i]
-      temp_diff <- oneDate$Temp[j] - oneDate$Temp[i]
-      delta_temp <- temp_diff / depth_diff
-      if(delta_temp < -1) {
+      if(delta_temp >= -1 & oneDate$Depth[j] >= 0.75 * max(onePond$Depth, na.rm = TRUE)) {
         ponds$MLD[ponds$Station.name == pond &
                   ponds$Date == d &
                   (ponds$Month == 8 |
-                   ponds$Month == 9)] <- oneDate$Depth[i]
-        break
-      }
-    }
-    if(delta_temp >= -1 & oneDate$Depth[j] >= 0.75 * max(onePond$Depth, na.rm = TRUE)) {
-      ponds$MLD[ponds$Station.name == pond &
-                ponds$Date == d &
-                (ponds$Month == 8 |
-                 ponds$Month == 9)] <- oneDate$Depth[j]
+                   ponds$Month == 9)] <- oneDate$Depth[j]
+      }  ### moved this inside green brackets; see if this fixes Mashpee Lake problem
     }
   }
 }
@@ -346,8 +349,9 @@ ponds <- ponds %>%
                                       ponds$PercentDeveloped > 23.25 ~ "High"))
 ```
 
+```{r include = FALSE}
 ## Fish space calcs
-```{r}
+
 # calculate MLDs using 1st derivative
 ponds$hypo <- NA
 ponds$DO.4 <- NA
@@ -356,44 +360,62 @@ ponds$FishSpace <- NA
 allPonds <- unique(ponds$Station.name)
 
 for(pond in allPonds) {
-  ID <- str_extract(pond, "\\(.*")
-  if(sum(str_detect(allSurface$Station.name, ID)) == 0) {
+  # comment this out to evaluate MLD in all months (will mess up plots)
+  if(sum(ponds$Month[ponds$Station.name == pond] == 8 |
+         ponds$Month[ponds$Station.name == pond] == 9) == 0) {
     next
   }
   
   onePond <- ponds[ponds$Station.name == pond, ] %>%
+    filter(Month == 8 | Month == 9) %>%
     arrange(Date, Depth)
   
   for(d in unique(onePond$Date)) {
-    if(str_extract(d, "^\\d{1,2}") != "8" & str_extract(d, "^\\d{1,2}") != "9") {
-      next
-    }
-    if(sum(allSurface$Year[allSurface$Station.name == pond &
-                           !is.na(allSurface$MLD)] == str_extract(d, "\\d{4}")) == 0) {
-      next
-    }
-    if(allSurface$StratClass[allSurface$Station.name == pond &
-                             allSurface$Year == str_extract(d, "\\d{4}")] != "Stratified") {
+    if(sum(!is.na(onePond$MLD[onePond$Date == d]) &
+       # skip fully mixed ponds
+       onePond$MLD[onePond$Date == d] <= 0.75 * onePond$Max.Depth[1],
+       na.rm = TRUE) == 0) {
       next
     }
     
     oneDate <- onePond[onePond$Date == d &
-                       (onePond$Month == 8 |      # delete this + next line to eval. MLD in all months
-                        onePond$Month == 9) &     # note that doing this^^ will mess up plots
                        !is.na(onePond$Depth), ] %>%
       arrange(Depth)
     if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth >= 1]) < 2) {
       next
     }
-    index <- tail(which((oneDate$Temp - lag(oneDate$Temp)) / (oneDate$Depth - lag(oneDate$Depth)) ==
-      min((oneDate$Temp - lag(oneDate$Temp)) / (oneDate$Depth - lag(oneDate$Depth)), na.rm = TRUE)), 1)
+    # interpolate missing values
+    for(i in 2:(nrow(oneDate) - 1)) {
+      if(sum(!is.na(oneDate$Temp) > 0) & is.na(oneDate$Temp[i])) {
+        oneDate$Temp[i] <- approx(x = oneDate$Depth,
+                                  y = oneDate$Temp,
+                                  xout = oneDate$Depth[i])[[2]]
+      }
+      if(sum(!is.na(oneDate$DO) > 0) & is.na(oneDate$DO[i])) {
+        oneDate$DO[i] <- approx(x = oneDate$Depth,
+                                y = oneDate$DO,
+                                xout = oneDate$Depth[i])[[2]]
+      }
+    }
+    index <- tail(which((oneDate$Temp - lag(oneDate$Temp)) /
+                          (oneDate$Depth - lag(oneDate$Depth)) ==
+                        min((oneDate$Temp - lag(oneDate$Temp)) /
+                              (oneDate$Depth - lag(oneDate$Depth)),
+                            na.rm = TRUE)),
+                  1)
     # if(length(index) > 1) {
     #   print(paste(pond, "--", d))
     # }
     ponds$hypo[ponds$Station.name == pond & ponds$Date == d] <- oneDate$Depth[index]
+    
     if(length(which(oneDate$DO >= 4)) > 0) {
-      ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
-        oneDate$Depth[which(oneDate$DO < 4)[1]]
+      if(length(which(oneDate$DO < 4)) > 0) {
+        ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
+          approx(x = oneDate$DO, y = oneDate$Depth, xout = 4)[[2]]
+      } else {
+        ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
+          max(oneDate$Depth)
+      }
     }
     ponds$FishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
   }
@@ -405,17 +427,13 @@ ponds <- ponds %>%
   relocate(FishSpace, .after = DO.4)
 ```
 
-```{r echo = FALSE}
+```{r include = FALSE}
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
 focal_ponds <- ponds %>%
   filter(Month == 8 | Month == 9)
 
 pondName <- sort(unique(focal_ponds$Station.name))
-
-selectInput("pond", label = "Choose sampling station:", choices = pondName)
-```
-
-```{r include = FALSE}
-setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 ponds$Temp_flag <- NA
 ponds$DO_flag <- NA
@@ -565,15 +583,24 @@ for(i in 1:nrow(allBottom)) {
 ```
 
 ```{r echo = FALSE}
+selectInput("pond", label = "Choose sampling station:", choices = c("all", pondName))
+
 months <- ponds %>%
   group_by(Station.name, Date) %>%
   summarise(Month = Month[1])
 
 renderPlot({
-  hist(months$Month[months$Station.name == input$pond], right = FALSE,
-     breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12), ylim = c(0, 32),
-     main = "Months of sampling events", col = "lightblue",
-     xlab = "Month", ylab = "Total sampling events")
+  if(input$pond != "all") {
+    hist(months$Month[months$Station.name == input$pond], right = FALSE,
+         breaks = 1:12, ylim = c(0, 32),
+         main = "Months of sampling events", col = "lightblue",
+         xlab = "Month", ylab = "Total sampling events")
+  } else {
+    hist(months$Month, right = FALSE,
+         breaks = 1:12,
+         main = "Months of sampling events", col = "lightblue",
+         xlab = "Month", ylab = "Total sampling events")
+  }
 })
 ```
 
@@ -587,17 +614,30 @@ sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 5600, value = 
 sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 420, value = 420)
 
 renderPlot({
-  allSurface %>%
-    filter(Station.name == input$pond) %>%
-    filter(TN_flag == 2) %>%
-    filter(TP_flag == 2) %>%
-  ggplot(aes(x = TN, y = TP)) +
-    geom_point(size = 2.5) +
-    geom_abline(slope = 1/16, col = "black", linetype = "22", linewidth = 1) +
-    scale_x_continuous(limits = c(0, input$xAxisMax)) +
-    scale_y_continuous(limits = c(0, input$yAxisMax)) +
-    labs(x = expression("TN (μg L"^-1*")"), y = expression("TP (μg L"^-1*")")) +
-    theme_linedraw()
+  if(input$pond != "all") {
+    allSurface %>%
+      filter(Station.name == input$pond) %>%
+      filter(TN_flag == 2) %>%
+      filter(TP_flag == 2) %>%
+    ggplot(aes(x = TN, y = TP)) +
+      geom_point(size = 2.5) +
+      geom_abline(slope = 1/16, col = "black", linetype = "22", linewidth = 1) +
+      scale_x_continuous(limits = c(0, input$xAxisMax)) +
+      scale_y_continuous(limits = c(0, input$yAxisMax)) +
+      labs(x = expression("TN (μg L"^-1*")"), y = expression("TP (μg L"^-1*")")) +
+      theme_linedraw()
+  } else {
+    allSurface %>%
+      filter(TN_flag == 2) %>%
+      filter(TP_flag == 2) %>%
+    ggplot(aes(x = TN, y = TP)) +
+      geom_point(size = 2.5, alpha = 0.3) +
+      geom_abline(slope = 1/16, col = "black", linetype = "22", linewidth = 1) +
+      scale_x_continuous(limits = c(0, input$xAxisMax)) +
+      scale_y_continuous(limits = c(0, input$yAxisMax)) +
+      labs(x = expression("TN (μg L"^-1*")"), y = expression("TP (μg L"^-1*")")) +
+      theme_linedraw()
+  }
 })
 ```
 
@@ -619,86 +659,120 @@ selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)
 checkboxInput("MK2", "Show Mann-Kendall trend & Sen's slope?", value = FALSE)
 
 renderPlot({
-  flag_name <- paste0(input$param, "_flag")
-  allSurface[allSurface$Station.name == input$pond &
-             allSurface[[flag_name]] == 2, ] %>%
-  ggplot(aes(x = Year, y = get(input$param))) +
-    geom_point(size = 2.5) +
-    labs(x = "Year", y = paste("Surface", input$param)) +
-    theme_linedraw() +
-    if(input$MK2) {
-      mk <- mk.test(allSurface[[input$param]][allSurface$Station.name == input$pond &
-                                              allSurface[[flag_name]] == 2])
-      slope <- sens.slope(allSurface[[input$param]][allSurface$Station.name == input$pond &
-                                          allSurface[[flag_name]] == 2])$estimates
-      intercept <- median(allSurface[[input$param]][allSurface$Station.name == input$pond &
-                                          allSurface[[flag_name]] == 2]) - 
-                   median(allSurface$Year[allSurface$Station.name == input$pond &
-                                          allSurface[[flag_name]] == 2]) * slope
-      list(
-        geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1),
+  if(input$pond != "all") {
+    flag_name <- paste0(input$param, "_flag")
+    allSurface[allSurface$Station.name == input$pond &
+               allSurface[[flag_name]] == 2, ] %>%
+    ggplot(aes(x = Year, y = get(input$param))) +
+      geom_point(size = 2.5) +
+      labs(x = "Year", y = paste("Surface", input$param)) +
+      theme_linedraw() +
+      if(input$MK2) {
+        mk <- mk.test(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                                allSurface[[flag_name]] == 2])
+        slope <- sens.slope(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                            allSurface[[flag_name]] == 2])$estimates
+        intercept <- median(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                            allSurface[[flag_name]] == 2]) - 
+                     median(allSurface$Year[allSurface$Station.name == input$pond &
+                                            allSurface[[flag_name]] == 2]) * slope
+        list(
+          geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1),
+          annotate("text",
+                   x = min(allSurface$Year[allSurface$Station.name == input$pond &
+                                          allSurface[[flag_name]] == 2]) + 1,
+                   y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                                allSurface[[flag_name]] == 2]) * 0.95,
+                   label = paste("slope =", round(slope, 3)), col = "black"),
+          annotate("text",
+                   x = min(allSurface$Year[allSurface$Station.name == input$pond &
+                                          allSurface[[flag_name]] == 2]) + 1,
+                   y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
+                                                    allSurface[[flag_name]] == 2]) * 0.92,
+                   label = paste("p =", round(mk$p.value, 3)), col = "black")
+        )
+      }
+  } else {
+    flag_name <- paste0(input$param, "_flag")
+    allSurface[allSurface[[flag_name]] == 2, ] %>%
+    ggplot(aes(x = Year, y = get(input$param))) +
+      geom_point(size = 2.5, alpha = 0.3) +
+      labs(x = "Year", y = paste("Surface", input$param)) +
+      theme_linedraw() +
+      if(input$MK2) {
         annotate("text",
-                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
-                                        allSurface[[flag_name]] == 2]) + 1,
-                 y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
-                                              allSurface[[flag_name]] == 2]) * 0.95,
-                 label = paste("slope =", round(slope, 3)), col = "black"),
-        annotate("text",
-                 x = min(allSurface$Year[allSurface$Station.name == input$pond &
-                                        allSurface[[flag_name]] == 2]) + 1,
-                 y = max(allSurface[[input$param]][allSurface$Station.name == input$pond &
-                                                  allSurface[[flag_name]] == 2]) * 0.92,
-                 label = paste("p =", round(mk$p.value, 3)), col = "black")
-      )
-    }
+                   x = min(allSurface$Year[allSurface[[flag_name]] == 2]) + 2.5,
+                   y = max(allSurface[[input$param]][allSurface[[flag_name]] == 2]) * 0.95,
+                   label = "Must select individual\npond to calculate trend", col = "firebrick3")
+      }
+  }
 })
 ```
 
 #### Bottom parameters
 
 ```{r echo = FALSE}
-start <- which(colnames(allSurface) == "MLD") + 1
-end <- which(colnames(allSurface) == "Month") - 1
+start <- which(colnames(allBottom) == "MLD") + 1
+end <- which(colnames(allBottom) == "Month") - 1
 
 selectInput("param2", label = "Choose parameter:", choices = colnames(allBottom)[start:end])
 checkboxInput("MK3", "Show Mann-Kendall trend & Sen's slope?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param2, "_flag")
-  p <- allBottom[allBottom$Station.name == input$pond &
-            allBottom[[flag_name]] == 2, ] %>%
-  ggplot(aes(x = Year, y = get(input$param2))) +
-    geom_point(size = 2.5) +
-    labs(x = "Year", y = paste("Bottom", input$param2)) +
-    theme_linedraw()
-  if(input$param2 == "DO") {
-    p <- p + geom_hline(yintercept = 3, col = "firebrick3", linewidth = 1)
-  }
-  if(input$MK3) {
-    mk <- mk.test(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                            allBottom[[flag_name]] == 2])
-    slope <- sens.slope(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                        allBottom[[flag_name]] == 2])$estimates
-    intercept <- median(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                        allBottom[[flag_name]] == 2]) - 
-                 median(allBottom$Year[allBottom$Station.name == input$pond &
-                                        allBottom[[flag_name]] == 2]) * slope
-    p <- p +
-      geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1) +
-      annotate("text",
-               x = min(allBottom$Year[allBottom$Station.name == input$pond &
-                                      allBottom[[flag_name]] == 2]) + 1,
-               y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                            allBottom[[flag_name]] == 2]) * 0.95,
-               label = paste("slope =", round(slope, 3)), col = "black") +
-      annotate("text",
-               x = min(allBottom$Year[allBottom$Station.name == input$pond &
-                                      allBottom[[flag_name]] == 2]) + 1,
-               y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
-                                                allBottom[[flag_name]] == 2]) * 0.92,
-               label = paste("p =", round(mk$p.value, 3)), col = "black")
-  }
+  if(input$pond != "all") {
+    p <- allBottom[allBottom$Station.name == input$pond &
+              allBottom[[flag_name]] == 2, ] %>%
+    ggplot(aes(x = Year, y = get(input$param2))) +
+      geom_point(size = 2.5) +
+      labs(x = "Year", y = paste("Bottom", input$param2)) +
+      theme_linedraw()
+    if(input$param2 == "DO") {
+      p <- p + geom_hline(yintercept = 3, col = "firebrick3", linewidth = 1)
+    }
+    if(input$MK3) {
+      mk <- mk.test(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                              allBottom[[flag_name]] == 2])
+      slope <- sens.slope(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                          allBottom[[flag_name]] == 2])$estimates
+      intercept <- median(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                          allBottom[[flag_name]] == 2]) - 
+                   median(allBottom$Year[allBottom$Station.name == input$pond &
+                                          allBottom[[flag_name]] == 2]) * slope
+      p <- p +
+        geom_abline(slope = slope, intercept = intercept, col = "black", linewidth = 1) +
+        annotate("text",
+                 x = min(allBottom$Year[allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2]) + 1,
+                 y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                              allBottom[[flag_name]] == 2]) * 0.95,
+                 label = paste("slope =", round(slope, 3)), col = "black") +
+        annotate("text",
+                 x = min(allBottom$Year[allBottom$Station.name == input$pond &
+                                        allBottom[[flag_name]] == 2]) + 1,
+                 y = max(allBottom[[input$param2]][allBottom$Station.name == input$pond &
+                                                  allBottom[[flag_name]] == 2]) * 0.92,
+                 label = paste("p =", round(mk$p.value, 3)), col = "black")
+    }
+    p
+  } else {
+    p <- allBottom[allBottom[[flag_name]] == 2, ] %>%
+    ggplot(aes(x = Year, y = get(input$param2))) +
+      geom_point(size = 2.5, alpha = 0.3) +
+      labs(x = "Year", y = paste("Bottom", input$param2)) +
+      theme_linedraw()
+    if(input$param2 == "DO") {
+      p <- p + geom_hline(yintercept = 3, col = "firebrick3", linewidth = 1)
+    }
+    if(input$MK3) {
+      p <- p +
+        annotate("text",
+                 x = min(allSurface$Year[allSurface[[flag_name]] == 2]) + 2.5,
+                 y = max(allSurface[[input$param2]][allSurface[[flag_name]] == 2]) * 0.95,
+                 label = "Must select individual\npond to calculate trend", col = "firebrick3")
+    }
   p
+  }
 })
 ```
 
