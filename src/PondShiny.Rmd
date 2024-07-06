@@ -995,12 +995,12 @@ renderPlot({
 ### Regional patterns in bottom data
 
 ```{r echo = FALSE}
-props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP")
+props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "FishSpace")
 
 selectInput("prop3", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP")
+  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "FishSpace")
   selectInput("prop4", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop3)])
 })
@@ -1141,7 +1141,8 @@ Aug-Sept average of years 2016-2023.
 selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderUI({
-  choices <- c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "NtP", "Chla")
+  choices <- c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "NtP", "Chla",
+               "FishSpace")
   selectInput("param3", label = "Choose parameter:", choices = choices, selected = "Temp")
 })
 
