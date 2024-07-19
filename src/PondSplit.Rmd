@@ -15,9 +15,9 @@ First run chunks 2-8 of `PondShiny.Rmd` script.
 setwd("~/Desktop/Repos/CapeCodPonds2023")
 
 ##########
-# This script assumes "Secchi" is the first measured parameter column,
-# "TP_uM" is the last, discrete-sample columns begin after "DO_sat", and
-# there are three columns between Secchi & DO_sat.
+# This script assumes "Secchi" is the first measured parameter column, "TP_uM"
+# is the last, discrete-sample columns begin after "DO_sat", and there are five
+# columns between Secchi & DO_sat (MLD, FishSpace1, FishSpace2, Temp, DO).
 ##########
 
 focal_ponds <- ponds %>%
@@ -57,7 +57,7 @@ for(pond in pondName) {
       depth <- onePond$Depth[onePond$Year == year & onePond$Depth <= 1]
     } else {
       index <- which.max(rowSums(!is.na(onePond[onePond$Year == year & onePond$Depth <= 1, ]
-                                        [c(param_start + 2:3, discrete_start:(param_end))])))
+                                        [c(param_start + 2:5, discrete_start:(param_end))])))
       depth <- sort(onePond$Depth[onePond$Year == year])[index]
       for(i in param_start:param_end) {
         param <- colnames(onePond)[i]
@@ -138,6 +138,11 @@ allSurface <- allSurface %>%
 
 allSurface[sapply(allSurface, is.infinite)] <- NA   # deal with N:P where TP == 0
 
+# overwrite FishSpace_flag columns; sd is ~0 for some ponds and throws out valid values
+allSurface <- allSurface %>%
+  mutate(VerticalFishSpace_flag = ifelse(is.na(VerticalFishSpace), 4, 2),
+         VolumetricFishSpace_flag = ifelse(is.na(VolumetricFishSpace), 4, 2))
+
 write.csv(allSurface, "data/AllPonds_Surface.csv", row.names = FALSE)
 
 ##########
@@ -180,7 +185,7 @@ for(pond in pondName) {
     } else {
       index <- which.max(rev(rowSums(!is.na(onePond[onePond$Year == year &
                                                 onePond$Depth >= 0.75 * onePond$Max.Depth, ]
-                                        [c(param_start + 2:3, discrete_start:(param_end - 1))]))))
+                                        [c(param_start + 2:5, discrete_start:(param_end - 1))]))))
       depth <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index]
       for(i in param_start:param_end) {
         param <- colnames(onePond)[i]
@@ -264,6 +269,11 @@ allBottom <- allBottom %>%
   relocate(NtPClass, .before = Year)
 
 allBottom[sapply(allBottom, is.infinite)] <- NA   # deal with N:P where TP == 0
+
+# overwrite FishSpace_flag columns; sd is ~0 for some ponds and throws out valid values
+allSurface <- allSurface %>%
+  mutate(VerticalFishSpace_flag = ifelse(is.na(VerticalFishSpace), 4, 2),
+         VolumetricFishSpace_flag = ifelse(is.na(VolumetricFishSpace), 4, 2))
 
 write.csv(allBottom, "data/AllPonds_Bottom.csv", row.names = FALSE)
 ```
