@@ -1,6 +1,6 @@
 ---
 title: "Cape Cod Pond Analyses"
-date: "2024-04-15"
+date: "2024-07-19"
 runtime: shiny
 output: html_document
 editor_options: 
@@ -355,7 +355,8 @@ ponds <- ponds %>%
 # calculate MLDs using 1st derivative
 ponds$hypo <- NA
 ponds$DO.4 <- NA
-ponds$FishSpace <- NA
+ponds$VerticalFishSpace <- NA
+ponds$VolumetricFishSpace <- NA
 
 allPonds <- unique(ponds$Station.name)
 
@@ -417,14 +418,13 @@ for(pond in allPonds) {
           max(oneDate$Depth)
       }
     }
-    ponds$FishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
+    ponds$VerticalFishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
+    ponds$VolumetricFishSpace <- ponds$VerticalFishSpace * ponds$Size * 4046.86
   }
 }
 
 ponds <- ponds %>%
-  relocate(hypo, .after = MLD) %>%
-  relocate(DO.4, .after = hypo) %>%
-  relocate(FishSpace, .after = DO.4)
+  relocate(c(VerticalFishSpace, VolumetricFishSpace), .after = MLD)
 ```
 
 ```{r include = FALSE}
@@ -583,14 +583,14 @@ for(i in 1:nrow(allBottom)) {
 ```
 
 ```{r echo = FALSE}
-selectInput("pond", label = "Choose sampling station:", choices = c("all", pondName))
+selectInput("pond", label = "Choose sampling station:", choices = c("All ponds", pondName))
 
 months <- ponds %>%
   group_by(Station.name, Date) %>%
   summarise(Month = Month[1])
 
 renderPlot({
-  if(input$pond != "all") {
+  if(input$pond != "All ponds") {
     hist(months$Month[months$Station.name == input$pond], right = FALSE,
          breaks = 1:12, ylim = c(0, 32),
          main = "Months of sampling events", col = "lightblue",
@@ -614,7 +614,7 @@ sliderInput("xAxisMax", label = "X-axis maximum:", min = 0, max = 5600, value = 
 sliderInput("yAxisMax", label = "Y-axis maximum:", min = 0, max = 420, value = 420)
 
 renderPlot({
-  if(input$pond != "all") {
+  if(input$pond != "All ponds") {
     allSurface %>%
       filter(Station.name == input$pond) %>%
       filter(TN_flag == 2) %>%
@@ -659,7 +659,7 @@ selectInput("param", label = "Choose parameter:", choices = colnames(allSurface)
 checkboxInput("MK2", "Show Mann-Kendall trend & Sen's slope?", value = FALSE)
 
 renderPlot({
-  if(input$pond != "all") {
+  if(input$pond != "All ponds") {
     flag_name <- paste0(input$param, "_flag")
     allSurface[allSurface$Station.name == input$pond &
                allSurface[[flag_name]] == 2, ] %>%
@@ -720,7 +720,7 @@ checkboxInput("MK3", "Show Mann-Kendall trend & Sen's slope?", value = FALSE)
 
 renderPlot({
   flag_name <- paste0(input$param2, "_flag")
-  if(input$pond != "all") {
+  if(input$pond != "All ponds") {
     p <- allBottom[allBottom$Station.name == input$pond &
               allBottom[[flag_name]] == 2, ] %>%
     ggplot(aes(x = Year, y = get(input$param2))) +
@@ -910,12 +910,12 @@ zero_sub <- function(x) {
 ### Regional patterns in surface data
 
 ```{r echo = FALSE}
-props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla")
+props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla", "VerticalFishSpace", "VolumetricFishSpace")
 
 selectInput("prop1", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla")
+  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "Chla", "VerticalFishSpace", "VolumetricFishSpace")
   selectInput("prop2", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop1)],
               selected = "Temp")
@@ -995,12 +995,12 @@ renderPlot({
 ### Regional patterns in bottom data
 
 ```{r echo = FALSE}
-props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "FishSpace")
+props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "VerticalFishSpace", "VolumetricFishSpace")
 
 selectInput("prop3", label = "Choose x parameter:", choices = props)
 
 renderUI({
-  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "FishSpace")
+  props <- c("Secchi", "MLD", "Temp", "DO", "Alk", "TN", "TP", "VerticalFishSpace", "VolumetricFishSpace")
   selectInput("prop4", label = "Choose y parameter:",
               choices = props[!(props %in% input$prop3)])
 })
@@ -1117,8 +1117,8 @@ renderPlot({
 #   surface_recent <- allSurface %>%
 #     filter(Year >= 2016) %>%
 #     group_by(Station.name) %>%
-#     summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%   # don't average the actual years
-#                                                                                  # (e.g. 2016 + 2021)
+#     summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+#       # ^don't average the actual years (e.g. 2016 + 2021)
 #     mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
 #   ggplot() +
 #     geom_sf(data = mass) +
@@ -1142,14 +1142,14 @@ selectInput("layer", label = "Choose layer:", choices = c("Surface", "Bottom"))
 
 renderUI({
   choices <- c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk", "TN", "TP", "NtP", "Chla",
-               "FishSpace")
+               "VerticalFishSpace", "VolumetricFishSpace")
   selectInput("param3", label = "Choose parameter:", choices = choices, selected = "Temp")
 })
 
-limits <- allBottom %>%
-  mutate(layer = "b",
+limits <- allSurface %>%
+  mutate(layer = "s",
          Chla = NA) %>%
-  rbind(cbind(allSurface, layer = "s")) %>%  # bind allS & allB
+  rbind(cbind(allBottom, layer = "b")) %>%  # bind allS & allB
   filter(Year >= 2016) %>%
   group_by(Station.name, layer) %>%
   summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
@@ -1176,8 +1176,8 @@ renderPlot({
     data_recent <- allSurface %>%
       filter(Year >= 2016) %>%
       group_by(Station.name) %>%
-      summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%    # don't average the actual years
-                                                                                    # (e.g. 2016 + 2021)
+      summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+        # ^don't average the actual years (e.g. 2016 + 2021)
       mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .))) %>%
       mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
              TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP),
@@ -1295,6 +1295,10 @@ for(i in 1:length(pondName)) {
     if(nrow(oneSurf[!is.na(oneSurf[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneSurf$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
     if(mk$p.value >= 0.1) {
@@ -1341,6 +1345,10 @@ for(i in 1:length(pondName)) {
       next
     }
     if(nrow(oneSurf[!is.na(oneSurf[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
+      next
+    }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneSurf$VerticalFishSpace, na.rm = TRUE) == 0) {
       next
     }
     flag_name <- paste0(param, "_flag")
@@ -1397,6 +1405,10 @@ for(i in 1:length(pondName)) {
     if(nrow(oneBott[!is.na(oneBott[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneBott$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
     if(mk$p.value >= 0.1) {
@@ -1438,6 +1450,10 @@ for(i in 1:length(pondName)) {
     if(nrow(oneBott[!is.na(oneBott[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
       next
     }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneBott$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
     flag_name <- paste0(param, "_flag")
     mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
     if(mk$p.value < 0.1) {
@@ -1455,7 +1471,8 @@ For a trend to be calculated, a given parameter in a given pond must meet the cr
 
 ```{r echo = FALSE}
 selectInput("param6", label = "Choose parameter:", choices = c("Secchi", "MLD", "Temp", "DO", "DO_sat", "Alk",
-                                                               "TN", "TP", "NtP", "Chla"))
+                                                               "TN", "TP", "NtP", "Chla",
+                                                               "VerticalFishSpace", "VolumetricFishSpace"))
 
 renderPlot({
   ggplot() +
@@ -1493,7 +1510,8 @@ renderPlot({
 
 ```{r echo = FALSE}
 selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk",
-                                                               "TN", "TP", "NtP"))
+                                                               "TN", "TP", "NtP",
+                                                               "VerticalFishSpace", "VolumetricFishSpace"))
 
 renderPlot({
   ggplot() +
