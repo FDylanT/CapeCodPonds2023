@@ -22,326 +22,7 @@ library(cowplot)
 library(rkt)
 ```
 
-### Load data
-```{r include = FALSE}
-### Load data
-
-setwd("~/Desktop/Repos/CapeCodPonds2023")
-
-#ponds_full <- read.csv("data/072523_CC_AllPonds_WQ.csv", header = TRUE) %>%
-#ponds_full <- read.csv("data/09132023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-#ponds_full <- read.csv("data/11032023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-#ponds_full <- read.csv("data/12142023_CC_AllPonds_WQ.csv", header = TRUE) %>%
-ponds_full <- read.delim("data/03182024_CC_AllPonds_WQ.txt", header = TRUE) %>%
-  
-  # remove non-data rows
-  filter(Station.name != "" & Station.name != " ")
-```
-
-```{r include = FALSE}
-ponds <- ponds_full
-
-# remove WISKI-designated outliers
-for(qc in colnames(ponds %>% select(contains("Quality.code")))) {
-  index <- match(qc, colnames(ponds))
-  ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
-                               "",
-                               ponds[[index - 1]],
-                               missing = ponds[[index - 1]])
-}
-
-ponds <- ponds %>%
-  # merge same-parameter columns & reorganize data frame
-  unite(Alk, Alkalinity...ALK, Alkalinity...ALK.1, sep = "") %>%
-  unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
-  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1,
-        Dissolved.Oxygen...Reported...DO.2, sep = "") %>%
-  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT,
-        Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
-  unite(pH, pH...PH, pH...PH.1, pH...PH.2, sep = "") %>%
-  unite(Phaeo, Phaeophytin...PHAEO, Phaeophytin...PHAEO.1, sep = "") %>%
-  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
-  unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1,
-        Secchi.Depth...SECCHI.2, sep = "") %>%
-  unite(TN_uM, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
-  unite(TP_uM, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
-  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1,
-        Water.Temperature...TEMP.2, sep = "") %>%
-  
-  # split long/lat coordinates
-  separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
-  
-  # rename columns with redundant headers
-  rename(CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
-         CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
-         CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
-         Total.Depth = Total.Depth...DTB,
-         TP = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
-  
-  # reorder columns
-  relocate(Total.Depth, .before = Depth) %>%
-  relocate(Secchi, .after = Depth) %>%
-  relocate(Temp, .after = Secchi) %>%
-  relocate(DO, .after = Temp) %>%
-  relocate(DO_sat, .after = DO) %>%
-  relocate(Alk, .after = DO_sat) %>%
-  relocate(TP, .after = Alk) %>%
-  relocate(Chla, .after = TP) %>%
-  relocate(TN_uM, .after = Chla) %>%
-  relocate(TP_uM, .after = TN_uM) %>%
-  
-  # extract date, month, year from date-time column & create new column
-  mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
-         Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}"),
-         Month = str_extract(Date, "\\d{1,2}(?=/)"),
-         #Year = paste("20", str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"), sep = ""),
-         ## use this^ if WISKI output has M/D/YY format; use line below if output has M/D/YYYY format
-         Year = str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"),
-         Year_frac = as.numeric(Year) + as.numeric(Month)/12) %>%
-  
-  # note last year sampled for later reference
-  group_by(Station.name) %>%
-  mutate(Last_year = max(Year)) %>%
-  ungroup() %>%
-  
-  # prepare columns for reordering ponds in dropdown menu
-  mutate(Town = str_extract(Station.name, "[A-Z]{2}")) %>%
-  mutate(Station = str_extract(Station.name, ".+(?= /)")) %>%
-  mutate(Station.name = paste0(Town, " / ", Station, " (", Station.number, ")"))
-
-# convert all empty cells to NA
-ponds[ponds == ""] <- NA
-
-# fix non-numeric characters
-
-# nm <- ponds %>%
-#   select(-contains("Quality.code"), -Sample.number, -Depth.Designation) %>%
-#   select(c(which(colnames(.) == "Total.Depth") : (which(colnames(.) == "Date") - 1))) %>%
-#   filter(if_any(everything(), ~ str_detect(., "[:alpha:]|<|>")))
-# 
-# sort(unique(unlist(nm)[!is.na(str_extract(unlist(nm), "[:alpha:]|<|>"))]))   ### use this to identify problem vals
-
-ponds[ponds == "< 0.05"] <- "0"
-ponds[ponds == "< 0.10"] <- "0"
-ponds[ponds == "< 1.00"] <- "1.00"
-ponds[ponds == "< 1.50"] <- "1.50"
-ponds[ponds == "> 15.50"] <- "15.50"
-
-ponds[ponds == "BDL 0.00"] <- "0"
-ponds[ponds == "<MDL 0.00"] <- NA
-ponds[ponds == "n.m. 0.00"] <- NA
-ponds[ponds == "ND 0.00"] <- NA
-
-ponds[ponds == "n.m. 0.03"] <- "0.03"
-ponds[ponds == "n.m. 1.37"] <- "1.37"
-ponds[ponds == "n.m. 6.83"] <- "6.83"
-ponds[ponds == "n.m. 13.96"] <- "13.96"
-ponds[ponds == "n.m. 13.98"] <- "13.98"
-ponds[ponds == "n.m. 19.90"] <- "19.90"
-ponds[ponds == "n.m. 30.81"] <- "30.81"
-
-# convert all numerical cols to numeric
-is_all_numeric <- function(x) {
-  !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
-}
-not_all_na <- function(x) any(!is.na(x))
-ponds <- ponds %>% 
-  mutate_if(is_all_numeric, as.numeric) %>%
-  select(where(not_all_na))
-
-#str(ponds)
-
-# fix inappropriately negative characters
-
-# neg <- ponds %>%
-#   select(where(is.numeric), -contains(c("Long", "CTI", "ORP"))) %>%
-#   filter(if_any(everything(), ~ str_detect(., "-")))
-# 
-# sort(unique(unlist(neg)[!is.na(str_extract(unlist(neg), "-"))]))
-
-ponds[ponds == -0.04] <- 0.04
-ponds[ponds == -0.15] <- 0.15
-ponds[ponds == -0.3] <- 0.3
-
-# fix erroneous values
-ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
-         ponds$DO == 0.84] <- NA
-ponds$DO_sat[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
-             ponds$DO_sat == 121.12] <- NA
-
-# copy Secchi values to all rows (esp. from rows with NA depth)
-for(i in 1:nrow(ponds)) {
-  if(!is.na(ponds$Secchi[i])) {
-    ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]] <-
-      mean(ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]], na.rm = TRUE)
-  }
-}
-
-ponds <- ponds %>%
-  group_by(Station.name, Date) %>%
-  mutate(Secchi = mean(Secchi, na.rm = TRUE)) %>%
-  ungroup() %>%
-  mutate(Secchi = ifelse(is.nan(Secchi), NA, Secchi))
-```
-
-```{r include = FALSE}
-# calculate DO saturation values (*in future should come from WISKI)
-for(i in 1:nrow(ponds)) {
-  if(is.na(ponds$DO_sat[i])) {
-    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
-    ponds$DO_sat[i] <- ponds$DO[i] / 31.999 / rho * 10^6 /
-                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
-  }
-  if(is.na(ponds$DO[i])) {
-    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
-    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
-                    ponds$DO_sat[i] * 31.999 * rho / 10^6
-  }
-  if(!is.na(ponds$DO[i]) & !is.na(ponds$DO_sat[i]) &
-     ponds$DO[i] == 0 & ponds$DO_sat[i] > 0) {
-    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
-    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
-                    ponds$DO_sat[i] * 31.999 * rho / 10^6
-  }
-}
-
-#mg/L to um/kg
-#mg/L * 1000L/m^3 = mg/m^3 * 1g/1000mg = g/m^3 * 1mol/31.999g = mol/m^3 * 1/rho m^3/kg = mol/kg * 1,000,000 umol/mol
-
-
-# convert uM to ug/L
-ponds$TN <- ponds$TN_uM * 14.0067
-ponds$TP <- ifelse(!is.na(ponds$TP), ponds$TP, ponds$TP_uM * 30.973762)
-
-ponds <- ponds %>%
-  relocate(TN, .before = TP)
-
-# uM = umol/L * mol/10^6umol = mol/10^6L * Xg/mol = g/10^6L * 10^6ug/g = ug/L
-```
-
-```{r include = FALSE}
-# calculate MLDs
-ponds$MLD <- NA
-ponds$Max.Depth <- NA
-
-allPonds <- unique(ponds$Station.name)
-
-for(pond in allPonds) {
-  onePond <- ponds[ponds$Station.name == pond, ] %>%
-    arrange(Date, Depth)
-  
-  # create full-depth column
-  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
-  
-  if(max(onePond$Depth, na.rm = TRUE) < 5) {
-    next
-  }
-  
-  for(d in unique(onePond$Date)) {
-    oneDate <- onePond[onePond$Date == d &
-                       (onePond$Month == 8 |      # delete this + next line to evaluate MLD in all months
-                        onePond$Month == 9) &     # note that doing this^^ will mess up MLD trend plots
-                       !is.na(onePond$Depth), ]
-    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth > 1]) < 2) {  # can MLD == 1??
-      next
-    }
-    for(i in 1:(n_distinct(oneDate$Depth) - 1)) {
-      if(is.na(oneDate$Temp[i]) | oneDate$Depth[i] <= 1) {
-        next
-      }
-      j <- i + 1
-      while(j < n_distinct(oneDate$Depth)) {
-        if(!is.na(oneDate$Temp[j])) {
-          break
-        } else {
-          j <- j + 1
-        }
-      }
-      if(is.na(oneDate$Temp[j])) {
-        break
-      }
-      depth_diff <- oneDate$Depth[j] - oneDate$Depth[i]
-      temp_diff <- oneDate$Temp[j] - oneDate$Temp[i]
-      delta_temp <- temp_diff / depth_diff
-      if(delta_temp < -1) {
-        ponds$MLD[ponds$Station.name == pond &
-                  ponds$Date == d &
-                  (ponds$Month == 8 |
-                   ponds$Month == 9)] <- oneDate$Depth[i]
-        break
-      }
-    }
-    if(delta_temp >= -1) {
-      ponds$MLD[ponds$Station.name == pond &
-                ponds$Date == d &
-                (ponds$Month == 8 |
-                 ponds$Month == 9)] <- oneDate$Depth[j]
-    }
-  }
-}
-
-ponds <- ponds %>%
-  relocate(Max.Depth, .before = Depth) %>%
-  relocate(MLD, .before = Temp)
-```
-
-```{r include = FALSE}
-# match ponds to metadata
-setwd("~/Desktop/Repos/CapeCodPonds2023")
-
-chars <- read.csv("data/PondCharacteristics.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A")))
-
-ponds$Size <- NA
-ponds$Lens <- NA
-ponds$PercentDeveloped <- NA
-ponds$Char.Depth.ft <- NA
-
-for(i in 1:nrow(ponds)) {
-  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
-  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) > 0) {
-    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
-    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
-    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
-    ponds$Char.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
-  }
-}
-
-ponds <- ponds %>%
-  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
-  relocate(Char.Depth, .before = Max.Depth)
-
-ponds <- ponds %>%
-  mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
-                                Max.Depth > 3 ~ "Deep"))
-
-ponds$SurfaceAreaClass <- NA
-
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(Size = Size[1])
-# 
-# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
-                                    ponds$Size <= 12.315432 ~ "Small",
-                                    ponds$Size <= 32.563650 ~ "Medium",
-                                    ponds$Size > 32.563650 ~ "Large")
-
-ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
-
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(PercentDeveloped = PercentDeveloped[1])
-# 
-# quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds <- ponds %>%
-  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
-                                      ponds$PercentDeveloped <= 13.00 ~ "Low",
-                                      ponds$PercentDeveloped <= 23.25 ~ "Medium",
-                                      ponds$PercentDeveloped > 23.25 ~ "High"))
-```
+First run chunks 2-8 of `PondShiny.Rmd` script.
 
 ### Pt. 1: Summary of new data and data characteristics
 ```{r}
@@ -374,11 +55,11 @@ pie <- years %>%
   mutate(bin = case_when(num_years <= 5 ~ "[1,5]",
                          num_years > 5 & num_years <= 10 ~ "(5,10]",
                          num_years > 10 & num_years <= 15 ~ "(10,15]",
-                         num_years > 15 ~ "> 15")) %>%
+                         num_years > 15 ~ ">15")) %>%
   group_by(bin) %>%
   summarise(n = n())
 
-f1a.i2 <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", "(5,10]", "(10,15]", "> 15")))) +
+f1a.ii <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", "(5,10]", "(10,15]", ">15")))) +
   geom_bar(width = 1, stat = "identity", col = "black") +
   coord_polar("y", start = 0, direction = -1) +
   geom_text(aes(label = paste0(n, "\n(", percent(n/sum(n)), ")")),
@@ -388,13 +69,12 @@ f1a.i2 <- ggplot(pie, aes(x = "", y = n, fill = factor(bin, levels = c("[1,5]", 
   theme(axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        panel.grid = element_blank(),
-        panel.border = element_blank())
+        axis.line = element_blank())
 
-ggsave("figures/f1a.i2.png", f1a.i2, width = 4.5, height = 3, units = "in", dpi = 600)
+ggsave("figures/f1a.ii.png", f1a.ii, width = 4.5, height = 3, units = "in", dpi = 600)
 ```
 
-### Pt. 1a cont.
+### Pt. 1b
 ```{r}
 sf_use_s2(FALSE)
 
@@ -437,24 +117,18 @@ L <- ggplot() +
         axis.ticks = element_blank(),
         axis.line = element_blank())
 
-f1a.ii <- ggarrange(N, L, ncol = 2)
+f1a.iii <- ggarrange(N, L, ncol = 2)
 
-ggsave("figures/f1a.ii.png", f1a.ii, width = 6.5, height = 3, units = "in", dpi = 600, bg = "white")
+ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 3, units = "in", dpi = 600, bg = "white")
 ```
 
-### Load layer-specific data
+### Wrangle layer-specific data
 ```{r}
 setwd("~/Desktop/Repos/CapeCodPonds2023")
 
-# load surface-only data
-allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
-  #mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
-  mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
-  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
-  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
-
 ## define "consistently sampled" ##
 
+# surface data
 allSurface_cont <- allSurface %>%
   group_by(Station.name) %>%
   filter(min(Year) <= quantile(2001:2023)[2],
@@ -468,12 +142,7 @@ allSurface_pre <- allSurface_cont %>%
 allSurface_post <- allSurface_cont %>%
   filter(Year >= 2012)                    # change if desired
 
-# load bottom-only data
-allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
-  #mutate(across(where(is.character), ~ na_if(., "#N/A"))) %>%
-  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
-  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
-
+# bottom data
 allBottom_cont <- allBottom %>%
   group_by(Station.name) %>%
   filter(min(Year) <= quantile(2001:2023)[2],
@@ -488,7 +157,7 @@ allBottom_post <- allBottom_cont %>%
   filter(Year >= 2012)                    # change if desired
 ```
 
-### Pt. 1a cont.
+### Pt. 1b cont.
 
 ######
 - rotate scale bars
@@ -508,21 +177,36 @@ zero_sub <- function(x) {
   }
 }
 
+limits <- allSurface %>%
+  mutate(layer = "s",
+         Chla = NA) %>%
+  rbind(cbind(allBottom, layer = "b")) %>%  # bind allS & allB
+  filter(Year >= 2016) %>%
+  group_by(Station.name, layer) %>%
+  summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .)))
+
+limits <- limits %>%
+    mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
+           TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP),
+           Chla = if_else(Chla == 0, zero_sub(sort(unique(limits$Chla))[2]), Chla))
+
 recent_surf <- allSurface %>%
+  filter(Year >= 2016) %>%
   group_by(Station.name) %>%
-  filter(Year == max(Year)) %>%
-  ungroup() %>%
-  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(recent_surf$TN))[2]), TN),
-         TP = if_else(TP == 0, zero_sub(sort(unique(recent_surf$TP))[2]), TP),
-         Chla = if_else(Chla == 0, zero_sub(sort(unique(recent_surf$Chla))[2]), Chla))
+  summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .))) %>%
+  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
+         TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP),
+         Chla = if_else(Chla == 0, zero_sub(sort(unique(limits$Chla))[2]), Chla))
 
 recent_bott <- allBottom %>%
+  filter(Year >= 2016) %>%
   group_by(Station.name) %>%
-  filter(Year == max(Year)) %>%
-  ungroup() %>%
-  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(recent_bott$TN))[2]), TN),
-         TP = if_else(TP == 0, zero_sub(sort(unique(recent_bott$TP))[2]), TP),
-         Chla = if_else(Chla == 0, zero_sub(sort(unique(recent_bott$Chla))[2]), Chla))
+  summarise(across(where(is.numeric) & !Year, ~ mean(.x, na.rm = TRUE))) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.), NA, .))) %>%
+  mutate(TN = if_else(TN == 0, zero_sub(sort(unique(limits$TN))[2]), TN),
+         TP = if_else(TP == 0, zero_sub(sort(unique(limits$TP))[2]), TP))
 
 surf_list <- lapply(params, function(param) {
   ggplot() +
@@ -575,7 +259,7 @@ bott_list <- lapply(params[c(3:4, 7:10)], function(param) {
 })
 
 surf_list[[1]] <- surf_list[[1]] +
-  scale_fill_gradientn(colors = parula(100), name = "Secchi\ndepth (m)") +
+  scale_fill_gradientn(colors = parula(100), name = "Secchi\ndepth (m)  ") +
   labs(title = "")
 
 surf_list[[2]] <- surf_list[[2]] +
@@ -615,7 +299,7 @@ bott_list[[2]] <- bott_list[[2]] +
 # quantile(recent_surf$NtP, probs = c(0.9, 0.95, 0.975, 1), na.rm = TRUE)
 # min(c(recent_surf$NtP, recent_bott$NtP), na.rm = TRUE)
 
-top <- 130   # upper bound of color scale
+top <- 134   # upper bound of color scale
 
 surf_list[[5]] <- surf_list[[5]] +
   geom_point(data = recent_surf[recent_surf[["NtP"]] < 16, ],   ### this puts N-limited ponds on top
@@ -629,17 +313,18 @@ surf_list[[5]] <- surf_list[[5]] +
                        na.value = "#F9FB0E")
 
 surf_list[[6]] <- surf_list[[6]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Chl-a (μg L"^-1*")"))
+  scale_fill_gradientn(colors = parula(100), trans = "log10",
+                       name = expression("Chl-a (μg L"^-1*")"))
 
 surf_list[[7]] <- surf_list[[7]] +
-  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)",
+  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)   ",
                        limits = c(min(c(recent_surf$Temp,
                                         recent_bott$Temp), na.rm = TRUE),
                                   max(c(recent_surf$Temp,
                                         recent_bott$Temp), na.rm = TRUE)))
 
 bott_list[[3]] <- bott_list[[3]] +
-  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)",
+  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)   ",
                        limits = c(min(c(recent_surf$Temp,
                                         recent_bott$Temp), na.rm = TRUE),
                                   max(c(recent_surf$Temp,
@@ -688,7 +373,7 @@ bott_list[[5]] <- bott_list[[5]] +
 # quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.9, 0.95, 0.975, 1), na.rm = TRUE)
 # min(c(recent_surf$Alk, recent_bott$Alk), na.rm = TRUE)
 
-top <- 60   # upper bound of color scale
+top <- 61   # upper bound of color scale
 
 surf_list[[10]] <- surf_list[[10]] +
   scale_fill_gradientn(colors = parula(100), limits = c(0, top),
@@ -702,41 +387,35 @@ bott_list[[6]] <- bott_list[[6]] +
                        name = expression("Alk (mg L"^-1*")"),
                        na.value = "#F9FB0E")
 
-f1a.iii <- plot_grid(surf_list[[1]], surf_list[[2]],
-                     surf_list[[3]], bott_list[[1]],
-                     surf_list[[4]], bott_list[[2]],
-                     surf_list[[5]], surf_list[[6]], ncol = 2, nrow = 4, align = "hv")
+f1b.i <- plot_grid(surf_list[[1]], surf_list[[2]],
+                   surf_list[[3]], bott_list[[1]],
+                   surf_list[[4]], bott_list[[2]],
+                   surf_list[[5]], surf_list[[6]], ncol = 2, nrow = 4, align = "hv")
 
-ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 9, units = "in", dpi = 600, bg = "white")
+ggsave("figures/f1b.i.png", f1b.i, width = 6.5, height = 9, units = "in", dpi = 600, bg = "white")
 
-f1a.iv <- plot_grid(surf_list[[7]], bott_list[[3]],
+f1b.ii <- plot_grid(surf_list[[7]], bott_list[[3]],
                     surf_list[[8]], bott_list[[4]],
                     surf_list[[9]], bott_list[[5]],
                     surf_list[[10]], bott_list[[6]], ncol = 2, nrow = 4, align = "hv")
 
-ggsave("figures/f1a.iv.png", f1a.iv, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/f1b.ii.png", f1b.ii, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
-### Temporary: Fish space map
+### Temporary(?): Fish space map & vertical-vs-volumetric plot
 ```{r}
-ggplot() +
-  geom_point(data = ponds, aes(x = FishSpace, y = FishSpace * Size * 4046.86)) +
-  labs(x = "Vertical Fish Space (m)", y = expression("Volumetric Fish Space (m"^3*")")) +
-  theme_linedraw()
-
-ggsave("figures/FishSpace_prop.png", width = 6.5, height = 4, units = "in", dpi = 600)
-
 fish1 <- ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = ponds[ponds$FishSpace == 0, ],
+  geom_point(data = recent_surf[recent_surf$VerticalFishSpace == 0, ],
              aes(x = Long, y = Lat), fill = "firebrick2",
              shape = 21) +
-  geom_point(data = ponds[(!is.na(ponds$FishSpace) & ponds$FishSpace != 0), ],
-             aes(x = Long, y = Lat, fill = log10(FishSpace)),
+  geom_point(data = recent_surf[(!is.na(recent_surf$VerticalFishSpace) &
+                                   recent_surf$VerticalFishSpace != 0), ],
+             aes(x = Long, y = Lat, fill = log10(VerticalFishSpace)),
              shape = 21) +
   scale_fill_gradientn(colors = parula(100),
-                       breaks = c(log10(1), log10(3), log10(10)),
-                       labels = c(1, 3, 10),
+                       breaks = c(log10(0.1), log10(0.3),log10(1), log10(3), log10(10)),
+                       labels = c(0.1, 0.3, 1, 3, 10),
                        name = "Vertical\nFish Space (m)") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -750,15 +429,16 @@ fish1 <- ggplot() +
 
 fish2 <- ggplot() +
   geom_sf(data = mass) +
-  geom_point(data = ponds[ponds$FishSpace == 0, ],
+  geom_point(data = recent_surf[recent_surf$VolumetricFishSpace == 0, ],
              aes(x = Long, y = Lat), fill = "firebrick2",
              shape = 21) +
-  geom_point(data = ponds[(!is.na(ponds$FishSpace) & ponds$FishSpace != 0), ],
-             aes(x = Long, y = Lat, fill = log10(FishSpace * Size * 4046.86)),    # conversion to m^2
+  geom_point(data = recent_surf[(!is.na(recent_surf$VolumetricFishSpace) &
+                                   recent_surf$VolumetricFishSpace != 0), ],
+             aes(x = Long, y = Lat, fill = log10(VolumetricFishSpace)),
              shape = 21) +
   scale_fill_gradientn(colors = parula(100),
-                       breaks = c(log10(3*10^4), 5, log10(3*10^5), 6, log10(3*10^6)),
-                       labels = c(3*10^4, 1*10^5, 3*10^5, 1*10^6, 3*10^6),
+                       breaks = c(log10(3*10^3), 4, 5, 6),
+                       labels = c(3*10^3, 1*10^4, 1*10^5, 1*10^6),
                        name = expression("Volumetric\nFish Space (m"^3*")")) +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
@@ -770,10 +450,18 @@ fish2 <- ggplot() +
         axis.ticks = element_blank(),
         axis.line = element_blank())
 
-f1a.v <- plot_grid(fish1, fish2,
-                   ncol = 2, nrow = 1, align = "hv")
+f1b.iii <- plot_grid(fish1, fish2,
+                     ncol = 2, nrow = 1, align = "hv")
 
-ggsave("figures/f1a.v.png", f1a.v, width = 6.5, height = 2.5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/f1b.iii.png", f1b.iii, width = 6.5, height = 2.5, units = "in", dpi = 600, bg = "white")
+
+ggplot() +
+  geom_point(data = recent_surf[recent_surf$VerticalFishSpace < 10, ],
+             aes(x = VerticalFishSpace, y = VolumetricFishSpace)) +
+  labs(x = "Vertical Fish Space (m)", y = expression("Volumetric Fish Space (m"^3*")")) +
+  theme_linedraw()
+
+ggsave("figures/FishSpace_prop.png", width = 6.5, height = 4, units = "in", dpi = 600)
 ```
 
 ### Pt. 2: Ecoregion thresholds (Secchi, Chla, TN, TP)
@@ -790,32 +478,32 @@ Ponds:
 ```{r}
 # calculate 75%ile using allSurface
 ecoregion <- allSurface %>%
-  filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
-         Station.name == "BA-797-01 / Micah Pond" |
-         Station.name == "BR-321-01 / Slough Pond" |
-         Station.name == "BR-335-01 / Pine Pond" |
-         Station.name == "DE-355-01 / Flax Pond" |
-         Station.name == "TR-53-01 / Slough Pond" |
-         Station.name == "WE-76-01 / Duck Pond" |
-         Station.name == "WE-64-01 / Spectacle Pond")
+  filter(str_detect(Station.name, "BA-594-01") | # Hathaway Pond (South)
+         str_detect(Station.name, "BA-797-01") | # Micah Pond
+         str_detect(Station.name, "BR-321-01") | # Slough Pond
+         str_detect(Station.name, "BR-335-01") | # Pine Pond
+         str_detect(Station.name, "DE-355-01") | # Flax Pond
+         str_detect(Station.name, "TR-53-01")  | # Slough Pond
+         str_detect(Station.name, "WE-76-01")  | # Duck Pond
+         str_detect(Station.name, "WE-64-01"))   # Spectacle Pond)
 
   # Secchi negated to account for inverted significance of values
 thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]   ### -4.11 vs -4.15
 thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]   ### 3.06 vs 3.56
-thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]   ### 24.5 vs 23.2
-thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]   ### 0.40 vs 0.45
+thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]
+thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]
 
 ## calculate 75%ile using "ponds" for comparison
 ecoregion2 <- ponds %>%
   filter(Month == 8 | Month == 9) %>%
-  filter(Station.name == "BA-594-01 / Hathaway Pond (South)" |
-         Station.name == "BA-797-01 / Micah Pond" |
-         Station.name == "BR-321-01 / Slough Pond" |
-         Station.name == "BR-335-01 / Pine Pond" |
-         Station.name == "DE-355-01 / Flax Pond" |
-         Station.name == "TR-53-01 / Slough Pond" |
-         Station.name == "WE-76-01 / Duck Pond" |
-         Station.name == "WE-64-01 / Spectacle Pond")
+  filter(str_detect(Station.name, "BA-594-01") | # Hathaway Pond (South)
+         str_detect(Station.name, "BA-797-01") | # Micah Pond
+         str_detect(Station.name, "BR-321-01") | # Slough Pond
+         str_detect(Station.name, "BR-335-01") | # Pine Pond
+         str_detect(Station.name, "DE-355-01") | # Flax Pond
+         str_detect(Station.name, "TR-53-01")  | # Slough Pond
+         str_detect(Station.name, "WE-76-01")  | # Duck Pond
+         str_detect(Station.name, "WE-64-01"))   # Spectacle Pond)
 
 thresh_Secchi2 <- quantile(-ecoregion2$Secchi, na.rm = TRUE)[4]
 thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
@@ -831,11 +519,10 @@ eco_annual75 <- ecoregion2 %>%
             TP = quantile(TP, na.rm = TRUE)[4])
 
 # quantile(ecoregion2$Secchi[ecoregion2$Year == 2001], na.rm = TRUE)
-```
 
-### Use allSurface_cont/allBottom to calc 25th %iles
+##########
 
-```{r}
+### use allSurface_cont/allBottom to calc 25th %iles
 thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
 thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
 thresh_TN_S <- quantile(allSurface_cont$TN, na.rm = TRUE)[2]
@@ -863,8 +550,8 @@ eco_annual25 <- allSurface %>%
 colors <- c("2001-2011" = "dodgerblue", "2012-2023" = "violetred")
 
 Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count)))) +
-  geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, alpha = 0.5, bins = 60) +
-  geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, alpha = 0.5, bins = 60) +
+  geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, alpha = 0.5, bins = 20) +
+  geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, alpha = 0.5, bins = 20) +
   geom_vline(xintercept = 2, linetype = "dashed") +
   geom_vline(xintercept = 4.5, linetype = "dashed") +
   geom_vline(xintercept = -thresh_Secchi, col = "gold") +
@@ -883,8 +570,10 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
         legend.key.size = unit(0.1, "in"))
 
 MLD1 <- ggplot(mapping = aes(x = MLD, y = after_stat(count / sum(count)))) +
-  geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, fill = "dodgerblue", alpha = 0.5, bins = 25) +
-  geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, fill = "violetred", alpha = 0.5, bins = 25) +
+  geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, fill = "dodgerblue",
+                 alpha = 0.5, bins = 15) +
+  geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, fill = "violetred",
+                 alpha = 0.5, bins = 15) +
   labs(x = "Mixed-layer Depth (m)", y = "Proportion", title = "") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -898,22 +587,43 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
   geom_vline(xintercept = log10(1), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_chla), col = "gold") +
   geom_vline(xintercept = log10(thresh_chla_S)) +
-  labs(x = expression("log10(Chl-a) (μg L"^-1*")"), y = "Proportion", title = "Surface") +
+  scale_x_continuous(breaks = c(-1, 0, 1, 2),
+                     labels = 10^c(-1, 0, 1, 2)) +
+  labs(x = expression("Chl-a (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
+NtP1 <- ggplot(mapping = aes(x = log10(NtP), y = after_stat(count / sum(count)))) +
+  geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
+  geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
+  geom_vline(xintercept = log10(16), col = "forestgreen") +
+  scale_x_continuous(breaks = c(1, 2, 3),
+                     labels = 10^c(1, 2, 3)) +
+  labs(x = "N:P", y = "Proportion", title = "Surface") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+# ggplot_build(obj)$layout$panel_scales_y[[1]]$range$range
+
 TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) +
-  geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, binwidth = 0.05) +
-  geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, binwidth = 0.05) +
+  geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5,
+                 binwidth = 0.05) +
+  geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5,
+                 binwidth = 0.05) +
   geom_vline(xintercept = log10(11.42 * 14.0067), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "gold") +
   geom_vline(xintercept = log10(thresh_TN_S)) +
-  #xlim(1.8, 3.6) +
-  #ylim(0, 0.125) +
-  labs(x = "log10(TN) (μg/L)", y = "Proportion", title = "Surface") +
+  scale_x_continuous(limits = c(1.8, 3.8),
+                     breaks = c(2, 3),
+                     labels = 10^c(2, 3)) +
+  ylim(0, 0.13) +
+  labs(x = expression("TN (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -926,9 +636,11 @@ TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
   geom_vline(xintercept = log10(11.42 * 14.0067), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "gold") +
   geom_vline(xintercept = log10(thresh_TN_B)) +
-  xlim(1.75, 3.75) +
-  ylim(0, 0.125) +
-  labs(x = "log10(TN) (μg/L)", y = "Proportion", title = "Bottom") +
+  scale_x_continuous(limits = c(1.8, 3.8),
+                     breaks = c(2, 3),
+                     labels = 10^c(2, 3)) +
+  ylim(0, 0.13) +
+  labs(x = expression("TN (μg L"^-1*")"), y = "Proportion", title = "Bottom") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -941,9 +653,11 @@ TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
   geom_vline(xintercept = log10(0.24 * 30.973762), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TP), col = "gold") +
   geom_vline(xintercept = log10(thresh_TP_S)) +
-  #xlim(-2, 2) +
-  ylim(0, 0.105) +
-  labs(x = "log10(TP) (μg/L)", y = "Proportion") +
+  scale_x_continuous(limits = c(-0.2, 3.2),
+                     breaks = c(0, 1, 2, 3),
+                     labels = 10^c(0, 1, 2, 3)) +
+  ylim(0, 0.1) +
+  labs(x = expression("TP (μg L"^-1*")"), y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -955,9 +669,11 @@ TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
   geom_vline(xintercept = log10(0.24 * 30.973762), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TP), col = "gold") +
   geom_vline(xintercept = log10(thresh_TP_B)) +
-  xlim(-2, 2) +
-  ylim(0, 0.105) +
-  labs(x = "log10(TP) (μg/L)", y = "Proportion") +
+  scale_x_continuous(limits = c(-0.2, 3.2),
+                     breaks = c(0, 1, 2, 3),
+                     labels = 10^c(0, 1, 2, 3)) +
+  ylim(0, 0.1) +
+  labs(x = expression("TP (μg L"^-1*")"), y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -966,8 +682,8 @@ TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
 Temp1 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  xlim(0.5, 30.5) +
-  ylim(0, 0.115) +
+  xlim(6, 29.4) +
+  ylim(0, 0.09) +
   labs(x = "Temperature (°C)", y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -977,8 +693,8 @@ Temp1 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
 Temp2 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  xlim(0.5, 30.5) +
-  ylim(0, 0.115) +
+  xlim(6, 29.4) +
+  ylim(0, 0.09) +
   labs(x = "Temperature (°C)", y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -989,7 +705,7 @@ DO1 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
   geom_vline(xintercept = 3, linetype = "dashed") +
-  xlim(-0.25, 14.75) +
+  xlim(0, 15.75) +
   ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
@@ -1001,7 +717,7 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
   geom_vline(xintercept = 3, linetype = "dashed") +
-  xlim(-0.25, 14.75) +
+  xlim(0, 15.75) +
   ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
@@ -1012,9 +728,9 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
 DO_sat1 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  #xlim(-0.25, 14.75) +
-  #ylim(0, 0.28) +
-  labs(x = expression("DO Saturation (%)"), y = "Proportion") +
+  xlim(0, 180) +
+  ylim(0, 0.27) +
+  labs(x = "DO Saturation (%)", y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -1023,9 +739,9 @@ DO_sat1 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count))))
 DO_sat2 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  #xlim(-0.25, 14.75) +
-  #ylim(0, 0.28) +
-  labs(x = expression("DO Saturation (%)"), y = "Proportion") +
+  xlim(0, 180) +
+  ylim(0, 0.27) +
+  labs(x = "DO Saturation (%)", y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -1034,9 +750,9 @@ DO_sat2 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count))))
 Alk1 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  # xlim(0.5, 30.5) +
-  # ylim(0, 0.115) +
-  labs(x = "Alkalinity (mg L"^-1*")", y = "Proportion") +
+  xlim(0, 130) +
+  ylim(0, 0.19) +
+  labs(x = expression("Alkalinity (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -1045,19 +761,21 @@ Alk1 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
 Alk2 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
-  # xlim(0.5, 30.5) +
-  # ylim(0, 0.115) +
-  labs(x = "Alkalinity (mg L"^-1*")", y = "Proportion") +
+  xlim(0, 130) +
+  ylim(0, 0.19) +
+  labs(x = expression("Alkalinity (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
-f1 <- ggarrange(Secchi1, MLD1, Chla1, TN1, TN2, TP1, TP2, Temp1, Temp2, DO1, DO2, ncol = 2)
+f2a.i <- ggarrange(Secchi1, MLD1, Chla1, NtP1, TN1, TN2, TP1, TP2, ncol = 2)
 
-# DO_sat1, DO_sat2, Alk1, Alk2
+ggsave("figures/f2a.i.png", f2a.i, width = 6.5, height = 9, units = "in", dpi = 600)
 
-ggsave("figures/f1.png", f1, width = 6.5, height = 9, units = "in", dpi = 600)
+f2a.ii <- ggarrange(Temp1, Temp2, DO1, DO2, DO_sat1, DO_sat2, Alk1, Alk2, ncol = 2)
+
+ggsave("figures/f2a.ii.png", f2a.ii, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
 ### Same as above but density plots
@@ -1096,7 +814,22 @@ Chla1.1 <- ggplot(mapping = aes(x = log10(Chla))) +
   geom_vline(xintercept = log10(1), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_chla), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_chla_S)) +
-  labs(x = expression("log10(Chl-a) (μg L"^-1*")"), title = "Surface") +
+  scale_x_continuous(breaks = c(-1, 0, 1, 2),
+                     labels = 10^c(-1, 0, 1, 2)) +
+  labs(x = expression("Chl-a (μg L"^-1*")"), title = "Surface") +
+  theme_classic() +
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
+        axis.title = element_text(size = 8),
+        axis.text = element_text(size = 6))
+
+NtP1.1 <- ggplot(mapping = aes(x = log10(Chla))) +
+  geom_density(data = allSurface_pre, col = "dodgerblue", alpha = 0.5) +
+  geom_density(data = allSurface_post, col = "violetred", alpha = 0.5) +
+  geom_vline(xintercept = log10(16), col = "forestgreen") +
+  scale_x_continuous(breaks = c(1, 2, 3),
+                     labels = 10^c(1, 2, 3)) +
+  labs(x = "N:P", title = "Surface") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -1106,12 +839,14 @@ Chla1.1 <- ggplot(mapping = aes(x = log10(Chla))) +
 TN1.1 <- ggplot(mapping = aes(x = log10(TN))) +
   geom_density(data = allSurface_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allSurface_post, col = "violetred", alpha = 0.5) +
-  geom_vline(xintercept = log10(11.42), linetype = "dashed") +
+  geom_vline(xintercept = log10(11.42 * 14.0067), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_TN_S)) +
-  xlim(0, 3) +
-  ylim(0, 2.05) +
-  labs(x = "log10(TN) (μM)", title = "Surface") +
+  scale_x_continuous(limits = c(1.8, 3.8),
+                     breaks = c(2, 3),
+                     labels = 10^c(2, 3)) +
+  #ylim(0, 0.13) +
+  labs(x = expression("TN (μg L"^-1*")"), title = "Surface") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -1121,12 +856,14 @@ TN1.1 <- ggplot(mapping = aes(x = log10(TN))) +
 TN2.1 <- ggplot(mapping = aes(x = log10(TN))) +
   geom_density(data = allBottom_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allBottom_post, col = "violetred", alpha = 0.5) +
-  geom_vline(xintercept = log10(11.42), linetype = "dashed") +
+  geom_vline(xintercept = log10(11.42 * 14.0067), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TN), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_TN_B)) +
-  xlim(0, 3) +
-  ylim(0, 2.05) +
-  labs(x = "log10(TN) (μM)", title = "Bottom") +
+  scale_x_continuous(limits = c(1.8, 3.8),
+                     breaks = c(2, 3),
+                     labels = 10^c(2, 3)) +
+  #ylim(0, 0.13) +
+  labs(x = expression("TN (μg L"^-1*")"), title = "Bottom") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
@@ -1136,12 +873,14 @@ TN2.1 <- ggplot(mapping = aes(x = log10(TN))) +
 TP1.1 <- ggplot(mapping = aes(x = log10(TP))) +
   geom_density(data = allSurface_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allSurface_post, col = "violetred", alpha = 0.5) +
-  geom_vline(xintercept = log10(0.24), linetype = "dashed") +
+  geom_vline(xintercept = log10(0.24 * 30.973762), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TP), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_TP_S)) +
-  xlim(-2, 2) +
-  ylim(0, 1.55) +
-  labs(x = "log10(TP) (μM)") +
+  scale_x_continuous(limits = c(-0.2, 3.2),
+                     breaks = c(0, 1, 2, 3),
+                     labels = 10^c(0, 1, 2, 3)) +
+  #ylim(0, 0.1) +
+  labs(x = expression("TP (μg L"^-1*")")) +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -1150,12 +889,14 @@ TP1.1 <- ggplot(mapping = aes(x = log10(TP))) +
 TP2.1 <- ggplot(mapping = aes(x = log10(TP))) +
   geom_density(data = allBottom_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allBottom_post, col = "violetred", alpha = 0.5) +
-  geom_vline(xintercept = log10(0.24), linetype = "dashed") +
+  geom_vline(xintercept = log10(0.24 * 30.973762), linetype = "dashed") +
   geom_vline(xintercept = log10(thresh_TP), col = "darkgoldenrod2") +
   geom_vline(xintercept = log10(thresh_TP_B)) +
-  xlim(-2, 2) +
-  ylim(0, 1.55) +
-  labs(x = "log10(TP) (μM)") +
+  scale_x_continuous(limits = c(-0.2, 3.2),
+                     breaks = c(0, 1, 2, 3),
+                     labels = 10^c(0, 1, 2, 3)) +
+  #ylim(0, 0.1) +
+  labs(x = expression("TP (μg L"^-1*")")) +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
@@ -1164,8 +905,8 @@ TP2.1 <- ggplot(mapping = aes(x = log10(TP))) +
 Temp1.1 <- ggplot(mapping = aes(x = Temp)) +
   geom_density(data = allSurface_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allSurface_post, col = "violetred", alpha = 0.5) +
-  xlim(0.5, 30.5) +
-  ylim(0, 0.19) +
+  xlim(6, 29.4) +
+  #ylim(0, 0.09) +
   labs(x = "Temperature (°C)") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -1175,8 +916,8 @@ Temp1.1 <- ggplot(mapping = aes(x = Temp)) +
 Temp2.1 <- ggplot(mapping = aes(x = Temp)) +
   geom_density(data = allBottom_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allBottom_post, col = "violetred", alpha = 0.5) +
-  xlim(0.5, 30.5) +
-  ylim(0, 0.19) +
+  xlim(6, 29.4) +
+  #ylim(0, 0.09) +
   labs(x = "Temperature (°C)") +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -1187,8 +928,8 @@ DO1.1 <- ggplot(mapping = aes(x = DO)) +
   geom_density(data = allSurface_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allSurface_post, col = "violetred", alpha = 0.5) +
   geom_vline(xintercept = 3, linetype = "dashed") +
-  xlim(-0.25, 14.75) +
-  ylim(0, 0.425) +
+  xlim(0, 15.75) +
+  #ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")")) +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
@@ -1199,17 +940,21 @@ DO2.1 <- ggplot(mapping = aes(x = DO)) +
   geom_density(data = allBottom_pre, col = "dodgerblue", alpha = 0.5) +
   geom_density(data = allBottom_post, col = "violetred", alpha = 0.5) +
   geom_vline(xintercept = 3, linetype = "dashed") +
-  xlim(-0.25, 14.75) +
-  ylim(0, 0.425) +
+  xlim(0, 15.75) +
+  #ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")")) +
   theme_classic() +
   theme(panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
-f1.1 <- ggarrange(Secchi1.1, Chla1.1, TN1.1, TN2.1, TP1.1, TP2.1, Temp1.1, Temp2.1, DO1.1, DO2.1, ncol = 2)
+f2b.i <- ggarrange(Secchi1.1, MLD1.1, Chla1.1, NtP1.1, TN1.1, TN2.1, TP1.1, TP2.1, ncol = 2)
 
-ggsave("figures/f1.1.png", f1.1, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/f2b.i.png", f2b.i, width = 6.5, height = 9, units = "in", dpi = 600)
+
+f2b.ii <- ggarrange(Temp1.1, Temp2.1, DO1.1, DO2.1, DO_sat1.1, DO_sat2.1, Alk1.1, Alk2.1, ncol = 2)
+
+ggsave("figures/f2b.ii.png", f2b.ii, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
 ### Stats for above
