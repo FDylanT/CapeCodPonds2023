@@ -988,17 +988,18 @@ m1.1 <- lm(eco_annual25$Secchi ~ eco_annual25$Year)
 summary(m1.1)
 
 p1 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = Secchi)) +
-  geom_point(data = eco_annual25, aes(x = Year, y = Secchi), shape = 1) +
+  geom_point(data = eco_annual75, aes(x = Year, y = Secchi), shape = 1, color = "blue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = Secchi), shape = 1, color = "red") +
   geom_smooth(data = eco_annual75, aes(x = Year, y = Secchi), method = "lm", se = FALSE) +
   geom_smooth(data = eco_annual25, aes(x = Year, y = Secchi), method = "lm", se = FALSE, col = "red",
-              linetype = "dashed") +
+              linetype = "22") +
   geom_hline(yintercept = -4.5, linetype = "dashed") +
   geom_hline(yintercept = -2, linetype = "dashed") +
   annotate("text", x = 2004, y = -0.4, label = "slope: -0.04\nP-value: 0.295", col = "blue", size = 3) +
   annotate("text", x = 2020, y = -0.4, label = "slope: -0.01\nP-value: 0.604", col = "red", size = 3) +
   ylim(-8, 0) +
-  theme_classic()
+  labs(y = "Secchi Depth (m)") +
+  theme_linedraw()
   
 m2 <- lm(eco_annual75$Chla ~ eco_annual75$Year)
 summary(m2)
@@ -1007,16 +1008,17 @@ m2.1 <- lm(eco_annual25$Chla ~ eco_annual25$Year)
 summary(m2.1)
 
 p2 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = Chla)) +
-  geom_point(data = eco_annual25, aes(x = Year, y = Chla), shape = 1) +
+  geom_point(data = eco_annual75, aes(x = Year, y = Chla), shape = 1, color = "blue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = Chla), shape = 1, color = "red") +
   geom_smooth(data = eco_annual75, aes(x = Year, y = Chla), method = "lm", se = FALSE) +
   geom_smooth(data = eco_annual25, aes(x = Year, y = Chla), method = "lm", se = FALSE, col = "red",
-              linetype = "dashed") +
+              linetype = "22") +
   geom_hline(yintercept = 1, linetype = "dashed") +
   annotate("text", x = 2004, y = 9, label = "slope: 0.07\nP-value: 0.396", col = "blue", size = 3) +
   annotate("text", x = 2020, y = 9, label = "slope: -0.02\nP-value: 0.427", col = "red", size = 3) +
   scale_y_continuous(limits = c(0, 9.5), breaks = c(0, 2, 4, 6, 8)) +
-  theme_classic()
+  labs(y = expression("Chl-a (μg L"^-1*")")) +
+  theme_linedraw()
 
 m3 <- lm(eco_annual75$TN ~ eco_annual75$Year)
 summary(m3)
@@ -1025,16 +1027,17 @@ m3.1 <- lm(eco_annual25$TN ~ eco_annual25$Year)
 summary(m3.1)
 
 p3 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = TN)) +
-  geom_point(data = eco_annual25, aes(x = Year, y = TN), shape = 1) +
+  geom_point(data = eco_annual75, aes(x = Year, y = TN), shape = 1, color = "blue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = TN), shape = 1, color = "red") +
   geom_smooth(data = eco_annual75, aes(x = Year, y = TN), method = "lm", se = FALSE) +
   geom_smooth(data = eco_annual25, aes(x = Year, y = TN), method = "lm", se = FALSE, col = "red",
-              linetype = "dashed") +
-  geom_hline(yintercept = 11.42, linetype = "dashed") +
-  annotate("text", x = 2004, y = 43.5, label = "slope: 0.48\nP-value: 0.139", col = "blue", size = 3) +
-  annotate("text", x = 2020, y = 43.5, label = "slope: -0.04\nP-value: 0.797", col = "red", size = 3) +
-  ylim(0, 46) +
-  theme_classic()
+              linetype = "22") +
+  geom_hline(yintercept = 11.42 * 14.0067, linetype = "dashed") +
+  annotate("text", x = 2004, y = 600, label = "slope: 5.784\nP-value: 0.166", col = "blue", size = 3) +
+  annotate("text", x = 2020, y = 600, label = "slope: 0.1494\nP-value: 0.941", col = "red", size = 3) +
+  ylim(0, 640) +
+  labs(y = expression("TN (μg L"^-1*")")) +
+  theme_linedraw()
 
 m4 <- lm(eco_annual75$TP ~ eco_annual75$Year)
 summary(m4)
@@ -1043,28 +1046,27 @@ m4.1 <- lm(eco_annual25$TP ~ eco_annual25$Year)
 summary(m4.1)
 
 p4 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = TP)) +
-  geom_point(data = eco_annual25, aes(x = Year, y = TP), shape = 1) +
+  geom_point(data = eco_annual75, aes(x = Year, y = TP), shape = 1, color = "blue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = TP), shape = 1, color = "red") +
   geom_smooth(data = eco_annual75, aes(x = Year, y = TP), method = "lm", se = FALSE) +
   geom_smooth(data = eco_annual25, aes(x = Year, y = TP), method = "lm", se = FALSE, col = "red",
-              linetype = "dashed") +
-  geom_hline(yintercept = 0.24, linetype = "dashed") +
-  annotate("text", x = 2004, y = 0.9, label = "slope: 0.015\nP-value: 0.007", col = "blue", size = 3) +
-  annotate("text", x = 2020, y = 0.9, label = "slope: 0.01\nP-value: 0.002", col = "red", size = 3) +
-  ylim(0, 0.95) +
-  theme_classic()
+              linetype = "22") +
+  geom_hline(yintercept = 0.24 * 30.973762, linetype = "dashed") +
+  annotate("text", x = 2004, y = 28, label = "slope: 0.450\nP-value: 0.004", col = "blue", size = 3) +
+  annotate("text", x = 2020, y = 28, label = "slope: 0.294\nP-value: <0.001", col = "red", size = 3) +
+  ylim(0, 30) +
+  labs(y = expression("TP (μg L"^-1*")")) +
+  theme_linedraw()
 
-f2 <- ggarrange(p1, p2, p3, p4, ncol = 2)
+f3 <- ggarrange(p1, p2, p3, p4, ncol = 2)
 
-ggsave("figures/f2.png", f2, width = 6.5, height = 5, units = "in", dpi = 600)
+ggsave("figures/f3.png", f3, width = 6.5, height = 5, units = "in", dpi = 600)
 ```
 
 ### Pt. 4: Maps w/ trends in all parameters
 - Calc "recent" (2016+) & annually in table
 
 ######
-- add units (e.g. mg/L/yr)
-- crop maps to narrower area
 - rotate & combine scale bars
 
 ```{r}
