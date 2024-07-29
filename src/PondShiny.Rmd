@@ -1510,8 +1510,7 @@ renderPlot({
 
 ```{r echo = FALSE}
 selectInput("param7", label = "Choose parameter:", choices = c("Temp", "DO", "DO_sat", "Alk",
-                                                               "TN", "TP", "NtP",
-                                                               "VerticalFishSpace", "VolumetricFishSpace"))
+                                                               "TN", "TP", "NtP"))
 
 renderPlot({
   ggplot() +
