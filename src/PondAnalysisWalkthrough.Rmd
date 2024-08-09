@@ -1,0 +1,1101 @@
+---
+title: "Pond Analysis Walkthrough"
+author: "Dylan Titmuss"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+### Part 1: Data cleaning
+
+This code aims to thoroughly clean, organize, and prepare water quality data for analysis. It addresses data inconsistencies, merges redundant columns, fills missing values, and ensures all data is in the correct format for subsequent analysis or visualization.
+
+#### **1. Removing WISKI-Designated Outliers**
+```r
+for(qc in colnames(ponds %>% dplyr::select(contains("Quality.code")))) {
+  index <- match(qc, colnames(ponds))
+  ponds[[index - 1]] <- if_else(ponds[[qc]] == "Pond - Outlier",
+                               "",
+                               ponds[[index - 1]],
+                               missing = ponds[[index - 1]])
+}
+```
+- **Purpose:** This loop iterates over all columns in the `ponds` dataframe that contain "Quality.code" in their names. For each of these columns, it checks if the value is "Pond - Outlier." If it is, the corresponding value in the preceding column (which likely contains the actual data) is replaced with an empty string, effectively marking it as missing. If it's not an outlier, the value remains unchanged.
+
+#### **2. Merging and Reorganizing Data Columns**
+```r
+ponds <- ponds %>%
+  unite(Alk, Alkalinity...ALK, Alkalinity...ALK.1, sep = "") %>%
+  unite(Chla, Chlorophyll...CHLA, Chlorophyll...CHLA.1, sep = "") %>%
+  unite(DO, Dissolved.Oxygen...Reported...DO, Dissolved.Oxygen...Reported...DO.1, Dissolved.Oxygen...Reported...DO.2, sep = "") %>%
+  unite(DO_sat, Dissolved.Oxygen.Saturation...Reported...DO_SAT, Dissolved.Oxygen.Saturation...Reported...DO_SAT.1, sep = "") %>%
+  unite(pH, pH...PH, pH...PH.1, pH...PH.2, sep = "") %>%
+  unite(Phaeo, Phaeophytin...PHAEO, Phaeophytin...PHAEO.1, sep = "") %>%
+  unite(Sal, Salinity...SAL, Salinity...SAL.1, sep = "") %>%
+  unite(Secchi, Secchi.Depth...SECCHI, Secchi.Depth...SECCHI.1, Secchi.Depth...SECCHI.2, sep = "") %>%
+  unite(TN_uM, Total.Nitrogen...Reported...TN, Total.Nitrogen...Reported...TN.1, sep = "") %>%
+  unite(TP_uM, Total.Phosphorus...TP, Total.Phosphorus...TP.1, sep = "") %>%
+  unite(Temp, Water.Temperature...TEMP, Water.Temperature...TEMP.1, Water.Temperature...TEMP.2, sep = "")
+```
+- **Purpose:** The `unite` function combines data from multiple columns into single columns for each parameter (e.g., `Alk`, `Chla`, `DO`). This is useful when the same parameter is spread across multiple columns due to different measurement methods or sources.
+
+#### **3. Separating Long/Lat Coordinates and Renaming Columns**
+```r
+separate_wider_delim(Long.lat.coordinates, " / ", names = c("Long", "Lat"), too_few = "align_start") %>%
+rename(CTI_TP = Carlson.Trophic.Index...Total.Phosphorus.based...CTI_TP,
+       CTI_Chlorophyll = Carlson.Trophic.Index...Chlorophyll.a.based...CTI_CHLA,
+       CTI_Secchi = Carlson.Trophic.Index...Secchi.Depth.Based...CTI_SD,
+       Total.Depth = Total.Depth...DTB,
+       TP = Total.Phosphorus...micrograms.per.liter...TP_ugL) %>%
+```
+- **Purpose:** The `separate_wider_delim` function splits the `Long.lat.coordinates` column into two separate columns: `Long` (longitude) and `Lat` (latitude). The `rename` function then renames several columns for clarity.
+
+#### **4. Reordering Columns**
+```r
+relocate(Total.Depth, .before = Depth) %>%
+relocate(Secchi, .after = Depth) %>%
+relocate(Temp, .after = Secchi) %>%
+relocate(DO, .after = Temp) %>%
+relocate(DO_sat, .after = DO) %>%
+relocate(Alk, .after = DO_sat) %>%
+relocate(TP, .after = Alk) %>%
+relocate(Chla, .after = TP) %>%
+relocate(TN_uM, .after = Chla) %>%
+relocate(TP_uM, .after = TN_uM)
+```
+- **Purpose:** The `relocate` function is used to reorder columns in the dataframe for easier access and logical grouping of related variables.
+
+#### **5. Extracting Date, Month, and Year from a Date-Time Column**
+```r
+mutate(Date = str_extract(Date.Time..sampling., "\\d+/\\d+/\\d+"),
+       Time = str_extract(Date.Time..sampling., "\\d{1,2}:\\d{2}"),
+       Month = str_extract(Date, "\\d{1,2}(?=/)"),
+       Year = str_extract(Date, "(?<=\\d{1,2}/\\d{1,2}/)\\d+"),
+       Year_frac = as.numeric(Year) + as.numeric(Month)/12)
+```
+- **Purpose:** Uses regular expressions to isolate specific parts of the datetime string in the `Date.Time..sampling.` column, creating new columns for date components (date, time, month, and year). The `Year_frac` variable is computed to represent the year with a fractional part based on the month (useful for time series analysis).
+
+#### **6. Tracking the Last Year Sampled**
+```r
+group_by(Station.name) %>%
+mutate(Last_year = max(Year)) %>%
+ungroup()
+```
+- **Purpose:** Groups the data by `Station.name` (the pond or station identifier) and calculates the latest year of sampling for each group, storing it in a new column `Last_year`.
+
+#### **7. Preparing Station Names for Dropdowns**
+```r
+mutate(Town = str_extract(Station.name, "[A-Z]{2}")) %>%
+mutate(Station = str_extract(Station.name, ".+(?= /)")) %>%
+mutate(Station.name = paste0(Town, " / ", Station, " (", Station.number, ")"))
+```
+- **Purpose:** Extracts town codes and station names from the `Station.name` and re-formats them for better presentation in dropdown menus in the Shiny app.
+
+#### **8. Converting Empty Cells to NA**
+```r
+ponds[ponds == ""] <- NA
+```
+- **Purpose:** Replaces any empty strings in the dataframe with `NA`, marking them as missing values.
+
+#### **9. Cleaning and Converting Non-Numeric Values**
+```r
+ponds[ponds == "< 0.05"] <- "0"
+ponds[ponds == "< 0.10"] <- "0"
+ponds[ponds == "< 1.00"] <- "1.00"
+...
+```
+- **Purpose:** Replaces certain text-based values (e.g., "< 0.05") with numeric equivalents. This is often necessary before converting columns to numeric data types.
+
+#### **10. Converting Columns to Numeric**
+```r
+is_all_numeric <- function(x) {
+  !any(is.na(suppressWarnings(as.numeric(na.omit(x))))) & is.character(x)
+}
+not_all_na <- function(x) any(!is.na(x))
+ponds <- ponds %>% 
+  mutate_if(is_all_numeric, as.numeric) %>%
+  dplyr::select(where(not_all_na))
+```
+- **Purpose:** Converts columns that are entirely numeric (but stored as characters) into numeric columns, and removes columns that are entirely `NA`.
+
+#### **11. Fixing Specific Erroneous Values**
+```r
+ponds$DO[ponds$Station.name == "HA-353-01 / Hinckleys Pond" &
+         ponds$DO == 0.84] <- NA
+...
+```
+- **Purpose:** Identifies and corrects specific erroneous values in the dataset for certain stations and parameters. For instance, it replaces specific values of `DO` (dissolved oxygen) and `DO_sat` with `NA` based on known data issues.
+
+#### **12. Filling Missing Secchi Depth Values**
+```r
+for(i in 1:nrow(ponds)) {
+  if(!is.na(ponds$Secchi[i])) {
+    ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]] <-
+      mean(ponds$Secchi[ponds$Station.name == ponds$Station.name[i] & ponds$Date == ponds$Date[i]], na.rm = TRUE)
+  }
+}
+
+ponds <- ponds %>%
+  group_by(Station.name, Date) %>%
+  mutate(Secchi = mean(Secchi, na.rm = TRUE)) %>%
+  ungroup() %>%
+
+
+  mutate(Secchi = ifelse(is.nan(Secchi), NA, Secchi))
+```
+- **Purpose:** The code fills missing Secchi depth values by taking the mean of available values (generally a single value) for the same station and date.
+
+---
+
+### Part 2: Calculating additional parameters
+
+This code performs further calculations and data organization on the `ponds` dataset, specifically focusing on calculating dissolved oxygen saturation, converting units, and determining mixed layer depths (MLDs) for the ponds.
+
+#### **1. Calculate Dissolved Oxygen (DO) Saturation and Concentration**
+```r
+for(i in 1:nrow(ponds)) {
+  if(is.na(ponds$DO_sat[i])) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO_sat[i] <- ponds$DO[i] / 31.999 / rho * 10^6 /
+                        gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) * 100
+  }
+  if(is.na(ponds$DO[i])) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO_sat[i] * 31.999 * rho / 10^6
+  }
+  if(!is.na(ponds$DO[i]) & !is.na(ponds$DO_sat[i]) &
+     ponds$DO[i] == 0 & ponds$DO_sat[i] > 0) {
+    rho <- gsw_rho(0, ponds$Temp[i], ponds$Depth[i]) # kg/m^3
+    ponds$DO[i] <- gsw_O2sol(0, ponds$Temp[i], ponds$Depth[i], ponds$Long[i], ponds$Lat[i]) / 100 *
+                    ponds$DO_sat[i] * 31.999 * rho / 10^6
+  }
+}
+```
+
+- **Purpose:** This code block fills in missing values for dissolved oxygen saturation (`DO_sat`) and dissolved oxygen concentration (`DO`) in the dataset using physical oceanography formulas. 
+
+**Detailed Functionality:**
+
+- **Missing `DO_sat`:**
+
+  - If `DO_sat` is missing, it is calculated from the existing `DO` value, water temperature (`Temp`), depth (`Depth`), and geographical coordinates (`Long`, `Lat`). 
+  
+  - The calculation uses the density of seawater (`rho`, computed using `gsw_rho`) and the solubility of oxygen in water (`gsw_O2sol`), adjusted to local conditions.
+  
+- **Missing `DO`:**
+
+  - If `DO` is missing, it is calculated from the existing `DO_sat`, again using `rho` and `gsw_O2sol`.
+  
+- **Edge Case:**
+
+  - If `DO` is zero but `DO_sat` is positive, the code recalculates `DO` using the same approach to ensure consistency in the data.
+
+#### **2. Convert Units**
+```r
+# convert uM to ug/L
+ponds$TN <- ponds$TN_uM * 14.0067
+ponds$TP <- ifelse(!is.na(ponds$TP), ponds$TP, ponds$TP_uM * 30.973762)
+
+ponds <- ponds %>%
+  relocate(TN, .before = TP)
+```
+
+- **Purpose:** This block converts nitrogen (`TN_uM`) and phosphorus (`TP_uM`) from micromolar (uM) to micrograms per liter (ug/L), which are more commonly used units in water quality analysis.
+
+**Detailed Functionality:**
+
+- **Total Nitrogen (`TN`):** 
+
+  - The conversion factor for nitrogen is 14.0067, which is the molecular weight of nitrogen.
+  
+- **Total Phosphorus (`TP`):** 
+
+  - The conversion factor for phosphorus is 30.973762, the molecular weight of phosphorus. If the original `TP` value is missing, it is calculated from `TP_uM`.
+  
+- **Reordering:** 
+
+  - The columns are reordered to place `TN` before `TP` for easier access and analysis.
+
+#### **3. Calculate Mixed Layer Depths (MLDs)**
+```r
+ponds$MLD <- NA
+ponds$Max.Depth <- NA
+
+allPonds <- unique(ponds$Station.name)
+
+for(pond in allPonds) {
+  onePond <- ponds[ponds$Station.name == pond] %>%
+    arrange(Date, Depth)
+  
+  ponds$Max.Depth[ponds$Station.name == pond] <- max(onePond$Depth, na.rm = TRUE)
+  
+  if(max(onePond$Depth, na.rm = TRUE) < 5) {
+    next
+  }
+  
+  for(d in unique(onePond$Date)) {
+    oneDate <- onePond[onePond$Date == d &
+                       (onePond$Month == 8 | onePond$Month == 9) &
+                       !is.na(onePond$Depth)]
+    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth >= 1]) < 2) {
+      next
+    }
+    for(i in 1:(n_distinct(oneDate$Depth) - 1)) {
+      if(is.na(oneDate$Temp[i]) | oneDate$Depth[i] < 1) {
+        next
+      }
+      j <- i + 1
+      while(j < n_distinct(oneDate$Depth)) {
+        if(!is.na(oneDate$Temp[j])) {
+          break
+        } else {
+          j <- j + 1
+        }
+      }
+      if(is.na(oneDate$Temp[j])) {
+        next
+      } else {
+        depth_diff <- oneDate$Depth[j] - oneDate$Depth[i]
+        temp_diff <- oneDate$Temp[j] - oneDate$Temp[i]
+        delta_temp <- temp_diff / depth_diff
+        if(delta_temp < -1) {
+          ponds$MLD[ponds$Station.name == pond &
+                    ponds$Date == d &
+                    (ponds$Month == 8 | ponds$Month == 9)] <- oneDate$Depth[i]
+          break
+        }
+      }
+      if(delta_temp >= -1 & oneDate$Depth[j] >= 0.75 * max(onePond$Depth, na.rm = TRUE)) {
+        ponds$MLD[ponds$Station.name == pond &
+                  ponds$Date == d &
+                  (ponds$Month == 8 | ponds$Month == 9)] <- oneDate$Depth[j]
+      }
+    }
+  }
+}
+
+ponds <- ponds %>%
+  relocate(Max.Depth, .before = Depth) %>%
+  relocate(MLD, .before = Temp)
+```
+
+- **Purpose:** This block calculates the Mixed Layer Depth (MLD) for each pond. The MLD is the depth at which a significant temperature change occurs, indicating the transition between different water layers.
+
+**Detailed Functionality:**
+
+- **Initialization:** 
+
+  - Initializes columns `MLD` and `Max.Depth` as `NA`.
+
+- **Max Depth Calculation:** 
+
+  - For each pond, the maximum depth is recorded. If the pond is shallower than 5 meters, it is skipped because MLD calculations are not relevant.
+
+- **Depth and Temperature Checks:** 
+
+  - For each date, the function checks if there are enough valid temperature readings at different depths. It skips dates where insufficient data exists.
+
+- **Temperature Gradient Calculation:**
+
+  - For each pair of depth readings, the code calculates the temperature gradient (`delta_temp`). If the gradient is less than -1 °C/m (indicating a rapid temperature drop), the depth at this point is recorded as the MLD.
+
+  - If no steep temperature gradient is found but the depth is near the bottom of the pond (75% of the maximum depth), this depth is used as the MLD.
+
+- **Reordering Columns:** 
+
+  - The `MLD` and `Max.Depth` columns are relocated for easier reference.
+
+#### **4. Calculate Fish Habitat Space**
+```r
+# calculate MLDs using 1st derivative
+ponds$hypo <- NA
+ponds$DO.4 <- NA
+ponds$VerticalFishSpace <- NA
+ponds$VolumetricFishSpace <- NA
+
+allPonds <- unique(ponds$Station.name)
+
+for(pond in allPonds) {
+  if(sum(ponds$Month[ponds$Station.name == pond] == 8 |
+         ponds$Month[ponds$Station.name == pond] == 9) == 0) {
+    next
+  }
+  
+  onePond <- ponds[ponds$Station.name == pond, ] %>%
+    filter(Month == 8 | Month == 9) %>%
+    arrange(Date, Depth)
+  
+  for(d in unique(onePond$Date)) {
+    if(sum(!is.na(onePond$MLD[onePond$Date == d]) &
+           onePond$MLD[onePond$Date == d] <= 0.75 * onePond$Max.Depth[1],
+           na.rm = TRUE) == 0) {
+      next
+    }
+    
+    oneDate <- onePond[onePond$Date == d &
+                       !is.na(onePond$Depth), ] %>%
+      arrange(Depth)
+    if(sum(!is.na(oneDate$Temp)) < 2 | n_distinct(oneDate$Depth[oneDate$Depth >= 1]) < 2) {
+      next
+    }
+    for(i in 2:(nrow(oneDate) - 1)) {
+      if(sum(!is.na(oneDate$Temp) > 0) & is.na(oneDate$Temp[i])) {
+        oneDate$Temp[i] <- approx(x = oneDate$Depth,
+                                  y = oneDate$Temp,
+                                  xout = oneDate$Depth[i])[[2]]
+      }
+      if(sum(!is.na(oneDate$DO) > 0) & is.na(oneDate$DO[i])) {
+        oneDate$DO[i] <- approx(x = oneDate$Depth,
+                                y = oneDate$DO,
+                                xout = oneDate$Depth[i])[[2]]
+      }
+    }
+    index <- tail(which((oneDate$Temp - lag(oneDate$Temp)) /
+                          (oneDate$Depth - lag(oneDate$Depth)) ==
+                        min((oneDate$Temp - lag(oneDate$Temp)) /
+                              (oneDate$Depth - lag(oneDate$Depth)),
+                            na.rm = TRUE)),
+                  1)
+    ponds$hypo[ponds$Station.name == pond & ponds$Date == d] <- oneDate$Depth[index]
+    
+    if(length(which(oneDate$DO >= 4)) > 0) {
+      if(length(which(oneDate$DO < 4)) > 0) {
+        ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
+          approx(x = oneDate$DO, y = oneDate$Depth, xout = 4)[[2]]
+      } else {
+        ponds$DO.4[ponds$Station.name == pond & ponds$Date == d] <-
+          max(oneDate$Depth)
+      }
+    }
+    ponds$VerticalFishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
+    ponds$VolumetricFishSpace <- ponds$VerticalFishSpace * ponds$Size * 4046.86
+  }
+}
+
+ponds <- ponds %>%
+  relocate(c(VerticalFishSpace, VolumetricFishSpace), .after = MLD)
+```
+
+- **Purpose:** This code calculates the available habitat space for fish within each pond, focusing on areas where dissolved oxygen levels are sufficient for fish survival.
+
+**Detailed Functionality:**
+
+- **Initialization:** 
+
+  - New columns (`hypo`, `DO.4`, `VerticalFishSpace`, `VolumetricFishSpace`) are initialized as `NA`.
+
+- **Monthly Filtering:**
+
+  - Only data from August and September is considered.
+
+- **Temperature and Oxygen Profiles:**
+
+  - For each date in each pond, the code checks if the pond is stratified (i.e., has a distinct mixed layer). If not, it skips to the next date.
+
+  - Missing temperature and dissolved oxygen values at different depths are interpolated using linear approximation.
+
+- **Identify Hypolimnion Depth:**
+
+  - The depth of the hypolimnion (the deeper, colder layer of water) is identified based on the steepest temperature gradient.
+
+- **Dissolved Oxygen Threshold:**
+
+  - The code calculates the depth where dissolved oxygen is at least 4 mg/L, a common threshold for fish survival.
+
+- **Fish Habitat Space Calculation:**
+
+  - **Vertical Fish Space:** The vertical distance between the hypolimnion and the oxygen threshold (DO ≥ 4 mg/L) is calculated.
+
+  - **Volumetric Fish Space:** This vertical distance is multiplied by the pond's surface area to estimate the total volume of suitable fish habitat.
+
+- **Reordering Columns:**
+
+  - The calculated fish space metrics are relocated for easier reference in the dataset.
+
+---
+
+---
+
+### Part 3: Add pond characteristic metadata
+
+This section of the code integrates pond-specific metadata, classifies ponds by various physical and development characteristics, and performs calculations to estimate the volume of water that can sustain fish populations based on oxygen levels and water stratification.
+
+#### **1. Match Ponds to Metadata**
+```r
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+chars <- read.csv("data/PondCharacteristics.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+ponds$Size <- NA
+ponds$Lens <- NA
+ponds$PercentDeveloped <- NA
+ponds$Char.Depth.ft <- NA
+
+for(i in 1:nrow(ponds)) {
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
+  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) > 0) {
+    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$Char.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+  }
+}
+
+ponds <- ponds %>%
+  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
+  relocate(Char.Depth, .before = Max.Depth)
+```
+
+- **Purpose:** This block matches each pond in the dataset to additional metadata from an external CSV file (`PondCharacteristics.csv`), adding information about the pond’s size, aquifer lens, percentage of surrounding land developed, and depth.
+
+**Detailed Functionality:**
+
+- **Loading Metadata:** 
+
+  - The `PondCharacteristics.csv` file is loaded and any `"#N/A"` values are converted to `NA`.
+
+- **Initialization:** 
+
+  - New columns (`Size`, `Lens`, `PercentDeveloped`, `Char.Depth.ft`) are initialized as `NA` in the `ponds` dataframe.
+
+- **Matching and Assignment:**
+
+  - For each pond, an ID is extracted from `Station.number`, and if a matching ID is found in the `chars` dataset, the corresponding metadata is assigned to the pond.
+
+- **Conversion and Reordering:**
+
+  - The pond depth (`Char.Depth.ft`) is converted from feet to meters (`Char.Depth`) and relocated in the dataframe before the `Max.Depth` column.
+
+#### **2. Classify Ponds Based on Depth, Surface Area, and Development**
+```r
+ponds <- ponds %>%
+  mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
+                                Max.Depth > 3 ~ "Deep"))
+
+ponds$SurfaceAreaClass <- NA
+
+ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
+                                    ponds$Size <= 12.315432 ~ "Small",
+                                    ponds$Size <= 32.563650 ~ "Medium",
+                                    ponds$Size > 32.563650 ~ "Large")
+
+ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
+
+ponds <- ponds %>%
+  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
+                                      ponds$PercentDeveloped <= 13.00 ~ "Low",
+                                      ponds$PercentDeveloped <= 23.25 ~ "Medium",
+                                      ponds$PercentDeveloped > 23.25 ~ "High"))
+```
+
+- **Purpose:** This section classifies the ponds based on their maximum depth, surface area, and the percentage of surrounding land developed.
+
+**Detailed Functionality:**
+
+- **Depth Classification:**
+
+  - Ponds are classified as "Shallow" (maximum depth ≤ 3 meters) or "Deep" (maximum depth > 3 meters).
+
+- **Surface Area Classification:**
+
+  - Ponds are classified into four categories ("Very Small", "Small", "Medium", "Large") based on their surface area, using predefined size thresholds.
+
+- **Development Percentage Extraction:**
+
+  - The percentage of surrounding land developed is extracted from the `PercentDeveloped` column, converting it to a numeric value.
+
+- **Development Class:** 
+
+  - The ponds are categorized into "Very Low", "Low", "Medium", or "High" development classes, using specific thresholds for the percentage of developed land around the pond.
+
+---
+
+### Part 4
+
+This section of the script focuses on analyzing temperature and dissolved oxygen (DO) profiles within ponds during the months of August and September, calculating anomalies relative to climatological averages, and then preparing datasets for surface and bottom water layers.
+
+#### **1. Set Working Directory and Filter Data**
+```r
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+focal_ponds <- ponds %>%
+  filter(Month == 8 | Month == 9)
+
+pondName <- sort(unique(focal_ponds$Station.name))
+
+ponds$Temp_flag <- NA
+ponds$DO_flag <- NA
+
+clim_all <- data.frame(matrix(ncol = 6, nrow = 2500))
+colnames(clim_all) <- c("Station.name", "Depth", "Temp", "Temp_sd", "DO", "DO_sd")
+```
+
+- **Purpose:** Filter the `ponds` dataset to focus on data from August and September and initialize variables for further calculations.
+
+**Detailed Functionality:**
+
+- **Data Filtering:** 
+
+  - Filters the `ponds` dataset to include only data from August and September (`focal_ponds`), as these months are often critical for water quality due to summer stratification.
+
+- **Initialization:** 
+
+  - Initializes empty columns (`Temp_flag`, `DO_flag`) in the `ponds` dataframe for flagging temperature and DO values.
+
+  - Creates an empty dataframe (`clim_all`) with columns for storing climatological data (mean and standard deviation) of temperature and DO at various depths.
+
+#### **2. Calculate Climatological Profiles for Temperature and DO**
+```r
+for(pond in pondName) {
+  onePond <- ponds %>%
+    filter(Month == 8 | Month == 9) %>%
+    filter(Station.name == pond,
+           !is.na(Depth))
+  if(nrow(onePond) == 0) {
+    next
+  }
+  onePond$Depth[onePond$Depth == 0] <- 0.01
+  clim <- data.frame(matrix(ncol = 5, nrow = length(1:ceiling(max(onePond$Depth)))))
+  colnames(clim) <- c("Depth", "Temp", "Temp_sd", "DO", "DO_sd")
+  for(param in c("Temp", "DO")) {
+    param_sd <- paste0(param, "_sd")
+    
+    clim$Depth[1:length(1:ceiling(max(onePond$Depth)))] <- 1:ceiling(max(onePond$Depth))
+    clim.v <- rep(NA, nrow(clim))
+    clim.v2 <- rep(NA, nrow(clim))
+    for(i in 1:length(clim$Depth)) {
+      clim1 <- mean(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i],
+                    na.rm = TRUE)
+      clim.v[clim$Depth == i] <- clim1
+      clim2 <- sd(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i], na.rm = TRUE)
+      clim.v2[clim$Depth == i] <- clim2
+    }
+    clim[[param]][1:length(clim.v)] <- clim.v
+    clim[[param_sd]][1:length(clim.v2)] <- clim.v2
+    clim[[param_sd]] <- ifelse(is.na(clim[[param_sd]]), 0, clim[[param_sd]])
+    flag_name <- paste0(param, "_flag")
+    for(j in 1:nrow(onePond)) {
+      depth <- ceiling(onePond$Depth[j])
+      m <- clim[[param]][clim$Depth == depth]
+      sd <- clim[[param_sd]][clim$Depth == depth]
+      if(is.na(onePond[[param]][j])) {
+        onePond[[flag_name]][j] <- 4
+      } else if(onePond[[param]][j] >= m - 3*sd & onePond[[param]][j] <= m + 3*sd) {
+        onePond[[flag_name]][j] <- 2
+      } else {
+        onePond[[flag_name]][j] <- 3
+      }
+    }
+    ponds[[flag_name]][ponds$Station.name == pond & !is.na(ponds$Depth) & (ponds$Month == 8 | ponds$Month == 9)] <-
+      onePond[[flag_name]]
+```
+
+- **Purpose:** Calculate the climatological (average) temperature and DO profiles at different depths for each pond during August and September, and flag the data points based on their deviation from these averages.
+
+**Detailed Functionality:**
+
+- **Depth Correction:** 
+
+  - Replaces depth values of 0 with 0.01 to avoid issues with depth calculations.
+
+- **Climatological Profiles:** 
+
+  - For each pond, a climatological profile of temperature and DO is calculated at 1-meter intervals up to the maximum depth. The mean (`clim1`) and standard deviation (`clim2`) of temperature and DO are calculated within depth bins (e.g., 0.01 to 1 meter, 1 to 2 meters, etc.).
+
+- **Flagging Data:** 
+
+  - Data points are flagged based on their deviation from the climatological mean:
+
+    - **Flag 2:** Values within ±3 standard deviations of the mean.
+
+    - **Flag 3:** Values outside this range (potential outliers).
+
+    - **Flag 4:** Missing values.
+
+- **Assignment to Main Dataset:** 
+
+  - The calculated flags for temperature and DO are assigned back to the `ponds` dataframe.
+
+#### **3. Recalculate Climatological Profiles After Removing Outliers**
+```r
+    for(i in 1:length(clim$Depth)) {
+      clim1 <- mean(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i &
+                                       onePond[[flag_name]] == 2], na.rm = TRUE)
+      clim.v[clim$Depth == i] <- clim1
+      clim2 <- sd(onePond[[param]][onePond$Depth >= i - 0.99 & onePond$Depth <= i &
+                                       onePond[[flag_name]] == 2], na.rm = TRUE)
+      clim.v2[clim$Depth == i] <- clim2
+    }
+    clim[[param]][1:length(clim.v)] <- clim.v
+    clim[[param_sd]][1:length(clim.v2)] <- clim.v2
+    clim[[param_sd]] <- ifelse(is.na(clim[[param_sd]]), 0, clim[[param_sd]])
+  }
+  clim_all[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim), 2:6] <- clim
+  clim_all$Station.name[sum(!is.na(clim_all$Station.name)) + 1:nrow(clim)] <- pond
+}
+```
+
+- **Purpose:** Recalculate the climatological profiles for temperature and DO after removing outliers, then store the updated profiles.
+
+**Detailed Functionality:**
+
+- **Profile Recalculation:**
+
+  - The climatological profiles are recalculated, this time excluding outliers (i.e., only using data points flagged as `2`).
+
+- **Storing Profiles:** 
+
+  - The recalculated profiles are stored in the `clim_all` dataframe, which aggregates the climatological data for all ponds.
+
+#### **4. Calculate Anomalies for Temperature and DO**
+```r
+clim_all <- clim_all %>%
+  filter(!is.na(Station.name))
+
+ponds$Temp_anom <- NA
+ponds$DO_anom <- NA
+
+for(i in 1:nrow(ponds)) {
+  if(ponds$Month[i] != 8 & ponds$Month[i] != 9) {
+    next
+  }
+  pond <- ponds$Station.name[i]
+  if(is.na(ponds$Depth)[i]) {
+    next
+  }
+  if(ponds$Depth[i] == 0) {
+    a <- 0.01
+    b <- 1
+  } else if(ponds$Depth[i] %% 1 != 0){
+    a <- floor(ponds$Depth[i]) + 0.01
+    b <- ceiling(ponds$Depth[i])
+  } else {
+    a <- ponds$Depth[i]
+    b <- ponds$Depth[i]
+  }
+  ponds$Temp_anom[i] <- ponds$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                                      clim_all$Depth >= a &
+                                                      clim_all$Depth <= b]
+  ponds$DO_anom[i] <- ponds$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                                clim_all$Depth >= a &
+                                                clim_all$Depth <= b]
+}
+```
+
+- **Purpose:** Calculate anomalies for temperature and DO in each pond relative to the climatological profiles.
+
+**Detailed Functionality:**
+
+- **Filtering Climatological Data:** 
+
+  - Removes any rows from `clim_all` that do not have a station name, ensuring the data is clean.
+
+- **Anomaly Calculation:** 
+
+  - For each data point in the `ponds` dataframe (focusing on August and September):
+
+    - The depth is rounded to the nearest integer or adjusted for slight deviations.
+
+    - The anomaly is calculated as the difference between the observed value (`Temp`, `DO`) and the corresponding climatological mean from `clim_all`.
+
+#### **5. Load and Process Surface Data**
+```r
+allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
+  mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
+allSurface$Temp_anom <- NA
+allSurface$DO_anom <- NA
+
+# copy over surface anomalies
+for(i in 1:nrow(allSurface)) {
+  pond <- allSurface$Station.name[i]
+  allSurface$Temp_anom[i] <-
+    allSurface$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                         clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+  allSurface$DO_anom[i] <-
+    allSurface$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                     clim_all$Depth == min(clim_all$Depth[clim_all$Station.name == pond])]
+}
+```
+
+- **Purpose:** Load surface water data, classify it, and calculate anomalies for temperature and DO.
+
+**Detailed Functionality:**
+
+- **Data Loading and Classification:**
+
+  - Loads surface water data from a CSV file (`AllPonds_Surface.csv`) and assigns categorical factors for depth, development, and surface area classes.
+
+- **Anomaly Calculation:**
+
+  - Calculates anomalies for temperature and DO in the surface layer relative to the minimum depth available in the climatological profiles.
+
+#### **6. Load and Process Bottom Data**
+```r
+allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass, levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
+allBottom$Temp_anom <- NA
+allBottom$DO_anom <- NA
+
+# copy over bottom anomalies
+for(i in 1:nrow(allBottom)) {
+  pond <- allBottom$Station.name[i]
+  if(allBottom$Depth[i] %% 1 != 0){
+    a <- floor(allBottom$Depth[i]) + 0.01
+    b <- ceiling(allBottom$Depth[i])
+  } else {
+    a <- allBottom$Depth[i]
+    b <- allBottom$Depth[i]
+  }
+  allBottom$Temp_anom[i] <- allBottom$Temp[i] - clim_all$Temp[clim_all$Station.name == pond &
+                                                              clim_all$Depth >= a &
+                                                              clim_all$Depth <= b]
+  allBottom$DO_anom[i] <- allBottom$DO[i] - clim_all$DO[clim_all$Station.name == pond &
+                                                        clim_all$Depth >= a &
+                                                        clim_all$Depth <= b]
+}
+```
+
+- **Purpose:** Load bottom water data, classify it, and calculate anomalies for temperature and DO.
+
+**Detailed Functionality:**
+
+- **Data Loading and Classification:**
+
+  - Loads bottom water data from a CSV file (`AllPonds_Bottom.csv`) and assigns categorical factors for development and surface area classes.
+
+- **Anomaly Calculation:**
+
+  - Calculates anomalies for temperature and DO in the bottom layer relative to the depth range in the climatological profiles.
+
+---
+
+### Part 5
+
+This section of the script focuses on calculating trends for various water quality parameters across different ponds, both at the surface and bottom layers, over a period of time. The trends are calculated using the Mann-Kendall test, a non-parametric test for identifying trends in time series data, and the Sen’s slope estimator to quantify the trend.
+
+#### **1. Set Up for Surface Water Trend Calculations**
+```r
+start <- which(colnames(allSurface) == "Secchi")
+end <- which(colnames(allSurface) == "Chla")
+
+slopes_surf <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_surf) <- c("pond", "Long", "Lat", "Last_year", colnames(allSurface)[start:end])
+
+# add trend columns to allSurface for later use
+for(param in colnames(allSurface)[start:end]) {
+  allSurface[[paste0(param, "_trend")]] <- NA
+}
+```
+
+- **Purpose:** Initialize structures and prepare for calculating trends in surface water parameters, such as Secchi depth and chlorophyll-a (Chla), for each pond.
+
+**Detailed Functionality:**
+
+- **Column Range Identification:**
+
+  - Identifies the start and end columns in `allSurface` for the parameters of interest (`Secchi` to `Chla`).
+
+- **Initialize DataFrame:**
+
+  - Creates a new dataframe `slopes_surf` to store the results of the trend calculations, including the slope estimates for each parameter and metadata such as pond name, longitude, latitude, and the last year of data.
+
+- **Add Trend Columns:**
+
+  - Adds empty columns to `allSurface` to later store the p-values of the Mann-Kendall test for each parameter.
+
+#### **2. Calculate Trends for Surface Water Parameters**
+```r
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_surf$pond[i] <- pond
+  oneSurf <- allSurface[allSurface$Station.name == pond, ]
+  slopes_surf$Long[i] <- oneSurf$Long[1]
+  slopes_surf$Lat[i] <- oneSurf$Lat[1]
+  slopes_surf$Last_year[i] <- oneSurf$Last_year[1]
+  if(nrow(oneSurf) < 3) {
+    next
+  }
+  if(min(oneSurf$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneSurf$Year) < quantile(2001:2023)[4]) {
+    next
+  }
+  if(nrow(oneSurf) < (2023 - 2001)/2) {               # update this when years of data change
+    next
+  }
+  for(param in colnames(allSurface)[start:end]) {
+    if(sum(!is.na(oneSurf[[param]])) < 1) {
+      next
+    }
+    if(min(oneSurf$Year[!is.na(oneSurf[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneSurf$Year[!is.na(oneSurf[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneSurf[!is.na(oneSurf[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
+      next
+    }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneSurf$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
+    if(mk$p.value >= 0.1) {
+      next
+    }
+    slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
+    allSurface[[paste0(param, "_trend")]][allSurface$Station.name == pond] <- mk$p.value
+  }
+}
+```
+
+- **Purpose:** Perform trend analysis on the selected surface water parameters for each pond, storing the trend results in `slopes_surf`.
+
+**Detailed Functionality:**
+
+- **Loop Over Ponds:**
+
+  - Iterates through each pond (`pondName`), extracting data specific to that pond (`oneSurf`).
+
+- **Check Data Sufficiency:**
+
+  - Checks whether there is enough data to perform a meaningful trend analysis. It ensures that:
+
+    - The pond has at least 3 years of data.
+
+    - The data spans a significant portion of the analysis period (2001-2023).
+
+- **Loop Over Parameters:**
+
+  - For each parameter, it checks for sufficient non-missing data, ensuring that the data covers a meaningful time period.
+
+  - **Trend Calculation:**
+
+    - **Mann-Kendall Test (`mk.test`):** Determines if there is a significant trend in the data.
+
+    - **Sen’s Slope (`sens.slope`):** Estimates the slope of the trend.
+
+  - **Storing Results:**
+
+    - The slope estimate is stored in `slopes_surf`.
+
+    - The p-value from the Mann-Kendall test is stored in the trend column of `allSurface`.
+
+#### **3. Additional Surface Trend Calculations**
+```r
+slopes_surf2 <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_surf2) <- c("pond", "Long", "Lat", "Last_year", colnames(allSurface)[start:end])
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_surf2$pond[i] <- pond
+  oneSurf <- allSurface[allSurface$Station.name == pond, ]
+  oneSurf$MLD <- oneSurf$MLD + runif(length(oneSurf$MLD), -0.01, 0.01)
+  slopes_surf2$Long[i] <- oneSurf$Long[1]
+  slopes_surf2$Lat[i] <- oneSurf$Lat[1]
+  slopes_surf2$Last_year[i] <- oneSurf$Last_year[1]
+  if(nrow(oneSurf) < 3) {
+    next
+  }
+  if(min(oneSurf$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneSurf$Year) < quantile(2001:2023)[4]) {
+    next
+  }
+  if(nrow(oneSurf) < (2023 - 2001)/2) {               # update this when years of data change
+    next
+  }
+  for(param in colnames(allSurface)[start:end]) {
+    if(sum(!is.na(oneSurf[[param]])) < 1) {
+      next
+    }
+    if(min(oneSurf$Year[!is.na(oneSurf[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneSurf$Year[!is.na(oneSurf[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneSurf[!is.na(oneSurf[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
+      next
+    }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneSurf$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneSurf[[param]][oneSurf[[flag_name]] == 2])
+    if(mk$p.value < 0.1) {
+      next
+    }
+    slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
+    allSurface[[paste0(param, "_trend")]][allSurface$Station.name == pond] <- mk$p.value
+  }
+}
+```
+
+- **Purpose:** Perform a secondary set of trend calculations for surface water parameters, potentially adjusting certain parameters (e.g., MLD) with added noise for better trend detection.
+
+**Detailed Functionality:**
+
+- **Initialization:**
+
+  - A new dataframe `slopes_surf2` is created, similar to `slopes_surf`, for storing additional or refined trend calculations.
+
+- **Adjusting Parameters:**
+
+  - The Mixed Layer Depth (MLD) is adjusted with a small amount of noise to avoid zero slopes.
+
+- **Trend Calculations:**
+
+  - Similar to the first set of trend calculations, but with slightly different criteria or adjustments (e.g., ignoring weaker trends).
+
+#### **4. Set Up for Bottom Water Trend Calculations**
+```r
+start <- which(colnames(allBottom) == "Temp")
+end <- which(colnames(allBottom) == "Chla") - 1
+
+slopes_bott <- data.frame(matrix(ncol = length(start:end) + 4, nrow
+
+ = length(pondName)))
+colnames(slopes_bott) <- c("pond", "Long", "Lat", "Last_year", colnames(allBottom)[start:end])
+
+# add trend columns to allBottom for later use
+for(param in colnames(allBottom)[start:end]) {
+  allBottom[[paste0(param, "_trend")]] <- NA
+}
+```
+
+- **Purpose:** Prepare for trend calculations on bottom water parameters, such as temperature and dissolved oxygen.
+
+**Detailed Functionality:**
+
+- **Column Range Identification:**
+
+  - Identifies the relevant columns in `allBottom` for the bottom water parameters of interest.
+
+- **Initialize DataFrame:**
+
+  - Creates a new dataframe `slopes_bott` to store the trend results for the bottom layer.
+
+- **Add Trend Columns:**
+
+  - Adds empty columns to `allBottom` to store the trend p-values.
+
+#### **5. Calculate Trends for Bottom Water Parameters**
+```r
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_bott$pond[i] <- pond
+  oneBott <- allBottom[allBottom$Station.name == pond, ]
+  slopes_bott$Long[i] <- oneBott$Long[1]
+  slopes_bott$Lat[i] <- oneBott$Lat[1]
+  slopes_bott$Last_year[i] <- oneBott$Last_year[1]
+  if(nrow(oneBott) < 3) {
+    next
+  }
+  if(min(oneBott$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneBott$Year) < quantile(2001:2023)[4]) {
+    next
+  }
+  if(nrow(oneBott) < (2023 - 2001)/2) {               # update this when years of data change
+    next
+  }
+  for(param in colnames(allBottom)[start:end]) {
+    if(sum(!is.na(oneBott[[param]])) < 1) {
+      next
+    }
+    if(min(oneBott$Year[!is.na(oneBott[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneBott$Year[!is.na(oneBott[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneBott[!is.na(oneBott[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
+      next
+    }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneBott$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
+    if(mk$p.value >= 0.1) {
+      next
+    }
+    slopes_bott[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
+    allBottom[[paste0(param, "_trend")]][allBottom$Station.name == pond] <- mk$p.value
+  }
+}
+```
+
+- **Purpose:** Perform trend analysis on bottom water parameters, storing the results in `slopes_bott`.
+
+**Detailed Functionality:**
+
+- **Loop Over Ponds:**
+
+  - Similar to the surface trend analysis, this loop iterates through each pond, extracting data specific to the bottom layer (`oneBott`).
+
+- **Trend Calculation:**
+
+  - For each bottom water parameter, the Mann-Kendall test and Sen’s slope estimator are applied. The results are stored in `slopes_bott`, and the trend p-values are added to `allBottom`.
+
+#### **6. Additional Bottom Trend Calculations**
+```r
+slopes_bott2 <- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+colnames(slopes_bott2) <- c("pond", "Long", "Lat", "Last_year", colnames(allBottom)[start:end])
+
+for(i in 1:length(pondName)) {
+  pond <- pondName[i]
+  slopes_bott2$pond[i] <- pond
+  oneBott <- allBottom[allBottom$Station.name == pond, ]
+  slopes_bott2$Long[i] <- oneBott$Long[1]
+  slopes_bott2$Lat[i] <- oneBott$Lat[1]
+  slopes_bott2$Last_year[i] <- oneBott$Last_year[1]
+  if(nrow(oneBott) < 3) {
+    next
+  }
+  if(min(oneBott$Year) > quantile(2001:2023)[2] |     # update this when years of data change
+     max(oneBott$Year) < quantile(2001:2023)[4]) {
+    next
+  }
+  if(nrow(oneBott) < (2023 - 2001)/2) {               # update this when years of data change
+    next
+  }
+  for(param in colnames(allBottom)[start:end]) {
+    if(sum(!is.na(oneBott[[param]])) < 1) {
+      next
+    }
+    if(min(oneBott$Year[!is.na(oneBott[[param]])]) > quantile(2001:2023)[2] |     # update this when years of data change
+       max(oneBott$Year[!is.na(oneBott[[param]])]) < quantile(2001:2023)[4]) {
+      next
+    }
+    if(nrow(oneBott[!is.na(oneBott[[param]]), ]) < (2023 - 2001)/2) {               # update this when years of data change
+      next
+    }
+    if((param == "VerticalFishSpace" | param == "VolumetricFishSpace") &
+       sum(oneBott$VerticalFishSpace, na.rm = TRUE) == 0) {
+      next
+    }
+    flag_name <- paste0(param, "_flag")
+    mk <- mk.test(oneBott[[param]][oneBott[[flag_name]] == 2])
+    if(mk$p.value < 0.1) {
+      next
+    }
+    slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
+    allBottom[[paste0(param, "_trend")]][allBottom$Station.name == pond] <- mk$p.value
+  }
+}
+```
+
+- **Purpose:** Perform a secondary set of trend calculations for bottom water parameters, similar to the secondary surface trend calculations.
+
+**Detailed Functionality:**
+
+- **Initialization:**
+
+  - A new dataframe `slopes_bott2` is created for storing additional trend calculations for the bottom layer.
+
+- **Trend Calculations:**
+
+  - Similar to `slopes_surf2`, this code block performs additional or refined trend calculations for the bottom water parameters, with specific criteria to ensure data quality and meaningful results.
