@@ -292,64 +292,6 @@ ponds <- ponds %>%
 ```
 
 ```{r include = FALSE}
-# match ponds to metadata
-setwd("~/Desktop/Repos/CapeCodPonds2023")
-
-chars <- read.csv("data/PondCharacteristics.csv") %>%
-  mutate(across(where(is.character), ~ na_if(., "#N/A")))
-
-ponds$Size <- NA
-ponds$Lens <- NA
-ponds$PercentDeveloped <- NA
-ponds$Char.Depth.ft <- NA
-
-for(i in 1:nrow(ponds)) {
-  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
-  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) > 0) {
-    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
-    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
-    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
-    ponds$Char.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
-  }
-}
-
-ponds <- ponds %>%
-  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
-  relocate(Char.Depth, .before = Max.Depth)
-
-ponds <- ponds %>%
-  mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
-                                Max.Depth > 3 ~ "Deep"))
-
-ponds$SurfaceAreaClass <- NA
-
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(Size = Size[1])
-# 
-# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
-                                    ponds$Size <= 12.315432 ~ "Small",
-                                    ponds$Size <= 32.563650 ~ "Medium",
-                                    ponds$Size > 32.563650 ~ "Large")
-
-ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
-
-# ponds_grouped <- ponds %>%
-#   group_by(Station.name) %>%
-#   summarize(PercentDeveloped = PercentDeveloped[1])
-# 
-# quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
-
-ponds <- ponds %>%
-  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
-                                      ponds$PercentDeveloped <= 13.00 ~ "Low",
-                                      ponds$PercentDeveloped <= 23.25 ~ "Medium",
-                                      ponds$PercentDeveloped > 23.25 ~ "High"))
-```
-
-```{r include = FALSE}
 ## Fish space calcs
 
 # calculate MLDs using 1st derivative
@@ -425,6 +367,64 @@ for(pond in allPonds) {
 
 ponds <- ponds %>%
   relocate(c(VerticalFishSpace, VolumetricFishSpace), .after = MLD)
+```
+
+```{r include = FALSE}
+# match ponds to metadata
+setwd("~/Desktop/Repos/CapeCodPonds2023")
+
+chars <- read.csv("data/PondCharacteristics.csv") %>%
+  mutate(across(where(is.character), ~ na_if(., "#N/A")))
+
+ponds$Size <- NA
+ponds$Lens <- NA
+ponds$PercentDeveloped <- NA
+ponds$Char.Depth.ft <- NA
+
+for(i in 1:nrow(ponds)) {
+  ID <- str_extract(ponds$Station.number[i], "[A-Z]{2}-\\d+")
+  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) > 0) {
+    ponds$Size[i] <- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] <- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentDeveloped[i] <- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$Char.Depth.ft[i] <- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+  }
+}
+
+ponds <- ponds %>%
+  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
+  relocate(Char.Depth, .before = Max.Depth)
+
+ponds <- ponds %>%
+  mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
+                                Max.Depth > 3 ~ "Deep"))
+
+ponds$SurfaceAreaClass <- NA
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(Size = Size[1])
+# 
+# quantile(ponds_grouped$Size, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds$SurfaceAreaClass <- case_when(ponds$Size <= 5.743542 ~ "Very Small",
+                                    ponds$Size <= 12.315432 ~ "Small",
+                                    ponds$Size <= 32.563650 ~ "Medium",
+                                    ponds$Size > 32.563650 ~ "Large")
+
+ponds$PercentDeveloped <- as.numeric(str_extract(ponds$PercentDeveloped, ".*(?=%)"))
+
+# ponds_grouped <- ponds %>%
+#   group_by(Station.name) %>%
+#   summarize(PercentDeveloped = PercentDeveloped[1])
+# 
+# quantile(ponds_grouped$PercentDeveloped, probs = c(0.25, 0.5, 0.75), na.rm = TRUE)
+
+ponds <- ponds %>%
+  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped <= 5.00 ~ "Very Low",
+                                      ponds$PercentDeveloped <= 13.00 ~ "Low",
+                                      ponds$PercentDeveloped <= 23.25 ~ "Medium",
+                                      ponds$PercentDeveloped > 23.25 ~ "High"))
 ```
 
 ```{r include = FALSE}
