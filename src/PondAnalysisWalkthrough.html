@@ -357,8 +357,8 @@ display: none;
 </div>
 
 
-<div id="part-1" class="section level3">
-<h3>Part 1</h3>
+<div id="part-1-data-cleaning" class="section level3">
+<h3>Part 1: Data cleaning</h3>
 <p>This code aims to thoroughly clean, organize, and prepare water
 quality data for analysis. It addresses data inconsistencies, merges
 redundant columns, fills missing values, and ensures all data is in the
@@ -544,17 +544,15 @@ ponds &lt;- ponds %&gt;%
 
   mutate(Secchi = ifelse(is.nan(Secchi), NA, Secchi))</code></pre>
 <ul>
-<li><strong>Purpose:</strong> Ensures consistency in Secchi depth
-measurements across different rows for the same station and date.</li>
-<li><strong>Functionality:</strong> The code fills missing Secchi depth
-values by taking the mean of available values for the same station and
-date.</li>
+<li><strong>Purpose:</strong> The code fills missing Secchi depth values
+by taking the mean of available values (generally a single value) for
+the same station and date.</li>
 </ul>
 <hr />
 </div>
 </div>
-<div id="part-2" class="section level3">
-<h3>Part 2</h3>
+<div id="part-2-calculating-additional-parameters" class="section level3">
+<h3>Part 2: Calculating additional parameters</h3>
 <p>This code performs further calculations and data organization on the
 <code>ponds</code> dataset, specifically focusing on calculating
 dissolved oxygen saturation, converting units, and determining mixed
@@ -626,15 +624,25 @@ ponds &lt;- ponds %&gt;%
 (uM) to micrograms per liter (ug/L), which are more commonly used units
 in water quality analysis.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Total Nitrogen
-(<code>TN</code>):</strong> - The conversion factor for nitrogen is
-14.0067, which is the molecular weight of nitrogen. - <strong>Total
-Phosphorus (<code>TP</code>):</strong> - The conversion factor for
-phosphorus is 30.973762, the molecular weight of phosphorus. If the
-original <code>TP</code> value is missing, it is calculated from
-<code>TP_uM</code>. - <strong>Reordering:</strong> - The columns are
-reordered to place <code>TN</code> before <code>TP</code> for easier
-access and analysis.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Total Nitrogen (<code>TN</code>):</strong></p>
+<ul>
+<li>The conversion factor for nitrogen is 14.0067, which is the
+molecular weight of nitrogen.</li>
+</ul></li>
+<li><p><strong>Total Phosphorus (<code>TP</code>):</strong></p>
+<ul>
+<li>The conversion factor for phosphorus is 30.973762, the molecular
+weight of phosphorus. If the original <code>TP</code> value is missing,
+it is calculated from <code>TP_uM</code>.</li>
+</ul></li>
+<li><p><strong>Reordering:</strong></p>
+<ul>
+<li>The columns are reordered to place <code>TN</code> before
+<code>TP</code> for easier access and analysis.</li>
+</ul></li>
+</ul>
 </div>
 <div id="calculate-mixed-layer-depths-mlds" class="section level4">
 <h4><strong>3. Calculate Mixed Layer Depths (MLDs)</strong></h4>
@@ -703,133 +711,45 @@ Depth (MLD) for each pond. The MLD is the depth at which a significant
 temperature change occurs, indicating the transition between different
 water layers.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> -
-<strong>Initialization:</strong> - Initializes columns <code>MLD</code>
-and <code>Max.Depth</code> as <code>NA</code>. - <strong>Max Depth
-Calculation:</strong> - For each pond, the maximum depth is recorded. If
-the pond is shallower than 5 meters, it is skipped because MLD
-calculations are not relevant. - <strong>Depth and Temperature
-Checks:</strong> - For each date, the function checks if there are
-enough valid temperature readings at different depths. It skips dates
-where insufficient data exists. - <strong>Temperature Gradient
-Calculation:</strong> - For each pair of depth readings, the code
-calculates the temperature gradient (<code>delta_temp</code>). If the
-gradient is less than -1 °C/m (indicating a rapid temperature drop), the
-depth at this point is recorded as the MLD. - If no steep temperature
-gradient is found but the depth is near the bottom of the pond (75% of
-the maximum depth), this depth is used as the MLD. - <strong>Reordering
-Columns:</strong> - The <code>MLD</code> and <code>Max.Depth</code>
-columns are relocated for easier reference.</p>
-<hr />
-</div>
-</div>
-<div id="part-3" class="section level3">
-<h3>Part 3</h3>
-<p>This section of the code integrates pond-specific metadata,
-classifies ponds by various physical and development characteristics,
-and performs calculations to estimate the volume of water that can
-sustain fish populations based on oxygen levels and water
-stratification.</p>
-<div id="match-ponds-to-metadata" class="section level4">
-<h4><strong>1. Match Ponds to Metadata</strong></h4>
-<pre class="r"><code>setwd(&quot;~/Desktop/Repos/CapeCodPonds2023&quot;)
-
-chars &lt;- read.csv(&quot;data/PondCharacteristics.csv&quot;) %&gt;%
-  mutate(across(where(is.character), ~ na_if(., &quot;#N/A&quot;)))
-
-ponds$Size &lt;- NA
-ponds$Lens &lt;- NA
-ponds$PercentDeveloped &lt;- NA
-ponds$Char.Depth.ft &lt;- NA
-
-for(i in 1:nrow(ponds)) {
-  ID &lt;- str_extract(ponds$Station.number[i], &quot;[A-Z]{2}-\\d+&quot;)
-  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) &gt; 0) {
-    ponds$Size[i] &lt;- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
-    ponds$Lens[i] &lt;- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
-    ponds$PercentDeveloped[i] &lt;- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
-    ponds$Char.Depth.ft[i] &lt;- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
-  }
-}
-
-ponds &lt;- ponds %&gt;%
-  mutate(Char.Depth = Char.Depth.ft * 0.3048) %&gt;%
-  relocate(Char.Depth, .before = Max.Depth)</code></pre>
+<p><strong>Detailed Functionality:</strong></p>
 <ul>
-<li><strong>Purpose:</strong> This block matches each pond in the
-dataset to additional metadata from an external CSV file
-(<code>PondCharacteristics.csv</code>), adding information about the
-pond’s size, aquifer lens, percentage of surrounding land developed, and
-depth.</li>
-</ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Loading
-Metadata:</strong> - The <code>PondCharacteristics.csv</code> file is
-loaded and any <code>&quot;#N/A&quot;</code> values are converted to
-<code>NA</code>. - <strong>Initialization:</strong> - New columns
-(<code>Size</code>, <code>Lens</code>, <code>PercentDeveloped</code>,
-<code>Char.Depth.ft</code>) are initialized as <code>NA</code> in the
-<code>ponds</code> dataframe. - <strong>Matching and
-Assignment:</strong> - For each pond, an ID is extracted from
-<code>Station.number</code>, and if a matching ID is found in the
-<code>chars</code> dataset, the corresponding metadata is assigned to
-the pond. - <strong>Conversion and Reordering:</strong> - The pond depth
-(<code>Char.Depth.ft</code>) is converted from feet to meters
-(<code>Char.Depth</code>) and relocated in the dataframe before the
-<code>Max.Depth</code> column.</p>
-</div>
-<div id="classify-ponds-based-on-depth-and-surface-area" class="section level4">
-<h4><strong>2. Classify Ponds Based on Depth and Surface
-Area</strong></h4>
-<pre class="r"><code>ponds &lt;- ponds %&gt;%
-  mutate(DepthClass = case_when(Max.Depth &lt;= 3 ~ &quot;Shallow&quot;,
-                                Max.Depth &gt; 3 ~ &quot;Deep&quot;))
-
-ponds$SurfaceAreaClass &lt;- NA
-
-ponds$SurfaceAreaClass &lt;- case_when(ponds$Size &lt;= 5.743542 ~ &quot;Very Small&quot;,
-                                    ponds$Size &lt;= 12.315432 ~ &quot;Small&quot;,
-                                    ponds$Size &lt;= 32.563650 ~ &quot;Medium&quot;,
-                                    ponds$Size &gt; 32.563650 ~ &quot;Large&quot;)
-
-ponds$PercentDeveloped &lt;- as.numeric(str_extract(ponds$PercentDeveloped, &quot;.*(?=%)&quot;))</code></pre>
+<li><p><strong>Initialization:</strong></p>
 <ul>
-<li><strong>Purpose:</strong> This section classifies the ponds based on
-their maximum depth, surface area, and the percentage of surrounding
-land developed.</li>
-</ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Depth
-Classification:</strong> - Ponds are classified as “Shallow” (maximum
-depth ≤ 3 meters) or “Deep” (maximum depth &gt; 3 meters). -
-<strong>Surface Area Classification:</strong> - Ponds are classified
-into four categories (“Very Small”, “Small”, “Medium”, “Large”) based on
-their surface area, using predefined size thresholds. -
-<strong>Development Percentage Extraction:</strong> - The percentage of
-surrounding land developed is extracted from the
-<code>PercentDeveloped</code> column, converting it to a numeric
-value.</p>
-</div>
-<div id="classify-ponds-based-on-development" class="section level4">
-<h4><strong>3. Classify Ponds Based on Development</strong></h4>
-<pre class="r"><code>ponds &lt;- ponds %&gt;%
-  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped &lt;= 5.00 ~ &quot;Very Low&quot;,
-                                      ponds$PercentDeveloped &lt;= 13.00 ~ &quot;Low&quot;,
-                                      ponds$PercentDeveloped &lt;= 23.25 ~ &quot;Medium&quot;,
-                                      ponds$PercentDeveloped &gt; 23.25 ~ &quot;High&quot;))</code></pre>
+<li>Initializes columns <code>MLD</code> and <code>Max.Depth</code> as
+<code>NA</code>.</li>
+</ul></li>
+<li><p><strong>Max Depth Calculation:</strong></p>
 <ul>
-<li><strong>Purpose:</strong> This block classifies the ponds into
-different development classes based on the percentage of surrounding
-land developed.</li>
+<li>For each pond, the maximum depth is recorded. If the pond is
+shallower than 5 meters, it is skipped because MLD calculations are not
+relevant.</li>
+</ul></li>
+<li><p><strong>Depth and Temperature Checks:</strong></p>
+<ul>
+<li>For each date, the function checks if there are enough valid
+temperature readings at different depths. It skips dates where
+insufficient data exists.</li>
+</ul></li>
+<li><p><strong>Temperature Gradient Calculation:</strong></p>
+<ul>
+<li><p>For each pair of depth readings, the code calculates the
+temperature gradient (<code>delta_temp</code>). If the gradient is less
+than -1 °C/m (indicating a rapid temperature drop), the depth at this
+point is recorded as the MLD.</p></li>
+<li><p>If no steep temperature gradient is found but the depth is near
+the bottom of the pond (75% of the maximum depth), this depth is used as
+the MLD.</p></li>
+</ul></li>
+<li><p><strong>Reordering Columns:</strong></p>
+<ul>
+<li>The <code>MLD</code> and <code>Max.Depth</code> columns are
+relocated for easier reference.</li>
+</ul></li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Development
-Class:</strong> - The ponds are categorized into “Very Low”, “Low”,
-“Medium”, or “High” development classes, using specific thresholds for
-the percentage of developed land around the pond.</p>
 </div>
-<div id="fish-habitat-calculations" class="section level4">
-<h4><strong>4. Fish Habitat Calculations</strong></h4>
-<pre class="r"><code>## Fish space calcs
-
-# calculate MLDs using 1st derivative
+<div id="calculate-fish-habitat-space" class="section level4">
+<h4><strong>4. Calculate Fish Habitat Space</strong></h4>
+<pre class="r"><code># calculate MLDs using 1st derivative
 ponds$hypo &lt;- NA
 ponds$DO.4 &lt;- NA
 ponds$VerticalFishSpace &lt;- NA
@@ -901,29 +821,173 @@ ponds &lt;- ponds %&gt;%
 space for fish within each pond, focusing on areas where dissolved
 oxygen levels are sufficient for fish survival.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> -
-<strong>Initialization:</strong> - New columns (<code>hypo</code>,
-<code>DO.4</code>, <code>VerticalFishSpace</code>,
-<code>VolumetricFishSpace</code>) are initialized as <code>NA</code>. -
-<strong>Monthly Filtering:</strong> - Only data from August and
-September is considered, as these are likely the months of interest for
-fish habitat analysis. - <strong>Temperature and Oxygen
-Profiles:</strong> - For each date in each pond, the code checks if the
-pond is stratified (i.e., has a distinct mixed layer). If not, it skips
-to the next date. - Missing temperature and dissolved oxygen values at
-different depths are interpolated using linear approximation. -
-<strong>Identify Hypolimnion Depth:</strong> - The depth of the
-hypolimnion (the deeper, colder layer of water) is identified based on
-the steepest temperature gradient. - <strong>Dissolved Oxygen
-Threshold:</strong> - The code calculates the depth where dissolved
-oxygen is at least 4 mg/L, a common threshold for fish survival. -
-<strong>Fish Habitat Space Calculation:</strong> - <strong>Vertical Fish
-Space:</strong> The vertical distance between the hypolimnion and the
-oxygen threshold (DO ≥ 4 mg/L) is calculated. - <strong>Volumetric Fish
-Space:</strong> This vertical distance is multiplied by the pond’s
-surface area to estimate the total volume of suitable fish habitat. -
-<strong>Reordering Columns:</strong> - The calculated fish space metrics
-are relocated for easier reference in the dataset.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Initialization:</strong></p>
+<ul>
+<li>New columns (<code>hypo</code>, <code>DO.4</code>,
+<code>VerticalFishSpace</code>, <code>VolumetricFishSpace</code>) are
+initialized as <code>NA</code>.</li>
+</ul></li>
+<li><p><strong>Monthly Filtering:</strong></p>
+<ul>
+<li>Only data from August and September is considered.</li>
+</ul></li>
+<li><p><strong>Temperature and Oxygen Profiles:</strong></p>
+<ul>
+<li><p>For each date in each pond, the code checks if the pond is
+stratified (i.e., has a distinct mixed layer). If not, it skips to the
+next date.</p></li>
+<li><p>Missing temperature and dissolved oxygen values at different
+depths are interpolated using linear approximation.</p></li>
+</ul></li>
+<li><p><strong>Identify Hypolimnion Depth:</strong></p>
+<ul>
+<li>The depth of the hypolimnion (the deeper, colder layer of water) is
+identified based on the steepest temperature gradient.</li>
+</ul></li>
+<li><p><strong>Dissolved Oxygen Threshold:</strong></p>
+<ul>
+<li>The code calculates the depth where dissolved oxygen is at least 4
+mg/L, a common threshold for fish survival.</li>
+</ul></li>
+<li><p><strong>Fish Habitat Space Calculation:</strong></p>
+<ul>
+<li><p><strong>Vertical Fish Space:</strong> The vertical distance
+between the hypolimnion and the oxygen threshold (DO ≥ 4 mg/L) is
+calculated.</p></li>
+<li><p><strong>Volumetric Fish Space:</strong> This vertical distance is
+multiplied by the pond’s surface area to estimate the total volume of
+suitable fish habitat.</p></li>
+</ul></li>
+<li><p><strong>Reordering Columns:</strong></p>
+<ul>
+<li>The calculated fish space metrics are relocated for easier reference
+in the dataset.</li>
+</ul></li>
+</ul>
+<hr />
+<hr />
+</div>
+</div>
+<div id="part-3-add-pond-characteristic-metadata" class="section level3">
+<h3>Part 3: Add pond characteristic metadata</h3>
+<p>This section of the code integrates pond-specific metadata,
+classifies ponds by various physical and development characteristics,
+and performs calculations to estimate the volume of water that can
+sustain fish populations based on oxygen levels and water
+stratification.</p>
+<div id="match-ponds-to-metadata" class="section level4">
+<h4><strong>1. Match Ponds to Metadata</strong></h4>
+<pre class="r"><code>setwd(&quot;~/Desktop/Repos/CapeCodPonds2023&quot;)
+
+chars &lt;- read.csv(&quot;data/PondCharacteristics.csv&quot;) %&gt;%
+  mutate(across(where(is.character), ~ na_if(., &quot;#N/A&quot;)))
+
+ponds$Size &lt;- NA
+ponds$Lens &lt;- NA
+ponds$PercentDeveloped &lt;- NA
+ponds$Char.Depth.ft &lt;- NA
+
+for(i in 1:nrow(ponds)) {
+  ID &lt;- str_extract(ponds$Station.number[i], &quot;[A-Z]{2}-\\d+&quot;)
+  if(length(chars$Acres[chars$CCC_GIS_ID == ID]) &gt; 0) {
+    ponds$Size[i] &lt;- as.numeric(chars$Acres[chars$CCC_GIS_ID == ID])
+    ponds$Lens[i] &lt;- chars$Aquifer.Lens[chars$CCC_GIS_ID == ID]
+    ponds$PercentDeveloped[i] &lt;- chars$X..100ft.buffer.developed[chars$CCC_GIS_ID == ID]
+    ponds$Char.Depth.ft[i] &lt;- as.numeric(chars$Final.Depth[chars$CCC_GIS_ID == ID])
+  }
+}
+
+ponds &lt;- ponds %&gt;%
+  mutate(Char.Depth = Char.Depth.ft * 0.3048) %&gt;%
+  relocate(Char.Depth, .before = Max.Depth)</code></pre>
+<ul>
+<li><strong>Purpose:</strong> This block matches each pond in the
+dataset to additional metadata from an external CSV file
+(<code>PondCharacteristics.csv</code>), adding information about the
+pond’s size, aquifer lens, percentage of surrounding land developed, and
+depth.</li>
+</ul>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Loading Metadata:</strong></p>
+<ul>
+<li>The <code>PondCharacteristics.csv</code> file is loaded and any
+<code>&quot;#N/A&quot;</code> values are converted to <code>NA</code>.</li>
+</ul></li>
+<li><p><strong>Initialization:</strong></p>
+<ul>
+<li>New columns (<code>Size</code>, <code>Lens</code>,
+<code>PercentDeveloped</code>, <code>Char.Depth.ft</code>) are
+initialized as <code>NA</code> in the <code>ponds</code> dataframe.</li>
+</ul></li>
+<li><p><strong>Matching and Assignment:</strong></p>
+<ul>
+<li>For each pond, an ID is extracted from <code>Station.number</code>,
+and if a matching ID is found in the <code>chars</code> dataset, the
+corresponding metadata is assigned to the pond.</li>
+</ul></li>
+<li><p><strong>Conversion and Reordering:</strong></p>
+<ul>
+<li>The pond depth (<code>Char.Depth.ft</code>) is converted from feet
+to meters (<code>Char.Depth</code>) and relocated in the dataframe
+before the <code>Max.Depth</code> column.</li>
+</ul></li>
+</ul>
+</div>
+<div id="classify-ponds-based-on-depth-surface-area-and-development" class="section level4">
+<h4><strong>2. Classify Ponds Based on Depth, Surface Area, and
+Development</strong></h4>
+<pre class="r"><code>ponds &lt;- ponds %&gt;%
+  mutate(DepthClass = case_when(Max.Depth &lt;= 3 ~ &quot;Shallow&quot;,
+                                Max.Depth &gt; 3 ~ &quot;Deep&quot;))
+
+ponds$SurfaceAreaClass &lt;- NA
+
+ponds$SurfaceAreaClass &lt;- case_when(ponds$Size &lt;= 5.743542 ~ &quot;Very Small&quot;,
+                                    ponds$Size &lt;= 12.315432 ~ &quot;Small&quot;,
+                                    ponds$Size &lt;= 32.563650 ~ &quot;Medium&quot;,
+                                    ponds$Size &gt; 32.563650 ~ &quot;Large&quot;)
+
+ponds$PercentDeveloped &lt;- as.numeric(str_extract(ponds$PercentDeveloped, &quot;.*(?=%)&quot;))
+
+ponds &lt;- ponds %&gt;%
+  mutate(DevelopmentClass = case_when(ponds$PercentDeveloped &lt;= 5.00 ~ &quot;Very Low&quot;,
+                                      ponds$PercentDeveloped &lt;= 13.00 ~ &quot;Low&quot;,
+                                      ponds$PercentDeveloped &lt;= 23.25 ~ &quot;Medium&quot;,
+                                      ponds$PercentDeveloped &gt; 23.25 ~ &quot;High&quot;))</code></pre>
+<ul>
+<li><strong>Purpose:</strong> This section classifies the ponds based on
+their maximum depth, surface area, and the percentage of surrounding
+land developed.</li>
+</ul>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Depth Classification:</strong></p>
+<ul>
+<li>Ponds are classified as “Shallow” (maximum depth ≤ 3 meters) or
+“Deep” (maximum depth &gt; 3 meters).</li>
+</ul></li>
+<li><p><strong>Surface Area Classification:</strong></p>
+<ul>
+<li>Ponds are classified into four categories (“Very Small”, “Small”,
+“Medium”, “Large”) based on their surface area, using predefined size
+thresholds.</li>
+</ul></li>
+<li><p><strong>Development Percentage Extraction:</strong></p>
+<ul>
+<li>The percentage of surrounding land developed is extracted from the
+<code>PercentDeveloped</code> column, converting it to a numeric
+value.</li>
+</ul></li>
+<li><p><strong>Development Class:</strong></p>
+<ul>
+<li>The ponds are categorized into “Very Low”, “Low”, “Medium”, or
+“High” development classes, using specific thresholds for the percentage
+of developed land around the pond.</li>
+</ul></li>
+</ul>
 <hr />
 </div>
 </div>
@@ -949,22 +1013,28 @@ ponds$DO_flag &lt;- NA
 clim_all &lt;- data.frame(matrix(ncol = 6, nrow = 2500))
 colnames(clim_all) &lt;- c(&quot;Station.name&quot;, &quot;Depth&quot;, &quot;Temp&quot;, &quot;Temp_sd&quot;, &quot;DO&quot;, &quot;DO_sd&quot;)</code></pre>
 <ul>
-<li><strong>Purpose:</strong> Set up the working directory, filter the
-<code>ponds</code> dataset to focus on data from August and September,
-and initialize variables for further calculations.</li>
+<li><strong>Purpose:</strong> Filter the <code>ponds</code> dataset to
+focus on data from August and September and initialize variables for
+further calculations.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Working
-Directory:</strong> - Sets the working directory to the path where the
-data files are located. - <strong>Data Filtering:</strong> - Filters the
-<code>ponds</code> dataset to include only data from August and
-September (<code>focal_ponds</code>), as these months are often critical
-for water quality due to summer stratification. -
-<strong>Initialization:</strong> - Initializes empty columns
-(<code>Temp_flag</code>, <code>DO_flag</code>) in the <code>ponds</code>
-dataframe for flagging temperature and DO values. - Creates an empty
-dataframe (<code>clim_all</code>) with columns for storing
-climatological data (mean and standard deviation) of temperature and DO
-at various depths.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Data Filtering:</strong></p>
+<ul>
+<li>Filters the <code>ponds</code> dataset to include only data from
+August and September (<code>focal_ponds</code>), as these months are
+often critical for water quality due to summer stratification.</li>
+</ul></li>
+<li><p><strong>Initialization:</strong></p>
+<ul>
+<li><p>Initializes empty columns (<code>Temp_flag</code>,
+<code>DO_flag</code>) in the <code>ponds</code> dataframe for flagging
+temperature and DO values.</p></li>
+<li><p>Creates an empty dataframe (<code>clim_all</code>) with columns
+for storing climatological data (mean and standard deviation) of
+temperature and DO at various depths.</p></li>
+</ul></li>
+</ul>
 </div>
 <div id="calculate-climatological-profiles-for-temperature-and-do" class="section level4">
 <h4><strong>2. Calculate Climatological Profiles for Temperature and
@@ -1017,21 +1087,39 @@ temperature and DO profiles at different depths for each pond during
 August and September, and flag the data points based on their deviation
 from these averages.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Depth
-Correction:</strong> - Replaces depth values of 0 with 0.01 to avoid
-issues with depth calculations. - <strong>Climatological
-Profiles:</strong> - For each pond, a climatological profile of
-temperature and DO is calculated at 1-meter intervals up to the maximum
-depth. The mean (<code>clim1</code>) and standard deviation
-(<code>clim2</code>) of temperature and DO are calculated within depth
-bins (e.g., 0.01 to 1 meter, 1 to 2 meters, etc.). - <strong>Flagging
-Data:</strong> - Data points are flagged based on their deviation from
-the climatological mean: - <strong>Flag 2:</strong> Values within ±3
-standard deviations of the mean. - <strong>Flag 3:</strong> Values
-outside this range (potential outliers). - <strong>Flag 4:</strong>
-Missing values. - <strong>Assignment to Main Dataset:</strong> - The
-calculated flags for temperature and DO are assigned back to the
-<code>ponds</code> dataframe.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Depth Correction:</strong></p>
+<ul>
+<li>Replaces depth values of 0 with 0.01 to avoid issues with depth
+calculations.</li>
+</ul></li>
+<li><p><strong>Climatological Profiles:</strong></p>
+<ul>
+<li>For each pond, a climatological profile of temperature and DO is
+calculated at 1-meter intervals up to the maximum depth. The mean
+(<code>clim1</code>) and standard deviation (<code>clim2</code>) of
+temperature and DO are calculated within depth bins (e.g., 0.01 to 1
+meter, 1 to 2 meters, etc.).</li>
+</ul></li>
+<li><p><strong>Flagging Data:</strong></p>
+<ul>
+<li><p>Data points are flagged based on their deviation from the
+climatological mean:</p>
+<ul>
+<li><p><strong>Flag 2:</strong> Values within ±3 standard deviations of
+the mean.</p></li>
+<li><p><strong>Flag 3:</strong> Values outside this range (potential
+outliers).</p></li>
+<li><p><strong>Flag 4:</strong> Missing values.</p></li>
+</ul></li>
+</ul></li>
+<li><p><strong>Assignment to Main Dataset:</strong></p>
+<ul>
+<li>The calculated flags for temperature and DO are assigned back to the
+<code>ponds</code> dataframe.</li>
+</ul></li>
+</ul>
 </div>
 <div id="recalculate-climatological-profiles-after-removing-outliers" class="section level4">
 <h4><strong>3. Recalculate Climatological Profiles After Removing
@@ -1056,12 +1144,19 @@ Outliers</strong></h4>
 for temperature and DO after removing outliers, then store the updated
 profiles.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Profile
-Recalculation:</strong> - The climatological profiles are recalculated,
-this time excluding outliers (i.e., only using data points flagged as
-<code>2</code>). - <strong>Storing Profiles:</strong> - The recalculated
-profiles are stored in the <code>clim_all</code> dataframe, which
-aggregates the climatological data for all ponds.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Profile Recalculation:</strong></p>
+<ul>
+<li>The climatological profiles are recalculated, this time excluding
+outliers (i.e., only using data points flagged as <code>2</code>).</li>
+</ul></li>
+<li><p><strong>Storing Profiles:</strong></p>
+<ul>
+<li>The recalculated profiles are stored in the <code>clim_all</code>
+dataframe, which aggregates the climatological data for all ponds.</li>
+</ul></li>
+</ul>
 </div>
 <div id="calculate-anomalies-for-temperature-and-do" class="section level4">
 <h4><strong>4. Calculate Anomalies for Temperature and DO</strong></h4>
@@ -1100,16 +1195,26 @@ for(i in 1:nrow(ponds)) {
 <li><strong>Purpose:</strong> Calculate anomalies for temperature and DO
 in each pond relative to the climatological profiles.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Filtering
-Climatological Data:</strong> - Removes any rows from
-<code>clim_all</code> that do not have a station name, ensuring the data
-is clean. - <strong>Anomaly Calculation:</strong> - For each data point
-in the <code>ponds</code> dataframe (focusing on August and September):
-- The depth is rounded to the</p>
-<p>nearest integer or adjusted for slight deviations. - The anomaly is
-calculated as the difference between the observed value
-(<code>Temp</code>, <code>DO</code>) and the corresponding
-climatological mean from <code>clim_all</code>.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Filtering Climatological Data:</strong></p>
+<ul>
+<li>Removes any rows from <code>clim_all</code> that do not have a
+station name, ensuring the data is clean.</li>
+</ul></li>
+<li><p><strong>Anomaly Calculation:</strong></p>
+<ul>
+<li><p>For each data point in the <code>ponds</code> dataframe (focusing
+on August and September):</p>
+<ul>
+<li><p>The depth is rounded to the nearest integer or adjusted for
+slight deviations.</p></li>
+<li><p>The anomaly is calculated as the difference between the observed
+value (<code>Temp</code>, <code>DO</code>) and the corresponding
+climatological mean from <code>clim_all</code>.</p></li>
+</ul></li>
+</ul></li>
+</ul>
 </div>
 <div id="load-and-process-surface-data" class="section level4">
 <h4><strong>5. Load and Process Surface Data</strong></h4>
@@ -1135,13 +1240,21 @@ for(i in 1:nrow(allSurface)) {
 <li><strong>Purpose:</strong> Load surface water data, classify it, and
 calculate anomalies for temperature and DO.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Data Loading and
-Classification:</strong> - Loads surface water data from a CSV file
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Data Loading and Classification:</strong></p>
+<ul>
+<li>Loads surface water data from a CSV file
 (<code>AllPonds_Surface.csv</code>) and assigns categorical factors for
-depth, development, and surface area classes. - <strong>Anomaly
-Calculation:</strong> - Calculates anomalies for temperature and DO in
-the surface layer relative to the minimum depth available in the
-climatological profiles.</p>
+depth, development, and surface area classes.</li>
+</ul></li>
+<li><p><strong>Anomaly Calculation:</strong></p>
+<ul>
+<li>Calculates anomalies for temperature and DO in the surface layer
+relative to the minimum depth available in the climatological
+profiles.</li>
+</ul></li>
+</ul>
 </div>
 <div id="load-and-process-bottom-data" class="section level4">
 <h4><strong>6. Load and Process Bottom Data</strong></h4>
@@ -1173,13 +1286,20 @@ for(i in 1:nrow(allBottom)) {
 <li><strong>Purpose:</strong> Load bottom water data, classify it, and
 calculate anomalies for temperature and DO.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Data Loading and
-Classification:</strong> - Loads bottom water data from a CSV file
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Data Loading and Classification:</strong></p>
+<ul>
+<li>Loads bottom water data from a CSV file
 (<code>AllPonds_Bottom.csv</code>) and assigns categorical factors for
-development and surface area classes. - <strong>Anomaly
-Calculation:</strong> - Calculates anomalies for temperature and DO in
-the bottom layer relative to the depth range in the climatological
-profiles.</p>
+development and surface area classes.</li>
+</ul></li>
+<li><p><strong>Anomaly Calculation:</strong></p>
+<ul>
+<li>Calculates anomalies for temperature and DO in the bottom layer
+relative to the depth range in the climatological profiles.</li>
+</ul></li>
+</ul>
 <hr />
 </div>
 </div>
@@ -1208,17 +1328,27 @@ for(param in colnames(allSurface)[start:end]) {
 calculating trends in surface water parameters, such as Secchi depth and
 chlorophyll-a (Chla), for each pond.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Column Range
-Identification:</strong> - Identifies the start and end columns in
-<code>allSurface</code> for the parameters of interest
-(<code>Secchi</code> to <code>Chla</code>). - <strong>Initialize
-DataFrame:</strong> - Creates a new dataframe <code>slopes_surf</code>
-to store the results of the trend calculations, including the slope
-estimates for each parameter and metadata such as pond name, longitude,
-latitude, and the last year of data. - <strong>Add Trend
-Columns:</strong> - Adds empty columns to <code>allSurface</code> to
-later store the p-values of the Mann-Kendall test for each
-parameter.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Column Range Identification:</strong></p>
+<ul>
+<li>Identifies the start and end columns in <code>allSurface</code> for
+the parameters of interest (<code>Secchi</code> to
+<code>Chla</code>).</li>
+</ul></li>
+<li><p><strong>Initialize DataFrame:</strong></p>
+<ul>
+<li>Creates a new dataframe <code>slopes_surf</code> to store the
+results of the trend calculations, including the slope estimates for
+each parameter and metadata such as pond name, longitude, latitude, and
+the last year of data.</li>
+</ul></li>
+<li><p><strong>Add Trend Columns:</strong></p>
+<ul>
+<li>Adds empty columns to <code>allSurface</code> to later store the
+p-values of the Mann-Kendall test for each parameter.</li>
+</ul></li>
+</ul>
 </div>
 <div id="calculate-trends-for-surface-water-parameters" class="section level4">
 <h4><strong>2. Calculate Trends for Surface Water
@@ -1269,31 +1399,47 @@ Parameters</strong></h4>
 surface water parameters for each pond, storing the trend results in
 <code>slopes_surf</code>.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Loop Over
-Ponds:</strong> - Iterates through each pond (<code>pondName</code>),
-extracting data specific to that pond (<code>oneSurf</code>). -
-<strong>Check Data Sufficiency:</strong> - Checks whether there is
-enough data to perform a meaningful trend analysis. It ensures that: -
-The pond has at least 3 years of data. - The data spans a significant
-portion of the analysis period (2001-2023). - <strong>Loop Over
-Parameters:</strong> - For each parameter, it checks for sufficient
-non-missing data, ensuring that the data covers a meaningful time
-period. - <strong>Trend Calculation:</strong> - <strong>Mann-Kendall
-Test (<code>mk.test</code>):</strong> Determines if there is a
-significant trend in the data. - <strong>Sen’s Slope
-(<code>sens.slope</code>):</strong> Estimates the slope of the trend. -
-<strong>Storing Results:</strong> - The slope estimate is stored in
-<code>slopes_surf</code>. - The p-value from the Mann-Kendall test is
-stored in the trend column of <code>allSurface</code>.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Loop Over Ponds:</strong></p>
+<ul>
+<li>Iterates through each pond (<code>pondName</code>), extracting data
+specific to that pond (<code>oneSurf</code>).</li>
+</ul></li>
+<li><p><strong>Check Data Sufficiency:</strong></p>
+<ul>
+<li><p>Checks whether there is enough data to perform a meaningful trend
+analysis. It ensures that:</p>
+<ul>
+<li><p>The pond has at least 3 years of data.</p></li>
+<li><p>The data spans a significant portion of the analysis period
+(2001-2023).</p></li>
+</ul></li>
+</ul></li>
+<li><p><strong>Loop Over Parameters:</strong></p>
+<ul>
+<li><p>For each parameter, it checks for sufficient non-missing data,
+ensuring that the data covers a meaningful time period.</p></li>
+<li><p><strong>Trend Calculation:</strong></p>
+<ul>
+<li><p><strong>Mann-Kendall Test (<code>mk.test</code>):</strong>
+Determines if there is a significant trend in the data.</p></li>
+<li><p><strong>Sen’s Slope (<code>sens.slope</code>):</strong> Estimates
+the slope of the trend.</p></li>
+</ul></li>
+<li><p><strong>Storing Results:</strong></p>
+<ul>
+<li><p>The slope estimate is stored in
+<code>slopes_surf</code>.</p></li>
+<li><p>The p-value from the Mann-Kendall test is stored in the trend
+column of <code>allSurface</code>.</p></li>
+</ul></li>
+</ul></li>
+</ul>
 </div>
 <div id="additional-surface-trend-calculations" class="section level4">
 <h4><strong>3. Additional Surface Trend Calculations</strong></h4>
-<pre class="r"><code>## count trends
-# slopes_surf &lt;- slopes_surf %&gt;%
-#   rowwise() %&gt;%
-#   mutate(t = sum(!is.na(c(Secchi, MLD, Temp, DO, DO_sat, Alk, TN, TP, Chla))))
-
-slopes_surf2 &lt;- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
+<pre class="r"><code>slopes_surf2 &lt;- data.frame(matrix(ncol = length(start:end) + 4, nrow = length(pondName)))
 colnames(slopes_surf2) &lt;- c(&quot;pond&quot;, &quot;Long&quot;, &quot;Lat&quot;, &quot;Last_year&quot;, colnames(allSurface)[start:end])
 
 for(i in 1:length(pondName)) {
@@ -1343,15 +1489,25 @@ for(i in 1:length(pondName)) {
 calculations for surface water parameters, potentially adjusting certain
 parameters (e.g., MLD) with added noise for better trend detection.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> -
-<strong>Initialization:</strong> - A new dataframe
-<code>slopes_surf2</code> is created, similar to
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Initialization:</strong></p>
+<ul>
+<li>A new dataframe <code>slopes_surf2</code> is created, similar to
 <code>slopes_surf</code>, for storing additional or refined trend
-calculations. - <strong>Adjusting Parameters:</strong> - The Mixed Layer
-Depth (MLD) is adjusted with a small amount of noise to avoid zero
-slopes. - <strong>Trend Calculations:</strong> - Similar to the first
-set of trend calculations, but with slightly different criteria or
-adjustments (e.g., ignoring weaker trends).</p>
+calculations.</li>
+</ul></li>
+<li><p><strong>Adjusting Parameters:</strong></p>
+<ul>
+<li>The Mixed Layer Depth (MLD) is adjusted with a small amount of noise
+to avoid zero slopes.</li>
+</ul></li>
+<li><p><strong>Trend Calculations:</strong></p>
+<ul>
+<li>Similar to the first set of trend calculations, but with slightly
+different criteria or adjustments (e.g., ignoring weaker trends).</li>
+</ul></li>
+</ul>
 </div>
 <div id="set-up-for-bottom-water-trend-calculations" class="section level4">
 <h4><strong>4. Set Up for Bottom Water Trend Calculations</strong></h4>
@@ -1371,13 +1527,24 @@ for(param in colnames(allBottom)[start:end]) {
 <li><strong>Purpose:</strong> Prepare for trend calculations on bottom
 water parameters, such as temperature and dissolved oxygen.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Column Range
-Identification:</strong> - Identifies the relevant columns in
-<code>allBottom</code> for the bottom water parameters of interest. -
-<strong>Initialize DataFrame:</strong> - Creates a new dataframe
-<code>slopes_bott</code> to store the trend results for the bottom
-layer. - <strong>Add Trend Columns:</strong> - Adds empty columns to
-<code>allBottom</code> to store the trend p-values.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Column Range Identification:</strong></p>
+<ul>
+<li>Identifies the relevant columns in <code>allBottom</code> for the
+bottom water parameters of interest.</li>
+</ul></li>
+<li><p><strong>Initialize DataFrame:</strong></p>
+<ul>
+<li>Creates a new dataframe <code>slopes_bott</code> to store the trend
+results for the bottom layer.</li>
+</ul></li>
+<li><p><strong>Add Trend Columns:</strong></p>
+<ul>
+<li>Adds empty columns to <code>allBottom</code> to store the trend
+p-values.</li>
+</ul></li>
+</ul>
 </div>
 <div id="calculate-trends-for-bottom-water-parameters" class="section level4">
 <h4><strong>5. Calculate Trends for Bottom Water
@@ -1427,13 +1594,22 @@ Parameters</strong></h4>
 <li><strong>Purpose:</strong> Perform trend analysis on bottom water
 parameters, storing the results in <code>slopes_bott</code>.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> - <strong>Loop Over
-Ponds:</strong> - Similar to the surface trend analysis, this loop
-iterates through each pond, extracting data specific to the bottom layer
-(<code>oneBott</code>). - <strong>Trend Calculation:</strong> - For each
-bottom water parameter, the Mann-Kendall test and Sen’s slope estimator
-are applied. The results are stored in <code>slopes_bott</code>, and the
-trend p-values are added to <code>allBottom</code>.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Loop Over Ponds:</strong></p>
+<ul>
+<li>Similar to the surface trend analysis, this loop iterates through
+each pond, extracting data specific to the bottom layer
+(<code>oneBott</code>).</li>
+</ul></li>
+<li><p><strong>Trend Calculation:</strong></p>
+<ul>
+<li>For each bottom water parameter, the Mann-Kendall test and Sen’s
+slope estimator are applied. The results are stored in
+<code>slopes_bott</code>, and the trend p-values are added to
+<code>allBottom</code>.</li>
+</ul></li>
+</ul>
 </div>
 <div id="additional-bottom-trend-calculations" class="section level4">
 <h4><strong>6. Additional Bottom Trend Calculations</strong></h4>
@@ -1486,14 +1662,21 @@ for(i in 1:length(pondName)) {
 calculations for bottom water parameters, similar to the secondary
 surface trend calculations.</li>
 </ul>
-<p><strong>Detailed Functionality:</strong> -
-<strong>Initialization:</strong> - A new dataframe
-<code>slopes_bott2</code> is created for storing additional trend
-calculations for the bottom layer. - <strong>Trend
-Calculations:</strong> - Similar to <code>slopes_surf2</code>, this code
-block performs additional or refined trend calculations for the bottom
-water parameters, with specific criteria to ensure data quality and
-meaningful results.</p>
+<p><strong>Detailed Functionality:</strong></p>
+<ul>
+<li><p><strong>Initialization:</strong></p>
+<ul>
+<li>A new dataframe <code>slopes_bott2</code> is created for storing
+additional trend calculations for the bottom layer.</li>
+</ul></li>
+<li><p><strong>Trend Calculations:</strong></p>
+<ul>
+<li>Similar to <code>slopes_surf2</code>, this code block performs
+additional or refined trend calculations for the bottom water
+parameters, with specific criteria to ensure data quality and meaningful
+results.</li>
+</ul></li>
+</ul>
 </div>
 </div>
 
