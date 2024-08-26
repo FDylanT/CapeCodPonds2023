@@ -360,13 +360,12 @@ for(pond in allPonds) {
           max(oneDate$Depth)
       }
     }
-    ponds$VerticalFishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
-    ponds$VolumetricFishSpace <- ponds$VerticalFishSpace * ponds$Size * 4046.86
   }
 }
 
 ponds <- ponds %>%
-  relocate(c(VerticalFishSpace, VolumetricFishSpace), .after = MLD)
+  mutate(VerticalFishSpace = ifelse(DO.4 - hypo > 0, DO.4 - hypo, 0)) %>%
+  relocate(VerticalFishSpace, .after = MLD)
 ```
 
 ```{r include = FALSE}
@@ -392,8 +391,10 @@ for(i in 1:nrow(ponds)) {
 }
 
 ponds <- ponds %>%
-  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
-  relocate(Char.Depth, .before = Max.Depth)
+  mutate(Char.Depth = Char.Depth.ft * 0.3048,
+         VolumetricFishSpace = VerticalFishSpace * Size * 4046.86) %>%
+  relocate(Char.Depth, .before = Max.Depth) %>%
+  relocate(VolumetricFishSpace, .after = VerticalFishSpace)
 
 ponds <- ponds %>%
   mutate(DepthClass = case_when(Max.Depth <= 3 ~ "Shallow",
