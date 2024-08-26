@@ -271,7 +271,7 @@ allBottom <- allBottom %>%
 allBottom[sapply(allBottom, is.infinite)] <- NA   # deal with N:P where TP == 0
 
 # overwrite FishSpace_flag columns; sd is ~0 for some ponds and throws out valid values
-allSurface <- allSurface %>%
+allBottom <- allBottom %>%
   mutate(VerticalFishSpace_flag = ifelse(is.na(VerticalFishSpace), 4, 2),
          VolumetricFishSpace_flag = ifelse(is.na(VolumetricFishSpace), 4, 2))
 
