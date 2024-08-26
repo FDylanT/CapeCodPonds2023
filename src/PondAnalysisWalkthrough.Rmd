@@ -367,13 +367,12 @@ for(pond in allPonds) {
           max(oneDate$Depth)
       }
     }
-    ponds$VerticalFishSpace <- ifelse(ponds$DO.4 - ponds$hypo > 0, ponds$DO.4 - ponds$hypo, 0)
-    ponds$VolumetricFishSpace <- ponds$VerticalFishSpace * ponds$Size * 4046.86
   }
 }
 
 ponds <- ponds %>%
-  relocate(c(VerticalFishSpace, VolumetricFishSpace), .after = MLD)
+  mutate(VerticalFishSpace = ifelse(DO.4 - hypo > 0, DO.4 - hypo, 0)) %>%
+  relocate(VerticalFishSpace, .after = MLD)
 ```
 
 - **Purpose:** This code calculates the available habitat space for fish within each pond, focusing on areas where dissolved oxygen levels are sufficient for fish survival.
@@ -404,19 +403,11 @@ ponds <- ponds %>%
 
 - **Fish Habitat Space Calculation:**
 
-  - **Vertical Fish Space:** The vertical distance between the hypolimnion and the oxygen threshold (DO ≥ 4 mg/L) is calculated.
-
-  - **Volumetric Fish Space:** This vertical distance is multiplied by the pond's surface area to estimate the total volume of suitable fish habitat.
-
-- **Reordering Columns:**
-
-  - The calculated fish space metrics are relocated for easier reference in the dataset.
+  - The vertical distance between the hypolimnion and the oxygen threshold (DO ≥ 4 mg/L) is calculated.
 
 ---
 
----
-
-### Part 3: Add pond characteristic metadata
+### Part 3: Addition of pond-characteristic metadata
 
 This section of the code integrates pond-specific metadata, classifies ponds by various physical and development characteristics, and performs calculations to estimate the volume of water that can sustain fish populations based on oxygen levels and water stratification.
 
@@ -443,8 +434,10 @@ for(i in 1:nrow(ponds)) {
 }
 
 ponds <- ponds %>%
-  mutate(Char.Depth = Char.Depth.ft * 0.3048) %>%
-  relocate(Char.Depth, .before = Max.Depth)
+  mutate(Char.Depth = Char.Depth.ft * 0.3048,
+         VolumetricFishSpace = VerticalFishSpace * Size * 4046.86) %>%
+  relocate(Char.Depth, .before = Max.Depth) %>%
+  relocate(VolumetricFishSpace, .after = VerticalFishSpace)
 ```
 
 - **Purpose:** This block matches each pond in the dataset to additional metadata from an external CSV file (`PondCharacteristics.csv`), adding information about the pond’s size, aquifer lens, percentage of surrounding land developed, and depth.
@@ -463,9 +456,12 @@ ponds <- ponds %>%
 
   - For each pond, an ID is extracted from `Station.number`, and if a matching ID is found in the `chars` dataset, the corresponding metadata is assigned to the pond.
 
-- **Conversion and Reordering:**
+- **Calculations:**
 
-  - The pond depth (`Char.Depth.ft`) is converted from feet to meters (`Char.Depth`) and relocated in the dataframe before the `Max.Depth` column.
+  - The pond depth (`Char.Depth.ft`) is converted from feet to meters (`Char.Depth`).
+
+  - The vertical fish space (`VerticalFishSpace`) is multiplied by the pond's surface area (`Size`) to approximate the total volume of suitable fish habitat (`VolumetricFishSpace`).
+
 
 #### **2. Classify Ponds Based on Depth, Surface Area, and Development**
 ```r
@@ -511,7 +507,413 @@ ponds <- ponds %>%
 
 ---
 
-### Part 4
+### Part 4: Creation of surface- and bottom-specific data files [in `PondSplit.Rmd` script]
+
+This block of code is dedicated to processing and analyzing surface water data for ponds, handling outliers, calculating metrics like the N:P ratio, and classifying ponds based on their stratification and nutrient limitation status.
+
+#### **1. Filter Data for August and September**
+```r
+focal_ponds <- ponds %>%
+  filter(Month == 8 | Month == 9)
+
+pondName <- unique(focal_ponds$Station.name)
+```
+
+- **Purpose:** This section filters the dataset to include only the data from August and September, when the majority of historical samples were collected, and extracts a list of unique pond names from the filtered dataset.
+
+#### **2. Process Each Pond's Data**
+```r
+allSurface <- data.frame()
+
+for(pond in pondName) {
+  onePond <- focal_ponds %>%
+    filter(Station.name == pond) %>%
+    filter(!is.na(Depth)) %>%
+    group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
+             Year, Depth) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
+    ungroup() %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  
+  if(nrow(onePond) == 0) {
+    next
+  }
+```
+
+**Detailed Functionality:**
+
+- **Filtering and Grouping:**
+
+  - Filters the data for each pond to remove records with missing depth values and then groups the data by year, also preserving non-numeric columns (e.g. depth class, development class).
+
+- **Aggregation:**
+
+  - Within each group, it calculates the mean for all numeric variables, dealing with replicate samples within the same year and depth.
+
+- **Handling Missing Values:**
+
+  - Replaces any NaN values with NA.
+
+#### **3. Handle Surface Data and Outliers**
+```r
+  param_start <- which(colnames(onePond) == "Secchi")
+  discrete_start <- which(colnames(onePond) == "DO_sat") + 1
+  param_end <- which(colnames(onePond) == "TP_uM")
+  
+  oneSurface <- data.frame()
+  
+  for(year in sort(unique(onePond$Year))) {
+    if(nrow(onePond[onePond$Year == year & onePond$Depth <= 1, ]) == 0) {
+      next
+    } else if(nrow(onePond[onePond$Year == year & onePond$Depth <= 1, ]) == 1) {
+      depth <- onePond$Depth[onePond$Year == year & onePond$Depth <= 1]
+    } else {
+      index <- which.max(rowSums(!is.na(onePond[onePond$Year == year & onePond$Depth <= 1, ]
+                                        [c(param_start + 2:5, discrete_start:(param_end))])))
+      depth <- sort(onePond$Depth[onePond$Year == year])[index]
+      for(i in param_start:param_end) {
+        param <- colnames(onePond)[i]
+        if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth])) {
+          if(index == 1) {
+            depth2 <- sort(onePond$Depth[onePond$Year == year])[index + 1]
+            if(abs(depth2 - depth) <= 1) {
+              onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                onePond[[param]][onePond$Year == year & onePond$Depth == depth2]
+            }
+          } else if(index == nrow(onePond[onePond$Year == year & onePond$Depth <= 1, ])) {
+            depth2 <- sort(onePond$Depth[onePond$Year == year])[index - 1]
+            if(abs(depth2 - depth) <= 1) {
+              onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                onePond[[param]][onePond$Year == year & onePond$Depth == depth2]
+            }
+          } else {
+            depthA <- sort(onePond$Depth[onePond$Year == year])[index - 1]
+            depthB <- sort(onePond$Depth[onePond$Year == year])[index + 1]
+            if((!is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depthA]) &
+                  abs(depthA - depth) <= 1) |
+               (!is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depthB]) &
+                  abs(depthB - depth) <= 1)) {
+              onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                mean(c(onePond[[param]][onePond$Year == year & onePond$Depth == depthA],
+                       onePond[[param]][onePond$Year == year & onePond$Depth == depthB]),
+                     na.rm = TRUE)
+            }
+          }
+        }
+      }
+    }
+    oneSurface <- rbind(oneSurface, onePond[onePond$Year == year & onePond$Depth == depth, ])
+  }
+```
+
+- **Purpose:** Further process the surface data for each pond, addressing issues with missing values and identifying the most representative data point at shallow depths (≤1 meter).
+
+**Detailed Functionality:**
+
+- **Parameter Indexing:** 
+
+  - Identifies the columns of interest in `onePond` for the parameters (`Secchi` to `TP_uM`) and initializes an empty dataframe `oneSurface`.
+  
+- **Yearly Processing:**
+
+  - For each year, it processes the surface data:
+
+    - If there’s no data at shallow depths, it skips that year.
+
+    - If there’s only one data point, it uses that directly.
+
+    - If there are multiple data points, it selects the one with the most complete data and addresses any missing values by interpolating from nearby depths.
+
+#### **4. Identify and Flag Outliers**
+```r
+  for(i in param_start:param_end) {
+    param <- colnames(oneSurface)[i]
+    flag_name <- paste0(param, "_flag")
+    if(sum(!is.na(oneSurface[[param]])) != 0) {
+      m <- mean(oneSurface[[param]], na.rm = TRUE)
+      sd <- sd(oneSurface[[param]], na.rm = TRUE)
+      sd <- ifelse(is.na(sd), 0, sd)
+    }
+    for(j in 1:nrow(oneSurface)) {
+      if(is.na(oneSurface[[param]][j])) {
+        oneSurface[[flag_name]][j] <- 4
+      } else if(oneSurface[[param]][j] >= m - 3*sd & oneSurface[[param]][j] <= m + 3*sd) {
+        oneSurface[[flag_name]][j] <- 2
+      } else {
+        oneSurface[[flag_name]][j] <- 3
+      }
+    }
+  }
+  allSurface <- rbind(allSurface, oneSurface)
+}
+```
+
+**Detailed Functionality:**
+
+- **Outlier Detection:** 
+
+  - For each parameter in `oneSurface`, it calculates the mean (`m`) and standard deviation (`sd`).
+  
+  - Data points are flagged based on their deviation from the mean:
+  
+    - **Flag 2:** Values within ±3 standard deviations of the mean.
+    
+    - **Flag 3:** Values outside this range (potential outliers).
+    
+    - **Flag 4:** Missing values.
+
+#### **5. Calculate N:P Ratios and Stratification Classification**
+```r
+allSurface <- allSurface %>%
+  mutate(StratClass = ifelse(MLD <= 0.75 * Max.Depth, "Stratified", "Mixed"),
+         StratClass = ifelse(Max.Depth < 5, "Mixed", StratClass),   # making assumption that ponds <5m are mixed
+         
+         NtP = ifelse((TN_uM_flag == 2 & TP_uM_flag == 2),
+                      TN_uM / TP_uM,
+                      NA),
+         NtP_flag = ifelse(!is.na(NtP), 2, 4),
+         NtP_flag = ifelse(!is.infinite(NtP), NtP_flag, 4),   # add flag 4 where NtP == Inf
+         Nt
+
+PClass = ifelse(NtP < 16,
+                           "N-limited", "P-limited")) %>%
+  relocate(StratClass, .before = Year) %>%
+  relocate(NtP, .after = TP) %>%
+  relocate(NtPClass, .before = Year)
+
+allSurface[sapply(allSurface, is.infinite)] <- NA   # deal with N:P where TP == 0
+```
+
+**Detailed Functionality:**
+
+- **Stratification Classification:**
+
+  - Classifies ponds as "Stratified" or "Mixed" based on the ratio of the Mixed Layer Depth (MLD) to the maximum depth (`Max.Depth`). Ponds with a MLD less than or equal to 75% of the maximum depth are marked as "Stratified"; otherwise they are marked as "Mixed".
+  
+  - Ponds with a maximum depth less than 5 meters are assumed to be "Mixed."
+  
+- **N:P Ratio Calculation:**
+
+  - Calculates the N:P ratio (`NtP`) for each pond where both nitrogen (`TN_uM`) and phosphorus (`TP_uM`) data are flagged as valid (flag `2`).
+  
+  - Classifies each pond as "N-limited" or "P-limited" based on whether it is below or above a 16:1 ratio, respectively.
+  
+  - Handles cases where the ratio is infinite (e.g., when TP is zero) by setting the flag to `4` and replacing infinite values with `NA`.
+
+#### **6. Overwrite Fish Space Flags**
+```r
+allSurface <- allSurface %>%
+  mutate(VerticalFishSpace_flag = ifelse(is.na(VerticalFishSpace), 4, 2),
+         VolumetricFishSpace_flag = ifelse(is.na(VolumetricFishSpace), 4, 2))
+```
+
+- **Purpose:** Updates the flags for fish space metrics to ensure that valid values are not discarded (the standard deviation is ~0 for some ponds, leading to valid values being thrown out).
+
+#### **7. Process Each Pond's Data**
+```r
+allBottom <- data.frame()
+
+for(pond in pondName) {
+  onePond <- focal_ponds %>%
+    filter(Station.name == pond) %>%
+    filter(!is.na(Depth)) %>%
+    group_by(Station.name, Lens, DepthClass, SurfaceAreaClass, DevelopmentClass,
+             Year, Depth) %>%
+    summarise(across(where(is.numeric), ~ mean(.x, na.rm = TRUE))) %>%
+    ungroup() %>%
+    mutate(across(everything(), ~ replace_na(.x, NA)))
+  
+  if(nrow(onePond) == 0) {
+    next
+  }
+  
+  if(onePond$DepthClass[1] == "Shallow") {
+    next
+  }
+```
+
+**Detailed Functionality:**
+
+- **Filtering and Grouping:**
+
+  - Filters the data for each pond to remove records with missing depth values and then groups the data by year, also preserving non-numeric columns (e.g. depth class, development class).
+
+- **Aggregation:**
+
+  - Within each group, it calculates the mean for all numeric variables, dealing with replicate samples within the same year and depth.
+
+- **Handling Missing Values:**
+
+  - Replaces any NaN values with NA.
+
+- **Skip Shallow Ponds:**
+
+  - If the pond is classified as "Shallow," it skips to the next pond, as deep water processing is not relevant.
+
+#### **8. Handle Bottom Data and Outliers**
+```r
+  param_start <- which(colnames(onePond) == "Secchi")
+  discrete_start <- which(colnames(onePond) == "DO_sat") + 1
+  param_end <- which(colnames(onePond) == "TP_uM")
+  
+  oneBottom <- data.frame()
+  
+  for(year in sort(unique(onePond$Year))) {
+    if(nrow(onePond[onePond$Year == year & onePond$Depth >= 0.75 * onePond$Max.Depth, ]) == 0) {
+      next
+    } else if(nrow(onePond[onePond$Year == year & onePond$Depth >= 0.75 * onePond$Max.Depth, ]) == 1) {
+      depth <- onePond$Depth[onePond$Year == year & onePond$Depth >= 0.75 * onePond$Max.Depth]
+    } else {
+      index <- which.max(rev(rowSums(!is.na(onePond[onePond$Year == year &
+                                                onePond$Depth >= 0.75 * onePond$Max.Depth, ]
+                                        [c(param_start + 2:5, discrete_start:(param_end - 1))]))))
+      depth <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index]
+      for(i in param_start:param_end) {
+        param <- colnames(onePond)[i]
+        if(is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depth])) {
+          if(index == 1) {
+            depth2 <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index + 1]
+            if(abs(depth2 - depth) <= 1) {
+              onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                onePond[[param]][onePond$Year == year & onePond$Depth == depth2]
+            }
+          } else if(index == nrow(onePond[onePond$Year == year &
+                                          onePond$Depth >= 0.75 * onePond$Max.Depth, ])) {
+            depth2 <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index - 1]
+            if(abs(depth2 - depth) <= 1) {
+              onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                onePond[[param]][onePond$Year == year & onePond$Depth == depth2]
+            }
+          } else {
+            depthA <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index - 1]
+            depthB <- sort(onePond$Depth[onePond$Year == year], decreasing = TRUE)[index + 1]
+            if((!is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depthA]) &
+                  abs(depthA - depth) <= 1) |
+               (!is.na(onePond[[param]][onePond$Year == year & onePond$Depth == depthB]) &
+                  abs(depthB - depth) <= 1)) {
+              onePond[[param]][onePond$Year == year & onePond$Depth == depth] <-
+                mean(c(onePond[[param]][onePond$Year == year & onePond$Depth == depthA],
+                       onePond[[param]][onePond$Year == year & onePond$Depth == depthB]),
+                     na.rm = TRUE)
+            }
+          }
+        }
+      }
+    }
+    oneBottom <- rbind(oneBottom, onePond[onePond$Year == year & onePond$Depth == depth, ])
+  }
+```
+
+- **Purpose:** Further process the bottom data for each pond, addressing issues with missing values and identifying the most representative data point at deep depths (≥ 75% of the pond’s maximum depth).
+
+**Detailed Functionality:**
+
+- **Parameter Indexing:**
+
+  - Identifies the columns of interest in `onePond` for the parameters (`Secchi` to `TP_uM`) and initializes an empty dataframe `oneBottom`.
+
+- **Yearly Processing:**
+
+  - For each year, it processes the bottom data:
+
+    - If there’s no data at deep depths (≥ 75% of maximum depth), it skips that year.
+
+    - If there’s only one data point at depth, it uses that directly.
+
+    - If there are multiple data points, it selects the one with the most complete data and addresses any missing values by interpolating from nearby depths.
+
+#### **9. Identify and Flag Outliers**
+```r
+  if(nrow(oneBottom) == 0) {
+    next
+  } else {
+    for(i in param_start:param_end) {
+      param <- colnames(oneBottom)[i]
+      flag_name <- paste0(param, "_flag")
+      if(sum(!is.na(oneBottom[[param]])) != 0) {
+        m <- mean(oneBottom[[param]], na.rm = TRUE)
+        sd <- sd(oneBottom[[param]], na.rm = TRUE)
+        sd <- ifelse(is.na(sd), 0, sd)
+      }
+      for(j in 1:nrow(oneBottom)) {
+        if(is.na(oneBottom[[param]][j])) {
+          oneBottom[[flag_name]][j] <- 4
+        } else if(oneBottom[[param]][j] >= m - 3*sd & oneBottom[[param]][j] <= m + 3*sd) {
+          oneBottom[[flag_name]][j] <- 2
+        } else {
+          oneBottom[[flag_name]][j] <- 3
+        }
+      }
+    }
+  }
+  allBottom <- rbind(allBottom, oneBottom)
+}
+```
+
+**Detailed Functionality:**
+
+- **Outlier Detection:**
+
+  - For each parameter in `oneBottom`, it calculates the mean (`m`) and standard deviation (`sd`).
+
+  - Data points are flagged based on their deviation from the mean:
+
+    - **Flag 2:** Values within ±3 standard deviations of the mean.
+
+    - **Flag 3:** Values outside this range (potential outliers).
+
+    - **Flag 4:** Missing values.
+
+#### **10. Calculate N:P Ratios and Stratification Classification**
+```r
+allBottom <- allBottom %>%
+  mutate(StratClass = ifelse(MLD <= 0.75 * Max.Depth, "Stratified", "Mixed"),
+         StratClass = ifelse(Max.Depth < 5, "Mixed", StratClass),
+         
+         NtP = ifelse((TN_uM_flag == 2 & TP_uM_flag == 2),
+                      TN_uM / TP_uM,
+                      NA),
+         NtP_flag = ifelse(!is.na(NtP), 2, 4
+
+),
+         NtP_flag = ifelse(!is.infinite(NtP), NtP_flag, 4),
+         NtPClass = ifelse(NtP < 16,
+                           "N-limited", "P-limited")) %>%
+  relocate(StratClass, .before = Year) %>%
+  relocate(NtP, .after = TP) %>%
+  relocate(NtPClass, .before = Year)
+
+allBottom[sapply(allBottom, is.infinite)] <- NA
+```
+
+**Detailed Functionality:**
+
+- **Stratification Classification:**
+
+  - Classifies ponds as "Stratified" or "Mixed" based on the ratio of the Mixed Layer Depth (MLD) to the maximum depth (`Max.Depth`). Ponds with a MLD less than or equal to 75% of the maximum depth are marked as "Stratified"; otherwise they are marked as "Mixed".
+
+  - Ponds with a maximum depth less than 5 meters are assumed to be "Mixed."
+
+- **N:P Ratio Calculation:**
+
+  - Calculates the N:P ratio (`NtP`) for each pond where both nitrogen (`TN_uM`) and phosphorus (`TP_uM`) data are flagged as valid (flag `2`).
+
+  - Flags the N:P ratio (`NtP_flag`) and classifies it as "N-limited" or "P-limited" based on whether it is below or above 16, respectively.
+
+  - Handles cases where the ratio is infinite (e.g., when TP is zero) by setting the flag to `4` and replacing infinite values with `NA`.
+
+#### **11. Overwrite Fish Space Flags**
+```r
+allSurface <- allSurface %>%
+  mutate(VerticalFishSpace_flag = ifelse(is.na(VerticalFishSpace), 4, 2),
+         VolumetricFishSpace_flag = ifelse(is.na(VolumetricFishSpace), 4, 2))
+```
+
+- **Purpose:** Updates the flags for fish space metrics to ensure that valid values are not discarded (the standard deviation is ~0 for some ponds, leading to valid values being thrown out).
+
+---
+
+### Part 5: Climatologies
 
 This section of the script focuses on analyzing temperature and dissolved oxygen (DO) profiles within ponds during the months of August and September, calculating anomalies relative to climatological averages, and then preparing datasets for surface and bottom water layers.
 
@@ -775,7 +1177,7 @@ for(i in 1:nrow(allBottom)) {
 
 ---
 
-### Part 5
+### Part 6: Trend calculations
 
 This section of the script focuses on calculating trends for various water quality parameters across different ponds, both at the surface and bottom layers, over a period of time. The trends are calculated using the Mann-Kendall test, a non-parametric test for identifying trends in time series data, and the Sen’s slope estimator to quantify the trend.
 
@@ -1099,3 +1501,227 @@ for(i in 1:length(pondName)) {
 - **Trend Calculations:**
 
   - Similar to `slopes_surf2`, this code block performs additional or refined trend calculations for the bottom water parameters, with specific criteria to ensure data quality and meaningful results.
+
+---
+
+### Part 7: Data manipulation for graphic creation
+
+This section of the script processes the surface and bottom water data by filtering and categorizing it into different time periods. Specifically, it separates the data into "pre" and "post" groups divided between 2011 and 2012, while ensuring that only stations with sufficient data coverage are included in the analysis.
+
+#### **1. Filter and Group Surface Data**
+```r
+allSurface_cont <- allSurface %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= quantile(2001:2023)[2],
+         max(Year) >= quantile(2001:2023)[4]) %>%
+  filter(n() >= (2023 - 2001)/2) %>%
+  ungroup()
+```
+
+- **Purpose:** Filter the surface water data to ensure that only stations with sufficient data coverage over the time period from 2001 to 2023 are included.
+
+**Detailed Functionality:**
+
+- **Start and End Years:** 
+
+  - The `min(Year)` must be less than or equal to the 25th percentile of the years 2001 to 2023, ensuring that data includes the early part of this period.
+
+  - The `max(Year)` must be greater than or equal to the 75th percentile, ensuring that data extends into the later part of this period.
+
+- **Minimum Data Points:** 
+
+  - Filters out stations that do not have at least half of the years between 2001 and 2023 represented in the data.
+
+#### **2. Separate Surface Data into "Pre" and "Post" Periods**
+```r
+allSurface_pre <- allSurface_cont %>%
+  filter(Year <= 2011)                    # change if desired
+
+allSurface_post <- allSurface_cont %>%
+  filter(Year >= 2012)                    # change if desired
+```
+
+**Detailed Functionality:**
+
+- **"Pre" Data:** Filters the `allSurface_cont` data to include only records from 2011 and earlier.
+
+- **"Post" Data:** Filters the `allSurface_cont` data to include only records from 2012 and later.
+
+#### **3. Filter and Group Bottom Data**
+```r
+allBottom_cont <- allBottom %>%
+  group_by(Station.name) %>%
+  filter(min(Year) <= quantile(2001:2023)[2],
+         max(Year) >= quantile(2001:2023)[4]) %>%
+  filter(n() >= (2023 - 2001)/2) %>%
+  ungroup()
+```
+
+- **Purpose:** Similar to the surface data, this block filters the bottom water data to ensure that only stations with sufficient data coverage over the time period from 2001 to 2023 are included.
+
+**Detailed Functionality:**
+
+- **Start and End Years:** 
+
+  - The `min(Year)` must be less than or equal to the 25th percentile of the years 2001 to 2023, ensuring that data includes the early part of this period.
+
+  - The `max(Year)` must be greater than or equal to the 75th percentile, ensuring that data extends into the later part of this period.
+
+- **Minimum Data Points:** 
+
+  - Filters out stations that do not have at least half of the years between 2001 and 2023 represented in the data.
+
+#### **4. Separate Bottom Data into "Pre" and "Post" Periods**
+```r
+allBottom_pre <- allBottom_cont %>%
+  filter(Year <= 2011)                    # change if desired
+
+allBottom_post <- allBottom_cont %>%
+  filter(Year >= 2012)                    # change if desired
+```
+
+**Detailed Functionality:**
+
+- **"Pre" Data:** Filters the `allBottom_cont` data to include only records from 2011 and earlier.
+
+- **"Post" Data:** Filters the `allBottom_cont` data to include only records from 2012 and later.
+
+#### **5. Create "Recent" Surface and Bottom Data Frames**
+
+```r
+recent_surf <- allSurface %>%
+  filter(Year >= 2016) %>%
+  ...
+
+recent_bott <- allBottom %>%
+  filter(Year >= 2016) %>%
+  ...
+```
+
+- **Purpose:** Creates subsets of the surface- and bottom-water data that includes only the most recent observations, specifically from 2016 onward.
+
+---
+
+### Part 8: K-S tests
+
+This section of the script performs a series of Kolmogorov-Smirnov (K-S) tests to compare the distributions of various water quality parameters between the two time periods defined earlier ("pre", 2011 and earlier, and "post", 2012 and later). The K-S test is a non-parametric test that determines whether two samples are drawn from the same distribution.
+
+#### **1. Perform K-S Tests on Surface Water Parameters**
+```r
+ks.test(allSurface_pre$Secchi, allSurface_post$Secchi)
+ks.test(allSurface_pre$MLD, allSurface_post$MLD)
+ks.test(allSurface_pre$Chla, allSurface_post$Chla)
+ks.test(log10(allSurface_pre$Chla), log10(allSurface_post$Chla))
+ks.test(allSurface_pre$TN, allSurface_post$TN)
+ks.test(log10(allSurface_pre$TN), log10(allSurface_post$TN))
+ks.test(allSurface_pre$TP, allSurface_post$TP)
+ks.test(log10(allSurface_pre$TP), log10(allSurface_post$TP))
+ks.test(allSurface_pre$Temp, allSurface_post$Temp)
+ks.test(allSurface_pre$DO, allSurface_post$DO)
+ks.test(allSurface_pre$DO_sat, allSurface_post$DO_sat)
+
+ks.test(allBottom_pre$TN, allBottom_post$TN)
+ks.test(allBottom_pre$TP, allBottom_post$TP)
+ks.test(allBottom_pre$Temp, allBottom_post$Temp)
+ks.test(allBottom_pre$DO, allBottom_post$DO)
+ks.test(allBottom_pre$DO_sat, allBottom_post$DO_sat)
+```
+
+- **Output:** The K-S test outputs a statistic (`D`) and a p-value. A low p-value indicates a significant difference between the distributions of the two periods, suggesting a change in the parameter over time.
+
+---
+
+### Part 9: Calculation of ecoregion thresholds
+
+This section of the script calculates the 75th and 25th percentile threshold values for various water quality parameters (Secchi depth, chlorophyll-a (Chla), total nitrogen (TN), and total phosphorus (TP)). These thresholds are calculated for specific ponds, as well as for the broader dataset, both on an overall and annual basis.
+
+#### **1. Filter Data for Specific Ponds and Calculate 75th Percentile**
+```r
+ecoregion <- allSurface %>%
+  filter(str_detect(Station.name, "BA-594-01") | # Hathaway Pond (South)
+         str_detect(Station.name, "BA-797-01") | # Micah Pond
+         str_detect(Station.name, "BR-321-01") | # Slough Pond
+         str_detect(Station.name, "BR-335-01") | # Pine Pond
+         str_detect(Station.name, "DE-355-01") | # Flax Pond
+         str_detect(Station.name, "TR-53-01")  | # Slough Pond
+         str_detect(Station.name, "WE-76-01")  | # Duck Pond
+         str_detect(Station.name, "WE-64-01"))   # Spectacle Pond)
+```
+
+- **Purpose:** Filter the `allSurface` dataset to focus on a specific set of ponds that were used in the 2003 Pond Atlas.
+
+#### **2. Calculate 75th Percentile Thresholds for Specific Ponds**
+```r
+thresh_Secchi <- quantile(-ecoregion$Secchi, na.rm = TRUE)[4]
+thresh_chla <- quantile(ecoregion$Chla, na.rm = TRUE)[4]
+thresh_TN <- quantile(ecoregion$TN, na.rm = TRUE)[4]
+thresh_TP <- quantile(ecoregion$TP, na.rm = TRUE)[4]
+```
+
+**Detailed Functionality:**
+
+- **Secchi Depth:**
+
+  - The Secchi depth is negated (`-ecoregion$Secchi`) before calculating the 75th percentile (`[4]` refers to the 75th percentile in R's `quantile` function). This is done because a lower Secchi depth value (indicating poorer water clarity) is often more concerning, and negating it helps to align the percentile calculation with the expected direction of concern.
+
+- **Chlorophyll-a (Chla), Total Nitrogen (TN), Total Phosphorus (TP):**
+
+  - These are straightforward percentile calculations for each parameter, identifying the value below which 75% of the data falls. These thresholds (`thresh_Secchi`, `thresh_chla`, `thresh_TN`, `thresh_TP`) provide benchmarks for assessing water quality.
+
+#### **3. Calculate 75th Percentile Thresholds Using the Broader Dataset**
+```r
+ecoregion2 <- ponds %>%
+  filter(Month == 8 | Month == 9) %>%
+  filter(str_detect(Station.name, "BA-594-01") | # Hathaway Pond (South)
+         str_detect(Station.name, "BA-797-01") | # Micah Pond
+         str_detect(Station.name, "BR-321-01") | # Slough Pond
+         str_detect(Station.name, "BR-335-01") | # Pine Pond
+         str_detect(Station.name, "DE-355-01") | # Flax Pond
+         str_detect(Station.name, "TR-53-01")  | # Slough Pond
+         str_detect(Station.name, "WE-76-01")  | # Duck Pond
+         str_detect(Station.name, "WE-64-01"))   # Spectacle Pond)
+
+thresh_Secchi2 <- quantile(-ecoregion2$Secchi, na.rm = TRUE)[4]
+thresh_chla2 <- quantile(ecoregion2$Chla, na.rm = TRUE)[4]
+thresh_TN2 <- quantile(ecoregion2$TN, na.rm = TRUE)[4]
+thresh_TP2 <- quantile(ecoregion2$TP, na.rm = TRUE)[4]
+```
+
+- **Purpose:** Calculate similar 75th percentile thresholds using a broader dataset (`ponds`) containing samples from all depths, filtered for the same specific ponds. These thresholds serve as a comparison to those calculated from the `allSurface` dataset, allowing for an assessment of how the broader dataset compares to the more specific subset.
+
+#### **4. Calculate 75th Percentile Thresholds Per Year**
+```r
+eco_annual75 <- ecoregion2 %>%
+  group_by(Year) %>%
+  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[4],
+            Chla = quantile(Chla, na.rm = TRUE)[4],
+            TN = quantile(TN, na.rm = TRUE)[4],
+            TP = quantile(TP, na.rm = TRUE)[4])
+```
+
+- **Purpose:** Calculate the 75th percentile thresholds on an annual basis for each parameter within the `ecoregion2` dataset.
+
+#### **5. Calculate 25th Percentile Thresholds Using the `allSurface_cont` and `allBottom_cont` Datasets**
+```r
+thresh_Secchi_S <- quantile(-allSurface_cont$Secchi, na.rm = TRUE)[2]
+thresh_chla_S <- quantile(allSurface_cont$Chla, na.rm = TRUE)[2]
+thresh_TN_S <- quantile(allSurface_cont$TN, na.rm = TRUE)[2]
+thresh_TP_S <- quantile(allSurface_cont$TP, na.rm = TRUE)[2]
+
+thresh_TN_B <- quantile(allBottom_cont$TN, na.rm = TRUE)[2]
+thresh_TP_B <- quantile(allBottom_cont$TP, na.rm = TRUE)[2]
+```
+
+- **Purpose:** Calculate layer-specific 25th percentile thresholds for various water quality parameters using the `allSurface_cont` and `allBottom_cont` datasets (continuously sampled ponds).
+
+#### **6. Calculate 25th Percentile Thresholds Per Year**
+```r
+eco_annual25 <- allSurface %>%
+  group_by(Year) %>%
+  summarise(Secchi = quantile(-Secchi, na.rm = TRUE)[2],
+            Chla = quantile(Chla, na.rm = TRUE)[2],
+            TN = quantile(TN, na.rm = TRUE)[2],
+            TP = quantile(TP, na.rm = TRUE)[2])
+```
+
+- **Purpose:** Calculate the 25th percentile thresholds on an annual basis for each parameter within the `allSurface` dataset.
