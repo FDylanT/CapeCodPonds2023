@@ -1227,6 +1227,39 @@ f4.2 <- ggarrange(surf_list2[[7]], bott_list2[[3]],
 ggsave("figures/f4.2.png", f4.2, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
 
+## Property-property
+```{r}
+# create function for dealing with log10(0)
+zero_sub <- function(x) {
+  str <- strsplit(as.character(x), ".", fixed = TRUE)[[1]]
+  if(str[1] != 0) {
+    exp <- str_count(str[1], "0")
+    return(10^exp)
+  } else {
+    exp <- str_count(str[2], "0") + 1
+    return(10^-exp)
+  }
+}
+
+allSurface[allSurface$TP_flag == 2 &
+             allSurface$Chla_flag == 2 &
+             !is.na(allSurface$DevelopmentClass), ] %>%
+  # mutate(TP = if_else(TP == 0, zero_sub(sort(unique(allSurface$TP))[2]), TP),
+  #        Chla = if_else(Chla == 0, zero_sub(sort(unique(allSurface$Chla))[2]), Chla)) %>%
+  ggplot(aes(x = TP, y = Chla, col = DevelopmentClass)) +
+    geom_point(size = 2.5, shape = 1) +
+    labs(x = expression("Total Phosphorus (μg L"^-1*")"),
+         y = expression("Chlorophyll-a (μg L"^-1*")"),
+         col = "% Buffer Developed") +
+    facet_wrap(~ DepthClass) +
+    scale_x_log10() +
+    scale_y_log10() +
+    theme_linedraw() +
+    theme(panel.grid = element_blank())
+
+ggsave("figures/property-property/Chla-TP.png", width = 8, height = 4, units = "in", dpi = 600)
+```
+
 
 
 
