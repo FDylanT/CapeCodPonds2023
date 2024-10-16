@@ -1561,11 +1561,12 @@ rownames(lensRKTs) <- c("tau", "S", "varS", "p-value", "slope")
 DT::renderDataTable({
   if(input$layer2 == "Surface") {
     trend_data <- allSurface %>%
-      filter(!is.na(get(paste0(input$trend, "_trend")))) %>%  # remove observations not used for earlier trend calcs
+      filter(!is.na(get(paste0(input$trend, "_trend")))) %>%  # remove observations from "non-continuous" ponds
       # jitter MLD values (noise prevents slopes of 0)
       mutate(MLD = MLD + runif(length(MLD), -0.05, 0.05))
   } else {
-    trend_data <- allBottom
+    trend_data <- allBottom %>%
+      filter(!is.na(get(paste0(input$trend, "_trend"))))  # remove observations from "non-continuous" ponds
   }
   flag_name <- paste0(input$trend, "_flag")
   for(i in 1:length(unique(ponds$Lens[!is.na(ponds$Lens)]))) {
