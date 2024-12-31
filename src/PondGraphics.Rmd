@@ -18,11 +18,13 @@ library(egg)
 library(DT)
 library(pals)
 library(sf)
+library(scales)
 library(cowplot)
 library(rkt)
 ```
 
 First run chunks 2-8 of `PondShiny.Rmd` script.
+If needed, then re-run the first chunk of `PondSplit.Rmd` as well.
 
 ### Pt. 1: Summary of new data and data characteristics
 ```{r}
