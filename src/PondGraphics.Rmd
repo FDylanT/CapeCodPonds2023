@@ -14,7 +14,8 @@ editor_options:
 library(tidyverse)
 library(gsw)
 library(trend)
-library(egg)
+library(showtext)
+library(svglite)
 library(DT)
 library(pals)
 library(sf)
@@ -25,6 +26,18 @@ library(rkt)
 
 First run chunks 2-8 of `PondShiny.Rmd` script.
 If needed, then re-run the first chunk of `PondSplit.Rmd` as well.
+
+### Load font(s)
+```{r}
+font_add_google(name = "Montserrat", family = "mont")
+font_add_google(name = "Open Sans", family = "open")
+
+font_families()
+
+## automatically use showtext for new devices
+showtext_auto()
+showtext_opts(dpi = 600)
+```
 
 ### Pt. 1: Summary of new data and data characteristics
 ```{r}
@@ -49,7 +62,7 @@ ye <- ggplot(years, aes(x = num_years)) +
   labs(x = "Number of years sampled", y = "Number of ponds") +
   theme_classic()
 
-f1a.i <- ggarrange(ye, mo, ncol = 2)
+f1a.i <- plot_grid(ye, mo, ncol = 2, align = "hv")
 
 ggsave("figures/f1a.i.png", f1a.i, width = 6.5, height = 3, units = "in", dpi = 600)
 
@@ -81,7 +94,7 @@ ggsave("figures/f1a.ii.png", f1a.ii, width = 4.5, height = 3, units = "in", dpi 
 sf_use_s2(FALSE)
 
 # get Massachusetts outline
-mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+mass <- read_sf("/Library/Frameworks/R.framework/Resources/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
   st_make_valid() %>%
   st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
 
@@ -92,11 +105,13 @@ N <- ggplot() +
   geom_sf(data = mass) +
   geom_point(data = years, aes(x = Long, y = Lat, fill = num_years),
              shape = 21, size = 1.25, stroke = 0.25) +
-  scale_fill_viridis(option = "plasma", name = "N years\nsampled") +
+  scale_fill_viridis_c(option = "plasma", name = "N years\nsampled") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
   theme_classic() +
-  theme(panel.grid = element_blank(),
+  theme(legend.title = element_text(family = "mont", color = "#193446"),
+        legend.text = element_text(family = "open", color = "#676767"),
+        panel.grid = element_blank(),
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
@@ -109,19 +124,22 @@ L <- ggplot() +
   geom_sf(data = mass) +
   geom_point(data = years, aes(x = Long, y = Lat, fill = last_year),
              shape = 21, size = 1.25, stroke = 0.25) +
-  scale_fill_viridis(option = "viridis", name = "Last year\nsampled") +
+  scale_fill_viridis_c(option = "viridis", name = "Last year\nsampled") +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
   theme_classic() +
-  theme(panel.grid = element_blank(),
+  theme(legend.title = element_text(family = "mont", color = "#193446"),
+        legend.text = element_text(family = "open", color = "#676767"),
+        panel.grid = element_blank(),
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         axis.line = element_blank())
 
-f1a.iii <- ggarrange(N, L, ncol = 2)
+f1a.iii <- plot_grid(N, L, ncol = 2, align = "hv")
 
-ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 3, units = "in", dpi = 600, bg = "white")
+ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 3, units = "in", dpi = 600)
+ggsave("figures/svg/f1a.iii.svg", f1a.iii)
 ```
 
 ### Wrangle layer-specific data
@@ -131,6 +149,12 @@ setwd("~/Desktop/Repos/CapeCodPonds2023")
 ## define "consistently sampled" ##
 
 # surface data
+allSurface <- read.csv("data/AllPonds_Surface.csv") %>%
+  mutate(DepthClass = factor(DepthClass, levels = c("Shallow", "Deep"))) %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass,
+                                   levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
 allSurface_cont <- allSurface %>%
   group_by(Station.name) %>%
   filter(min(Year) <= quantile(2001:2023)[2],
@@ -145,6 +169,11 @@ allSurface_post <- allSurface_cont %>%
   filter(Year >= 2012)                    # change if desired
 
 # bottom data
+allBottom <- read.csv("data/AllPonds_Bottom.csv") %>%
+  mutate(DevelopmentClass = factor(DevelopmentClass,
+                                   levels = c("Very Low", "Low", "Medium", "High", "Very High"))) %>%
+  mutate(SurfaceAreaClass = factor(SurfaceAreaClass, levels = c("Very Small", "Small", "Medium", "Large")))
+
 allBottom_cont <- allBottom %>%
   group_by(Station.name) %>%
   filter(min(Year) <= quantile(2001:2023)[2],
@@ -226,9 +255,11 @@ surf_list <- lapply(params, function(param) {
     ylim(41.55, 42.07) +
     labs(title = paste("Surface")) +
     theme_classic() +
-    theme(panel.grid = element_blank(),
+    theme(text = element_text(family = "open", color = "#193446"),
+          panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
+          legend.title = element_text(hjust = 0.5),
           plot.title = element_text(face = "bold"),
           axis.text = element_blank(),
           axis.ticks = element_blank(),
@@ -251,9 +282,11 @@ bott_list <- lapply(params[c(3:4, 7:10)], function(param) {
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom")) +
     theme_classic() +
-    theme(panel.grid = element_blank(),
+    theme(text = element_text(family = "open", color = "#193446"),
+          panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
+          legend.title = element_text(hjust = 0.5),
           plot.title = element_text(face = "bold"),
           axis.text = element_blank(),
           axis.ticks = element_blank(),
@@ -269,7 +302,7 @@ surf_list[[2]] <- surf_list[[2]] +
   labs(title = "")
 
 surf_list[[3]] <- surf_list[[3]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TN (μg L"^-1*")"),
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression(atop("Total Nitrogen", "(μg L"^-1*")")),
                        limits = c(min(c(recent_surf$TN,
                                         recent_bott$TN), na.rm = TRUE),
                                   max(c(recent_surf$TN,
@@ -389,12 +422,13 @@ bott_list[[6]] <- bott_list[[6]] +
                        name = expression("Alk (mg L"^-1*")"),
                        na.value = "#F9FB0E")
 
+set_null_device("agg")
 f1b.i <- plot_grid(surf_list[[1]], surf_list[[2]],
                    surf_list[[3]], bott_list[[1]],
                    surf_list[[4]], bott_list[[2]],
                    surf_list[[5]], surf_list[[6]], ncol = 2, nrow = 4, align = "hv")
 
-ggsave("figures/f1b.i.png", f1b.i, width = 6.5, height = 9, units = "in", dpi = 600, bg = "white")
+ggsave("figures/f1b.i.png", f1b.i, width = 6.5, height = 9, units = "in", dpi = 600)
 
 f1b.ii <- plot_grid(surf_list[[7]], bott_list[[3]],
                     surf_list[[8]], bott_list[[4]],
@@ -422,7 +456,8 @@ fish1 <- ggplot() +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
   theme_classic() +
-  theme(panel.grid = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid = element_blank(),
         axis.title = element_blank(),
         plot.title = element_text(face = "bold"),
         axis.text = element_blank(),
@@ -445,7 +480,8 @@ fish2 <- ggplot() +
   xlim(-70.65, -69.95) +
   ylim(41.55, 42.07) +
   theme_classic() +
-  theme(panel.grid = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid = element_blank(),
         axis.title = element_blank(),
         plot.title = element_text(face = "bold"),
         axis.text = element_blank(),
@@ -455,7 +491,7 @@ fish2 <- ggplot() +
 f1b.iii <- plot_grid(fish1, fish2,
                      ncol = 2, nrow = 1, align = "hv")
 
-ggsave("figures/f1b.iii.png", f1b.iii, width = 6.5, height = 2.5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/f1b.iii.png", f1b.iii, width = 6.5, height = 2.5, units = "in", dpi = 600)
 
 ggplot() +
   geom_point(data = recent_surf[recent_surf$VerticalFishSpace < 10, ],
@@ -561,7 +597,8 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
   labs(x = "Secchi Depth (m)", y = "Proportion", title = "") +
   scale_fill_manual(values = colors) +
   theme_classic() +
-  theme(legend.position = c(0.85, 0.8),
+  theme(text = element_text(family = "open", color = "#193446"),
+        legend.position = c(0.85, 0.8),
         panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -578,7 +615,8 @@ MLD1 <- ggplot(mapping = aes(x = MLD, y = after_stat(count / sum(count)))) +
                  alpha = 0.5, bins = 15) +
   labs(x = "Mixed-layer Depth (m)", y = "Proportion", title = "") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -593,7 +631,8 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
                      labels = 10^c(-1, 0, 1, 2)) +
   labs(x = expression("Chl-a (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -606,7 +645,8 @@ NtP1 <- ggplot(mapping = aes(x = log10(NtP), y = after_stat(count / sum(count)))
                      labels = 10^c(1, 2, 3)) +
   labs(x = "N:P", y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -627,7 +667,8 @@ TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
   ylim(0, 0.13) +
   labs(x = expression("TN (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -644,7 +685,8 @@ TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
   ylim(0, 0.13) +
   labs(x = expression("TN (μg L"^-1*")"), y = "Proportion", title = "Bottom") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
@@ -661,7 +703,8 @@ TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
   ylim(0, 0.1) +
   labs(x = expression("TP (μg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -677,7 +720,8 @@ TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
   ylim(0, 0.1) +
   labs(x = expression("TP (μg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -688,7 +732,8 @@ Temp1 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   ylim(0, 0.09) +
   labs(x = "Temperature (°C)", y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -699,7 +744,8 @@ Temp2 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   ylim(0, 0.09) +
   labs(x = "Temperature (°C)", y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -711,7 +757,8 @@ DO1 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -723,7 +770,8 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   ylim(0, 0.28) +
   labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -734,7 +782,8 @@ DO_sat1 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count))))
   ylim(0, 0.27) +
   labs(x = "DO Saturation (%)", y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -745,7 +794,8 @@ DO_sat2 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count))))
   ylim(0, 0.27) +
   labs(x = "DO Saturation (%)", y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -756,7 +806,8 @@ Alk1 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   ylim(0, 0.19) +
   labs(x = expression("Alkalinity (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
@@ -767,15 +818,16 @@ Alk2 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   ylim(0, 0.19) +
   labs(x = expression("Alkalinity (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(panel.grid.minor = element_blank(),
+  theme(text = element_text(family = "open", color = "#193446"),
+        panel.grid.minor = element_blank(),
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
-f2a.i <- ggarrange(Secchi1, MLD1, Chla1, NtP1, TN1, TN2, TP1, TP2, ncol = 2)
+f2a.i <- plot_grid(Secchi1, MLD1, Chla1, NtP1, TN1, TN2, TP1, TP2, ncol = 2, align = "hv")
 
 ggsave("figures/f2a.i.png", f2a.i, width = 6.5, height = 9, units = "in", dpi = 600)
 
-f2a.ii <- ggarrange(Temp1, Temp2, DO1, DO2, DO_sat1, DO_sat2, Alk1, Alk2, ncol = 2)
+f2a.ii <- plot_grid(Temp1, Temp2, DO1, DO2, DO_sat1, DO_sat2, Alk1, Alk2, ncol = 2, align = "hv")
 
 ggsave("figures/f2a.ii.png", f2a.ii, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
@@ -950,11 +1002,11 @@ DO2.1 <- ggplot(mapping = aes(x = DO)) +
         axis.title = element_text(size = 8),
         axis.text = element_text(size = 6))
 
-f2b.i <- ggarrange(Secchi1.1, MLD1.1, Chla1.1, NtP1.1, TN1.1, TN2.1, TP1.1, TP2.1, ncol = 2)
+f2b.i <- plot_grid(Secchi1.1, MLD1.1, Chla1.1, NtP1.1, TN1.1, TN2.1, TP1.1, TP2.1, ncol = 2, align = "hv")
 
 ggsave("figures/f2b.i.png", f2b.i, width = 6.5, height = 9, units = "in", dpi = 600)
 
-f2b.ii <- ggarrange(Temp1.1, Temp2.1, DO1.1, DO2.1, DO_sat1.1, DO_sat2.1, Alk1.1, Alk2.1, ncol = 2)
+f2b.ii <- plot_grid(Temp1.1, Temp2.1, DO1.1, DO2.1, DO_sat1.1, DO_sat2.1, Alk1.1, Alk2.1, ncol = 2, align = "hv")
 
 ggsave("figures/f2b.ii.png", f2b.ii, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
@@ -1001,7 +1053,9 @@ p1 <- ggplot() +
   annotate("text", x = 2020, y = -0.4, label = "slope: -0.01\nP-value: 0.604", col = "red", size = 3) +
   ylim(-8, 0) +
   labs(y = "Secchi Depth (m)") +
-  theme_linedraw()
+  theme_linedraw() +
+  theme(text = element_text(family = "open", color = "#193446"),
+        axis.line = element_line(color = "#676767"))
   
 m2 <- lm(eco_annual75$Chla ~ eco_annual75$Year)
 summary(m2)
@@ -1020,7 +1074,9 @@ p2 <- ggplot() +
   annotate("text", x = 2020, y = 9, label = "slope: -0.02\nP-value: 0.427", col = "red", size = 3) +
   scale_y_continuous(limits = c(0, 9.5), breaks = c(0, 2, 4, 6, 8)) +
   labs(y = expression("Chl-a (μg L"^-1*")")) +
-  theme_linedraw()
+  theme_linedraw() +
+  theme(text = element_text(family = "open", color = "#193446"),
+        axis.line = element_line(color = "#676767"))
 
 m3 <- lm(eco_annual75$TN ~ eco_annual75$Year)
 summary(m3)
@@ -1039,7 +1095,9 @@ p3 <- ggplot() +
   annotate("text", x = 2020, y = 600, label = "slope: 0.1494\nP-value: 0.941", col = "red", size = 3) +
   ylim(0, 640) +
   labs(y = expression("TN (μg L"^-1*")")) +
-  theme_linedraw()
+  theme_linedraw() +
+  theme(text = element_text(family = "open", color = "#193446"),
+        axis.line = element_line(color = "#676767"))
 
 m4 <- lm(eco_annual75$TP ~ eco_annual75$Year)
 summary(m4)
@@ -1058,9 +1116,11 @@ p4 <- ggplot() +
   annotate("text", x = 2020, y = 28, label = "slope: 0.294\nP-value: <0.001", col = "red", size = 3) +
   ylim(0, 30) +
   labs(y = expression("TP (μg L"^-1*")")) +
-  theme_linedraw()
+  theme_linedraw() +
+  theme(text = element_text(family = "open", color = "#193446"),
+        axis.line = element_line(color = "#676767"))
 
-f3 <- ggarrange(p1, p2, p3, p4, ncol = 2)
+f3 <- plot_grid(p1, p2, p3, p4, ncol = 2, align = "hv")
 
 ggsave("figures/f3.png", f3, width = 6.5, height = 5, units = "in", dpi = 600)
 ```
@@ -1111,7 +1171,8 @@ surf_list2 <- lapply(params, function(param) {
     ylim(41.55, 42.07) +
     labs(title = paste("Surface", param)) +
     theme_classic() +
-    theme(panel.grid = element_blank(),
+    theme(text = element_text(family = "open", color = "#193446"),
+          panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
           plot.title = element_text(face = "bold"),
@@ -1157,7 +1218,8 @@ bott_list2 <- lapply(params[c(3:4, 7:10)], function(param) {
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom", param)) +
     theme_classic() +
-    theme(panel.grid = element_blank(),
+    theme(text = element_text(family = "open", color = "#193446"),
+          panel.grid = element_blank(),
           axis.title = element_blank(),
           #legend.position = "bottom",
           plot.title = element_text(face = "bold"),
@@ -1214,17 +1276,17 @@ surf_list2[[10]] <- surf_list2[[10]] +
 bott_list2[[6]] <- bott_list2[[6]] +
   labs(title = expression(bold("Bottom Alkalinity (mg L"^-1*")")))
 
-f4.1 <- ggarrange(surf_list2[[1]], surf_list2[[2]],
+f4.1 <- plot_grid(surf_list2[[1]], surf_list2[[2]],
                 surf_list2[[3]], bott_list2[[1]],
                 surf_list2[[4]], bott_list2[[2]],
-                surf_list2[[5]], surf_list2[[6]], ncol = 2)
+                surf_list2[[5]], surf_list2[[6]], ncol = 2, align = "hv")
 
 ggsave("figures/f4.1.png", f4.1, width = 6.5, height = 9, units = "in", dpi = 600)
 
-f4.2 <- ggarrange(surf_list2[[7]], bott_list2[[3]],
+f4.2 <- plot_grid(surf_list2[[7]], bott_list2[[3]],
                 surf_list2[[8]], bott_list2[[4]],
                 surf_list2[[9]], bott_list2[[5]],
-                surf_list2[[10]], bott_list2[[6]], ncol = 2)
+                surf_list2[[10]], bott_list2[[6]], ncol = 2, align = "hv")
 
 ggsave("figures/f4.2.png", f4.2, width = 6.5, height = 9, units = "in", dpi = 600)
 ```
