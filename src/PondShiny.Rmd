@@ -22,7 +22,6 @@ library(egg)
 library(DT)
 library(pals)
 library(sf)
-library(viridis)
 library(rkt)
 ```
 
@@ -1085,7 +1084,7 @@ Most recent year of data from every pond:
 sf_use_s2(FALSE)
 
 # get Massachusetts outline
-mass <- read_sf("/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
+mass <- read_sf("/Library/Frameworks/R.framework/Resources/gshhg-shp-2.3.7/GSHHS_shp/f/GSHHS_f_L1.shp") %>%
   st_make_valid() %>%
   st_crop(xmin = -71, xmax = -69, ymin = 41, ymax = 42.25)
 
