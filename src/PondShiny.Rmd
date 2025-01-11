@@ -1257,6 +1257,11 @@ renderPlot({
 ```{r include = FALSE}
 # calculate trends
 
+focal_ponds <- ponds %>%
+  filter(Month == 8 | Month == 9)
+
+pondName <- sort(unique(focal_ponds$Station.name))
+
 start <- which(colnames(allSurface) == "Secchi")
 end <- which(colnames(allSurface) == "Chla")
 
