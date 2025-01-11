@@ -15,7 +15,7 @@ library(tidyverse)
 library(gsw)
 library(trend)
 library(showtext)
-library(svglite)
+#library(svglite)
 library(DT)
 library(pals)
 library(sf)
@@ -32,7 +32,7 @@ If needed, then re-run the first chunk of `PondSplit.Rmd` as well.
 font_add_google(name = "Montserrat", family = "mont")
 font_add_google(name = "Open Sans", family = "open")
 
-font_families()
+#font_families()
 
 ## automatically use showtext for new devices
 showtext_auto()
@@ -139,7 +139,7 @@ L <- ggplot() +
 f1a.iii <- plot_grid(N, L, ncol = 2, align = "hv")
 
 ggsave("figures/f1a.iii.png", f1a.iii, width = 6.5, height = 3, units = "in", dpi = 600)
-ggsave("figures/svg/f1a.iii.svg", f1a.iii)
+ggsave("figures/svg/f1a.iii.svg", f1a.iii, width = 6.5, height = 3, units = "in")
 ```
 
 ### Wrangle layer-specific data
@@ -190,9 +190,6 @@ allBottom_post <- allBottom_cont %>%
 
 ### Pt. 1b cont.
 
-######
-- rotate scale bars
-
 ```{r}
 params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
 
@@ -205,6 +202,21 @@ zero_sub <- function(x) {
   } else {
     exp <- str_count(str[2], "0") + 1
     return(10^-exp)
+  }
+}
+
+# handle legends until cowplot bug fixed
+get_legend_35 <- function(plot) {
+  # return all legend candidates
+  legends <- get_plot_component(plot, "guide-box", return_all = TRUE)
+  # find non-zero legends
+  nonzero <- vapply(legends, \(x) !inherits(x, "zeroGrob"), TRUE)
+  idx <- which(nonzero)
+  # return first non-zero legend if exists, and otherwise first element (which will be a zeroGrob) 
+  if (length(idx) > 0) {
+    return(legends[[idx[1]]])
+  } else {
+    return(legends[[1]])
   }
 }
 
@@ -254,13 +266,15 @@ surf_list <- lapply(params, function(param) {
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Surface")) +
+    guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5),
+           col = guide_colourbar(title.position = "top", title.hjust = 0.5)) +
     theme_classic() +
-    theme(text = element_text(family = "open", color = "#193446"),
-          panel.grid = element_blank(),
+    theme(panel.grid = element_blank(),
           axis.title = element_blank(),
-          #legend.position = "bottom",
-          legend.title = element_text(hjust = 0.5),
-          plot.title = element_text(face = "bold"),
+          legend.position = "bottom",
+          legend.title = element_text(hjust = 0.5, family = "mont", color = "#193446"),
+          legend.text = element_text(family = "open", color = "#676767"),
+          plot.title = element_text(face = "bold", family = "mont", color = "#193446"),
           axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.line = element_blank())
@@ -281,49 +295,51 @@ bott_list <- lapply(params[c(3:4, 7:10)], function(param) {
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom")) +
+    guides(fill = guide_colourbar(title.position = "top", title.hjust = 0.5),
+           col = guide_colourbar(title.position = "top", title.hjust = 0.5)) +
     theme_classic() +
-    theme(text = element_text(family = "open", color = "#193446"),
-          panel.grid = element_blank(),
+    theme(panel.grid = element_blank(),
           axis.title = element_blank(),
-          #legend.position = "bottom",
-          legend.title = element_text(hjust = 0.5),
-          plot.title = element_text(face = "bold"),
+          legend.position = "bottom",
+          legend.title = element_text(hjust = 0.5, family = "mont", color = "#193446"),
+          legend.text = element_text(family = "open", color = "#676767"),
+          plot.title = element_text(face = "bold", family = "mont", color = "#193446"),
           axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.line = element_blank())
 })
 
 surf_list[[1]] <- surf_list[[1]] +
-  scale_fill_gradientn(colors = parula(100), name = "Secchi\ndepth (m)  ") +
+  scale_fill_gradientn(colors = parula(100), name = "Secchi Depth (m)  ") +
   labs(title = "")
 
 surf_list[[2]] <- surf_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), name = "Mixed-layer\ndepth (m)") +     # not working inside `labs()`
+  scale_fill_gradientn(colors = parula(100), name = "Mixed-layer Depth (m)") +     # not working inside `labs()`
   labs(title = "")
 
 surf_list[[3]] <- surf_list[[3]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression(atop("Total Nitrogen", "(μg L"^-1*")")),
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Total Nitrogen (μg L"^-1*")"),
                        limits = c(min(c(recent_surf$TN,
                                         recent_bott$TN), na.rm = TRUE),
                                   max(c(recent_surf$TN,
                                         recent_bott$TN), na.rm = TRUE)))
 
 bott_list[[1]] <- bott_list[[1]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TN (μg L"^-1*")"),
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Total Nitrogen (μg L"^-1*")"),
                        limits = c(min(c(recent_surf$TN,
                                         recent_bott$TN), na.rm = TRUE),
                                   max(c(recent_surf$TN,
                                         recent_bott$TN), na.rm = TRUE)))
 
 surf_list[[4]] <- surf_list[[4]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TP (μg L"^-1*")"),
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Total Phosphorus (μg L"^-1*")"),
                        limits = c(min(c(recent_surf$TP,
                                         recent_bott$TP), na.rm = TRUE),
                                   max(c(recent_surf$TP,
                                         recent_bott$TP), na.rm = TRUE)))
 
 bott_list[[2]] <- bott_list[[2]] +
-  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("TP (μg L"^-1*")"),
+  scale_fill_gradientn(colors = parula(100), trans = "log10", name = expression("Total Phosphorus (μg L"^-1*")"),
                        limits = c(min(c(recent_surf$TP,
                                         recent_bott$TP), na.rm = TRUE),
                                   max(c(recent_surf$TP,
@@ -331,16 +347,14 @@ bott_list[[2]] <- bott_list[[2]] +
 
 # ggplot(recent_surf, aes(NtP)) + geom_histogram()  ## not really log-distributed
 
-# quantile(recent_surf$NtP, probs = c(0.9, 0.95, 0.975, 1), na.rm = TRUE)
 # min(c(recent_surf$NtP, recent_bott$NtP), na.rm = TRUE)
-
-top <- 134   # upper bound of color scale
+top <- quantile(recent_surf$NtP, probs = 0.975, na.rm = TRUE)   # upper bound of color scale
 
 surf_list[[5]] <- surf_list[[5]] +
   geom_point(data = recent_surf[recent_surf[["NtP"]] < 16, ],   ### this puts N-limited ponds on top
              aes(x = Long, y = Lat, fill = NtP),
              shape = 21) +
-  scale_fill_gradientn(colors = c("firebrick4", "firebrick2", parula(11)), name = "N:P",
+  scale_fill_gradientn(colors = c("firebrick4", "firebrick2", parula(11)), name = "N:P Ratio",
                        limits = c(0.01, top),
                        values = rescale(c(0, (16 - 0.000000000000001),
                                           16, 16 + ((top-16)/10) * (1:10))),
@@ -349,17 +363,17 @@ surf_list[[5]] <- surf_list[[5]] +
 
 surf_list[[6]] <- surf_list[[6]] +
   scale_fill_gradientn(colors = parula(100), trans = "log10",
-                       name = expression("Chl-a (μg L"^-1*")"))
+                       name = expression("Chorophyll-a (μg L"^-1*")"))
 
 surf_list[[7]] <- surf_list[[7]] +
-  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)   ",
+  scale_fill_gradientn(colors = parula(100), name = "Temperature (°C)   ",
                        limits = c(min(c(recent_surf$Temp,
                                         recent_bott$Temp), na.rm = TRUE),
                                   max(c(recent_surf$Temp,
                                         recent_bott$Temp), na.rm = TRUE)))
 
 bott_list[[3]] <- bott_list[[3]] +
-  scale_fill_gradientn(colors = parula(100), name = "Temp (°C)   ",
+  scale_fill_gradientn(colors = parula(100), name = "Temperature (°C)   ",
                        limits = c(min(c(recent_surf$Temp,
                                         recent_bott$Temp), na.rm = TRUE),
                                   max(c(recent_surf$Temp,
@@ -367,7 +381,7 @@ bott_list[[3]] <- bott_list[[3]] +
 
 surf_list[[8]] <- surf_list[[8]] +
   scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"),
-                       name = expression("DO (mg L"^-1*")"),
+                       name = expression("Dissolved Oxygen (mg L"^-1*")"),
                        limits = c(min(c(recent_surf$DO,
                                         recent_bott$DO), na.rm = TRUE),
                                   max(c(recent_surf$DO,
@@ -380,7 +394,7 @@ surf_list[[8]] <- surf_list[[8]] +
 
 bott_list[[4]] <- bott_list[[4]] +
   scale_fill_gradientn(colors = c("firebrick2", "white", "white", "#0D77DA"),
-                       name = expression("DO (mg L"^-1*")"),
+                       name = expression("Dissolved Oxygen (mg L"^-1*")"),
                        limits = c(min(c(recent_surf$DO,
                                         recent_bott$DO), na.rm = TRUE),
                                   max(c(recent_surf$DO,
@@ -392,50 +406,86 @@ bott_list[[4]] <- bott_list[[4]] +
                                                 recent_bott$DO), na.rm = TRUE))))
 
 surf_list[[9]] <- surf_list[[9]] +
-  scale_fill_gradientn(colors = parula(100), name = "DO sat. (%)",
+  scale_fill_gradientn(colors = parula(100), name = "DO Saturation (%)",
                        limits = c(min(c(recent_surf$DO_sat,
                                         recent_bott$DO_sat), na.rm = TRUE),
                                   max(c(recent_surf$DO_sat,
                                         recent_bott$DO_sat), na.rm = TRUE)))
 
 bott_list[[5]] <- bott_list[[5]] +
-  scale_fill_gradientn(colors = parula(100), name = "DO sat. (%)",
+  scale_fill_gradientn(colors = parula(100), name = "DO Saturation (%)",
                        limits = c(min(c(recent_surf$DO_sat,
                                         recent_bott$DO_sat), na.rm = TRUE),
                                   max(c(recent_surf$DO_sat,
                                         recent_bott$DO_sat), na.rm = TRUE)))
 
-# quantile(c(recent_surf$Alk, recent_bott$Alk), probs = c(0.9, 0.95, 0.975, 1), na.rm = TRUE)
 # min(c(recent_surf$Alk, recent_bott$Alk), na.rm = TRUE)
-
-top <- 61   # upper bound of color scale
+top <- quantile(c(recent_surf$Alk, recent_bott$Alk), probs = 0.95, na.rm = TRUE)   # upper bound of color scale
 
 surf_list[[10]] <- surf_list[[10]] +
   scale_fill_gradientn(colors = parula(100), limits = c(0, top),
                        breaks = c(20, 40, 60),
-                       name = expression("Alk (mg L"^-1*")"),
+                       name = expression("Alkalinity (mg L"^-1*")"),
                        na.value = "#F9FB0E")
 
 bott_list[[6]] <- bott_list[[6]] +
   scale_fill_gradientn(colors = parula(100), limits = c(0, top),
                        breaks = c(20, 40, 60),
-                       name = expression("Alk (mg L"^-1*")"),
+                       name = expression("Alkalinity (mg L"^-1*")"),
                        na.value = "#F9FB0E")
 
-set_null_device("agg")
-f1b.i <- plot_grid(surf_list[[1]], surf_list[[2]],
-                   surf_list[[3]], bott_list[[1]],
-                   surf_list[[4]], bott_list[[2]],
-                   surf_list[[5]], surf_list[[6]], ncol = 2, nrow = 4, align = "hv")
+#set_null_device("agg")
+f1b.i <-
+  plot_grid(
+    plot_grid(
+      surf_list[[1]] + theme(legend.position = "none"),
+      surf_list[[2]] + theme(legend.position = "none")),
+    plot_grid(
+      get_legend_35(surf_list[[1]] + theme(legend.key.width = unit(0.45, "in"))),
+      get_legend_35(surf_list[[2]] + theme(legend.key.width = unit(0.45, "in")))),
+    plot_grid(
+      surf_list[[3]] + theme(legend.position = "none"),
+      bott_list[[1]] + theme(legend.position = "none")),
+    get_legend_35(surf_list[[3]] + theme(legend.key.width = unit(0.95, "in"))),
+    plot_grid(
+      surf_list[[4]] + theme(legend.position = "none"),
+      bott_list[[2]] + theme(legend.position = "none")),
+    get_legend_35(surf_list[[4]] + theme(legend.key.width = unit(0.95, "in"))),
+    plot_grid(
+      surf_list[[5]] + theme(legend.position = "none"),
+      surf_list[[6]] + theme(legend.position = "none")),
+    plot_grid(
+      get_legend_35(surf_list[[5]] + theme(legend.key.width = unit(0.45, "in"),
+                                           legend.key.spacing = unit(0.105, "in"))),
+      get_legend_35(surf_list[[6]] + theme(legend.key.width = unit(0.45, "in")))),
+    nrow = 8,
+    rel_heights = c(6, 0.95, 6, 1, 6, 1, 6, 1.5))
 
-ggsave("figures/f1b.i.png", f1b.i, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/f1b.i.png", f1b.i, width = 5, height = 14.5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/svg/f1b.i.svg", f1b.i, width = 5, height = 14.5, units = "in", bg = "white")
 
-f1b.ii <- plot_grid(surf_list[[7]], bott_list[[3]],
-                    surf_list[[8]], bott_list[[4]],
-                    surf_list[[9]], bott_list[[5]],
-                    surf_list[[10]], bott_list[[6]], ncol = 2, nrow = 4, align = "hv")
+f1b.ii <- plot_grid(
+    plot_grid(
+      surf_list[[7]] + theme(legend.position = "none"),
+      bott_list[[3]] + theme(legend.position = "none")),
+    get_legend_35(surf_list[[7]] + theme(legend.key.width = unit(0.95, "in"))),
+    plot_grid(
+      surf_list[[8]] + theme(legend.position = "none"),
+      bott_list[[4]] + theme(legend.position = "none")),
+    get_legend_35(surf_list[[8]] + theme(legend.key.width = unit(0.95, "in"))),
+    plot_grid(
+      surf_list[[9]] + theme(legend.position = "none"),
+      bott_list[[5]] + theme(legend.position = "none")),
+    get_legend_35(surf_list[[9]] + theme(legend.key.width = unit(0.95, "in"))),
+    plot_grid(
+      surf_list[[10]] + theme(legend.position = "none"),
+      bott_list[[6]] + theme(legend.position = "none")),
+    get_legend_35(surf_list[[10]] + theme(legend.key.width = unit(0.95, "in"))),
+    nrow = 8,
+    rel_heights = c(6, 0.95, 6, 1, 6, 0.95, 6, 1.5))
 
-ggsave("figures/f1b.ii.png", f1b.ii, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/f1b.ii.png", f1b.ii, width = 5, height = 14.5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/svg/f1b.ii.svg", f1b.ii, width = 5, height = 14.5, units = "in", bg = "white")
 ```
 
 ### Temporary(?): Fish space map & vertical-vs-volumetric plot
@@ -597,15 +647,16 @@ Secchi1 <- ggplot(mapping = aes(x = Secchi, y = after_stat(count / sum(count))))
   labs(x = "Secchi Depth (m)", y = "Proportion", title = "") +
   scale_fill_manual(values = colors) +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        legend.position = c(0.85, 0.8),
+  theme(legend.position = "inside",
+        legend.position.inside = c(0.85, 0.8),
         panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"),
         legend.title = element_blank(),
         legend.margin = margin(0, 1, 1, 1, "pt"),
-        legend.text = element_text(size = 6),
+        legend.text = element_text(size = 6, family = "open", color = "#676767"),
         legend.key.size = unit(0.1, "in"))
 
 MLD1 <- ggplot(mapping = aes(x = MLD, y = after_stat(count / sum(count)))) +
@@ -615,11 +666,11 @@ MLD1 <- ggplot(mapping = aes(x = MLD, y = after_stat(count / sum(count)))) +
                  alpha = 0.5, bins = 15) +
   labs(x = "Mixed-layer Depth (m)", y = "Proportion", title = "") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -629,13 +680,13 @@ Chla1 <- ggplot(mapping = aes(x = log10(Chla), y = after_stat(count / sum(count)
   geom_vline(xintercept = log10(thresh_chla_S)) +
   scale_x_continuous(breaks = c(-1, 0, 1, 2),
                      labels = 10^c(-1, 0, 1, 2)) +
-  labs(x = expression("Chl-a (μg L"^-1*")"), y = "Proportion", title = "Surface") +
+  labs(x = expression("Chlorophyll-a (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 NtP1 <- ggplot(mapping = aes(x = log10(NtP), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -643,13 +694,13 @@ NtP1 <- ggplot(mapping = aes(x = log10(NtP), y = after_stat(count / sum(count)))
   geom_vline(xintercept = log10(16), col = "forestgreen") +
   scale_x_continuous(breaks = c(1, 2, 3),
                      labels = 10^c(1, 2, 3)) +
-  labs(x = "N:P", y = "Proportion", title = "Surface") +
+  labs(x = "N:P Ratio", y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 # ggplot_build(obj)$layout$panel_scales_y[[1]]$range$range
 
@@ -665,13 +716,13 @@ TN1 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
                      breaks = c(2, 3),
                      labels = 10^c(2, 3)) +
   ylim(0, 0.13) +
-  labs(x = expression("TN (μg L"^-1*")"), y = "Proportion", title = "Surface") +
+  labs(x = expression("Total Nitrogen (μg L"^-1*")"), y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, binwidth = 0.05) +
@@ -683,13 +734,13 @@ TN2 <- ggplot(mapping = aes(x = log10(TN), y = after_stat(count / sum(count)))) 
                      breaks = c(2, 3),
                      labels = 10^c(2, 3)) +
   ylim(0, 0.13) +
-  labs(x = expression("TN (μg L"^-1*")"), y = "Proportion", title = "Bottom") +
+  labs(x = expression("Total Nitrogen (μg L"^-1*")"), y = "Proportion", title = "Bottom") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -701,12 +752,12 @@ TP1 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
                      breaks = c(0, 1, 2, 3),
                      labels = 10^c(0, 1, 2, 3)) +
   ylim(0, 0.1) +
-  labs(x = expression("TP (μg L"^-1*")"), y = "Proportion") +
+  labs(x = expression("Total Phosphorus (μg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -718,36 +769,45 @@ TP2 <- ggplot(mapping = aes(x = log10(TP), y = after_stat(count / sum(count)))) 
                      breaks = c(0, 1, 2, 3),
                      labels = 10^c(0, 1, 2, 3)) +
   ylim(0, 0.1) +
-  labs(x = expression("TP (μg L"^-1*")"), y = "Proportion") +
+  labs(x = expression("Total Phosphorus (μg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 Temp1 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
-  geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
-  geom_histogram(data = allSurface_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
+  geom_histogram(data = allSurface_pre, aes(fill = "2001-2011"), col = NA, alpha = 0.5, bins = 60) +
+  geom_histogram(data = allSurface_post, aes(fill = "2012-2023"), col = NA, alpha = 0.5, bins = 60) +
   xlim(6, 29.4) +
   ylim(0, 0.09) +
-  labs(x = "Temperature (°C)", y = "Proportion") +
+  scale_fill_manual(values = colors) +
+  labs(x = "Temperature (°C)", y = "Proportion", title = "Surface") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
+  theme(legend.position = "inside",
+        legend.position.inside = c(0.15, 0.8),
         panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"),
+        legend.title = element_blank(),
+        legend.margin = margin(0, 1, 1, 1, "pt"),
+        legend.text = element_text(size = 6, family = "open", color = "#676767"),
+        legend.key.size = unit(0.1, "in"))
 
 Temp2 <- ggplot(mapping = aes(x = Temp, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
   geom_histogram(data = allBottom_post, col = NA, fill = "violetred", alpha = 0.5, bins = 60) +
   xlim(6, 29.4) +
   ylim(0, 0.09) +
-  labs(x = "Temperature (°C)", y = "Proportion") +
+  labs(x = "Temperature (°C)", y = "Proportion", title = "Bottom") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 10, face = "bold", hjust = 0.5, family = "mont", color = "#193446"),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 DO1 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -755,12 +815,12 @@ DO1 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_vline(xintercept = 3, linetype = "dashed") +
   xlim(0, 15.75) +
   ylim(0, 0.28) +
-  labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
+  labs(x = expression("Dissolved Oxygen (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -768,12 +828,12 @@ DO2 <- ggplot(mapping = aes(x = DO, y = after_stat(count / sum(count)))) +
   geom_vline(xintercept = 3, linetype = "dashed") +
   xlim(0, 15.75) +
   ylim(0, 0.28) +
-  labs(x = expression("DO (mg L"^-1*")"), y = "Proportion") +
+  labs(x = expression("Dissolved Oxygen (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 DO_sat1 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -782,10 +842,10 @@ DO_sat1 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count))))
   ylim(0, 0.27) +
   labs(x = "DO Saturation (%)", y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 DO_sat2 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -794,10 +854,10 @@ DO_sat2 <- ggplot(mapping = aes(x = DO_sat, y = after_stat(count / sum(count))))
   ylim(0, 0.27) +
   labs(x = "DO Saturation (%)", y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 Alk1 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allSurface_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -806,10 +866,10 @@ Alk1 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   ylim(0, 0.19) +
   labs(x = expression("Alkalinity (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 Alk2 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   geom_histogram(data = allBottom_pre, col = NA, fill = "dodgerblue", alpha = 0.5, bins = 60) +
@@ -818,18 +878,20 @@ Alk2 <- ggplot(mapping = aes(x = Alk, y = after_stat(count / sum(count)))) +
   ylim(0, 0.19) +
   labs(x = expression("Alkalinity (mg L"^-1*")"), y = "Proportion") +
   theme_classic() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 8),
-        axis.text = element_text(size = 6))
+  theme(panel.grid.minor = element_blank(),
+        axis.title = element_text(size = 8, family = "mont", color = "#193446"),
+        axis.text = element_text(size = 6, family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"))
 
 f2a.i <- plot_grid(Secchi1, MLD1, Chla1, NtP1, TN1, TN2, TP1, TP2, ncol = 2, align = "hv")
 
 ggsave("figures/f2a.i.png", f2a.i, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/svg/f2a.i.svg", f2a.i, width = 6.5, height = 9, units = "in")
 
 f2a.ii <- plot_grid(Temp1, Temp2, DO1, DO2, DO_sat1, DO_sat2, Alk1, Alk2, ncol = 2, align = "hv")
 
 ggsave("figures/f2a.ii.png", f2a.ii, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/svg/f2a.ii.svg", f2a.ii, width = 6.5, height = 9, units = "in")
 ```
 
 ### Same as above but density plots
@@ -852,7 +914,8 @@ Secchi1.1 <- ggplot(mapping = aes(x = Secchi)) +
   labs(x = "Secchi Depth (m)", title = "Surface") +
   scale_color_manual(values = colors) +
   theme_classic() +
-  theme(legend.position = c(0.85, 0.8),
+  theme(legend.position = "inside",
+        legend.position.inside = c(0.85, 0.8),
         panel.grid.minor = element_blank(),
         plot.title = element_text(size = 10, face = "bold", hjust = 0.5),
         axis.title = element_text(size = 8),
@@ -1042,20 +1105,24 @@ m1.1 <- lm(eco_annual25$Secchi ~ eco_annual25$Year)
 summary(m1.1)
 
 p1 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = Secchi), shape = 1, color = "blue") +
-  geom_point(data = eco_annual25, aes(x = Year, y = Secchi), shape = 1, color = "red") +
-  geom_smooth(data = eco_annual75, aes(x = Year, y = Secchi), method = "lm", se = FALSE) +
-  geom_smooth(data = eco_annual25, aes(x = Year, y = Secchi), method = "lm", se = FALSE, col = "red",
+  geom_point(data = eco_annual75, aes(x = Year, y = Secchi), shape = 1, color = "royalblue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = Secchi), shape = 1, color = "#b62959") +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = Secchi), method = "lm", se = FALSE, col = "royalblue") +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = Secchi), method = "lm", se = FALSE, col = "#b62959",
               linetype = "22") +
   geom_hline(yintercept = -4.5, linetype = "dashed") +
   geom_hline(yintercept = -2, linetype = "dashed") +
-  annotate("text", x = 2004, y = -0.4, label = "slope: -0.04\nP-value: 0.295", col = "blue", size = 3) +
-  annotate("text", x = 2020, y = -0.4, label = "slope: -0.01\nP-value: 0.604", col = "red", size = 3) +
+  annotate("text", x = 2004, y = -0.4, label = "slope: -0.055\nP-value: 0.173", col = "royalblue", size = 3,
+           family = "open") +
+  annotate("text", x = 2020, y = -0.4, label = "slope: -0.007\nP-value: 0.717", col = "#b62959", size = 3,
+           family = "open") +
   ylim(-8, 0) +
   labs(y = "Secchi Depth (m)") +
   theme_linedraw() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        axis.line = element_line(color = "#676767"))
+  theme(axis.title = element_text(family = "mont", color = "#193446"),
+        axis.text = element_text(family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"),
+        panel.border = element_rect(color = "#676767"))
   
 m2 <- lm(eco_annual75$Chla ~ eco_annual75$Year)
 summary(m2)
@@ -1064,19 +1131,23 @@ m2.1 <- lm(eco_annual25$Chla ~ eco_annual25$Year)
 summary(m2.1)
 
 p2 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = Chla), shape = 1, color = "blue") +
-  geom_point(data = eco_annual25, aes(x = Year, y = Chla), shape = 1, color = "red") +
-  geom_smooth(data = eco_annual75, aes(x = Year, y = Chla), method = "lm", se = FALSE) +
-  geom_smooth(data = eco_annual25, aes(x = Year, y = Chla), method = "lm", se = FALSE, col = "red",
+  geom_point(data = eco_annual75, aes(x = Year, y = Chla), shape = 1, color = "royalblue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = Chla), shape = 1, color = "#b62959") +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = Chla), method = "lm", se = FALSE, col = "royalblue") +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = Chla), method = "lm", se = FALSE, col = "#b62959",
               linetype = "22") +
   geom_hline(yintercept = 1, linetype = "dashed") +
-  annotate("text", x = 2004, y = 9, label = "slope: 0.07\nP-value: 0.396", col = "blue", size = 3) +
-  annotate("text", x = 2020, y = 9, label = "slope: -0.02\nP-value: 0.427", col = "red", size = 3) +
+  annotate("text", x = 2004, y = 9, label = "slope: 0.08\nP-value: 0.291", col = "royalblue", size = 3,
+           family = "open") +
+  annotate("text", x = 2020, y = 9, label = "slope: -0.02\nP-value: 0.301", col = "#b62959", size = 3,
+           family = "open") +
   scale_y_continuous(limits = c(0, 9.5), breaks = c(0, 2, 4, 6, 8)) +
-  labs(y = expression("Chl-a (μg L"^-1*")")) +
+  labs(y = expression("Chlorophyll-a (μg L"^-1*")")) +
   theme_linedraw() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        axis.line = element_line(color = "#676767"))
+  theme(axis.title = element_text(family = "mont", color = "#193446"),
+        axis.text = element_text(family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"),
+        panel.border = element_rect(color = "#676767"))
 
 m3 <- lm(eco_annual75$TN ~ eco_annual75$Year)
 summary(m3)
@@ -1085,19 +1156,23 @@ m3.1 <- lm(eco_annual25$TN ~ eco_annual25$Year)
 summary(m3.1)
 
 p3 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = TN), shape = 1, color = "blue") +
-  geom_point(data = eco_annual25, aes(x = Year, y = TN), shape = 1, color = "red") +
-  geom_smooth(data = eco_annual75, aes(x = Year, y = TN), method = "lm", se = FALSE) +
-  geom_smooth(data = eco_annual25, aes(x = Year, y = TN), method = "lm", se = FALSE, col = "red",
+  geom_point(data = eco_annual75, aes(x = Year, y = TN), shape = 1, color = "royalblue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = TN), shape = 1, color = "#b62959") +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = TN), method = "lm", se = FALSE, col = "royalblue") +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = TN), method = "lm", se = FALSE, col = "#b62959",
               linetype = "22") +
   geom_hline(yintercept = 11.42 * 14.0067, linetype = "dashed") +
-  annotate("text", x = 2004, y = 600, label = "slope: 5.784\nP-value: 0.166", col = "blue", size = 3) +
-  annotate("text", x = 2020, y = 600, label = "slope: 0.1494\nP-value: 0.941", col = "red", size = 3) +
+  annotate("text", x = 2004, y = 600, label = "slope: 5.784\nP-value: 0.166", col = "royalblue", size = 3,
+           family = "open") +
+  annotate("text", x = 2020, y = 600, label = "slope: 0.1494\nP-value: 0.941", col = "#b62959", size = 3,
+           family = "open") +
   ylim(0, 640) +
-  labs(y = expression("TN (μg L"^-1*")")) +
+  labs(y = expression("Total Nitrogen (μg L"^-1*")")) +
   theme_linedraw() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        axis.line = element_line(color = "#676767"))
+  theme(axis.title = element_text(family = "mont", color = "#193446"),
+        axis.text = element_text(family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"),
+        panel.border = element_rect(color = "#676767"))
 
 m4 <- lm(eco_annual75$TP ~ eco_annual75$Year)
 summary(m4)
@@ -1106,30 +1181,33 @@ m4.1 <- lm(eco_annual25$TP ~ eco_annual25$Year)
 summary(m4.1)
 
 p4 <- ggplot() +
-  geom_point(data = eco_annual75, aes(x = Year, y = TP), shape = 1, color = "blue") +
-  geom_point(data = eco_annual25, aes(x = Year, y = TP), shape = 1, color = "red") +
-  geom_smooth(data = eco_annual75, aes(x = Year, y = TP), method = "lm", se = FALSE) +
-  geom_smooth(data = eco_annual25, aes(x = Year, y = TP), method = "lm", se = FALSE, col = "red",
+  geom_point(data = eco_annual75, aes(x = Year, y = TP), shape = 1, color = "royalblue") +
+  geom_point(data = eco_annual25, aes(x = Year, y = TP), shape = 1, color = "#b62959") +
+  geom_smooth(data = eco_annual75, aes(x = Year, y = TP), method = "lm", se = FALSE, col = "royalblue") +
+  geom_smooth(data = eco_annual25, aes(x = Year, y = TP), method = "lm", se = FALSE, col = "#b62959",
               linetype = "22") +
   geom_hline(yintercept = 0.24 * 30.973762, linetype = "dashed") +
-  annotate("text", x = 2004, y = 28, label = "slope: 0.450\nP-value: 0.004", col = "blue", size = 3) +
-  annotate("text", x = 2020, y = 28, label = "slope: 0.294\nP-value: <0.001", col = "red", size = 3) +
+  annotate("text", x = 2004, y = 28, label = "slope: 0.450\nP-value: 0.004", col = "royalblue", size = 3,
+           family = "open") +
+  annotate("text", x = 2020, y = 28, label = "slope: 0.294\nP-value: <0.001", col = "#b62959", size = 3,
+           family = "open") +
   ylim(0, 30) +
-  labs(y = expression("TP (μg L"^-1*")")) +
+  labs(y = expression("Total Phosphorus (μg L"^-1*")")) +
   theme_linedraw() +
-  theme(text = element_text(family = "open", color = "#193446"),
-        axis.line = element_line(color = "#676767"))
+  theme(axis.title = element_text(family = "mont", color = "#193446"),
+        axis.text = element_text(family = "open", color = "#676767"),
+        axis.line = element_line(color = "#676767"),
+        panel.border = element_rect(color = "#676767"))
 
 f3 <- plot_grid(p1, p2, p3, p4, ncol = 2, align = "hv")
 
 ggsave("figures/f3.png", f3, width = 6.5, height = 5, units = "in", dpi = 600)
+ggsave("figures/svg/f3.svg", f3, width = 6.5, height = 5, units = "in")
 ```
 
 ### Pt. 4: Maps w/ trends in all parameters
-- Calc "recent" (2016+) & annually in table
 
-######
-- rotate & combine scale bars
+Run chunk 24 of PondShiny.Rmd.
 
 ```{r}
 params <- c("Secchi", "MLD", "TN", "TP", "NtP", "Chla", "Temp", "DO", "DO_sat", "Alk")
@@ -1152,30 +1230,33 @@ surf_list2 <- lapply(params, function(param) {
                                                 slopes_surf2[[param]],
                                                 slopes_bott[[param]],
                                                 slopes_bott2[[param]])), decreasing = TRUE)[1]),
-                          name = "Trend\nmagnitude") +
-    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                          name = "Trend Magnitude") +
+    scale_color_manual(values = c("royalblue", "black", "#b62959"),
                        breaks = c(-1, 0, 1),
                        limits = factor(c(-1, 0, 1)),
                        labels = c("negative", "zero", "positive"),
-                       name = paste(param, "trend\ndirection"),
+                       name = paste(param, "Trend\nDirection"),
                        na.translate = FALSE,
                        guide = "none") +
-    scale_fill_manual(values = c("royalblue", "black", "firebrick"),
+    scale_fill_manual(values = c("royalblue", "black", "#b62959"),
                       breaks = c(-1, 0, 1),
                       limits = factor(c(-1, 0, 1)),
                       labels = c("negative", "zero", "positive"),
-                      name = paste(param, "trend\ndirection"),
+                      name = paste(param, "Trend\nDirection"),
                       na.translate = FALSE,
                       guide = "none") +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Surface", param)) +
+    guides(size = guide_legend(title.position = "top", title.hjust = 0.5, label.position = "bottom",
+                               nrow = 1)) +
     theme_classic() +
-    theme(text = element_text(family = "open", color = "#193446"),
-          panel.grid = element_blank(),
+    theme(panel.grid = element_blank(),
           axis.title = element_blank(),
-          #legend.position = "bottom",
-          plot.title = element_text(face = "bold"),
+          legend.position = "bottom",
+          legend.title = element_text(hjust = 0.5, family = "mont", color = "#193446"),
+          legend.text = element_text(family = "open", color = "#676767"),
+          plot.title = element_text(face = "bold", family = "mont", color = "#193446"),
           axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.line = element_blank())
@@ -1199,30 +1280,34 @@ bott_list2 <- lapply(params[c(3:4, 7:10)], function(param) {
                                                 slopes_surf2[[param]],
                                                 slopes_bott[[param]],
                                                 slopes_bott2[[param]])), decreasing = TRUE)[1]),
-                          name = "Trend\nmagnitude") +
-    scale_color_manual(values = c("royalblue", "black", "firebrick"),
+                          name = "Trend Magnitude") +
+    scale_color_manual(values = c("royalblue", "black", "#b62959"),
                        breaks = c(-1, 0, 1),
                        limits = factor(c(-1, 0, 1)),
                        labels = c("negative", "zero", "positive"),
-                       name = paste(param, "trend\ndirection"),
+                       name = paste(param, "Trend\nDirection"),
                        na.translate = FALSE,
                        guide = "none") +
-    scale_fill_manual(values = c("royalblue", "black", "firebrick"), 
+    scale_fill_manual(values = c("royalblue", "black", "#b62959"), 
                       breaks = c(-1, 0, 1),
                       limits = factor(c(-1, 0, 1)),
                       labels = c("negative", "zero", "positive"),
-                      name = paste(param, "trend\ndirection"),
+                      name = paste(param, "Trend\nDirection"),
                       na.translate = FALSE,
                       guide = "none") +
     xlim(-70.65, -69.95) +
     ylim(41.55, 42.07) +
     labs(title = paste("Bottom", param)) +
+    guides(size = guide_legend(title.position = "top", title.hjust = 0.5, label.position = "bottom",
+                               nrow = 1)) +
     theme_classic() +
     theme(text = element_text(family = "open", color = "#193446"),
           panel.grid = element_blank(),
           axis.title = element_blank(),
-          #legend.position = "bottom",
-          plot.title = element_text(face = "bold"),
+          legend.position = "bottom",
+          legend.title = element_text(hjust = 0.5, family = "mont", color = "#193446"),
+          legend.text = element_text(family = "open", color = "#676767"),
+          plot.title = element_text(face = "bold", family = "mont", color = "#193446"),
           axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.line = element_blank())
@@ -1235,16 +1320,16 @@ surf_list2[[2]] <- surf_list2[[2]] +
   labs(title = "Mixed-layer Depth (m)")
 
 surf_list2[[3]] <- surf_list2[[3]] +
-  labs(title = expression(bold("Surface TN (μg L"^-1*")")))
+  labs(title = expression(bold("Surface Total Nitrogen (μg L"^-1*")")))
 
 bott_list2[[1]] <- bott_list2[[1]] +
-  labs(title = expression(bold("Bottom TN (μg L"^-1*")")))
+  labs(title = expression(bold("Bottom Total Nitrogen (μg L"^-1*")")))
   
 surf_list2[[4]] <- surf_list2[[4]] +
-  labs(title = expression(bold("Surface TP (μg L"^-1*")")))
+  labs(title = expression(bold("Surface Total Phosphorus (μg L"^-1*")")))
 
 bott_list2[[2]] <- bott_list2[[2]] +
-  labs(title = expression(bold("Bottom TP (μg L"^-1*")")))
+  labs(title = expression(bold("Bottom Total Phosphorus (μg L"^-1*")")))
 
 surf_list2[[5]] <- surf_list2[[5]] +
   labs(title = "Surface N:P Ratio")
@@ -1253,19 +1338,26 @@ surf_list2[[6]] <- surf_list2[[6]] +
   labs(title = expression(bold("Surface Chlorophyll-a (μg L"^-1*")")))
 
 surf_list2[[7]] <- surf_list2[[7]] +
-  labs(title = "Surface Temp (°C)")
+  labs(title = "Surface Temperature (°C)")
 
 bott_list2[[3]] <- bott_list2[[3]] +
-  labs(title = "Bottom Temp (°C)")
+  labs(title = "Bottom Temperature (°C)")
 
 surf_list2[[8]] <- surf_list2[[8]] +
-  labs(title = expression(bold("Surface DO (mg L"^-1*")")))
-
+  labs(title = expression(bold("Surface Dissolved Oxygen (mg L"^-1*")")))
+  
 bott_list2[[4]] <- bott_list2[[4]] +
-  labs(title = expression(bold("Bottom DO (mg L"^-1*")")))
+  labs(title = expression(bold("Bottom Dissolved Oxygen (mg L"^-1*")")))
 
 surf_list2[[9]] <- surf_list2[[9]] +
-  labs(title = "Surface DO Saturation (%)")
+  labs(title = "Surface DO Saturation (%)") +
+  scale_size_continuous(range = c(1, 4),
+                        limits = c(0,
+                                     sort(abs(c(slopes_surf[["DO_sat"]],
+                                                slopes_surf2[["DO_sat"]],
+                                                slopes_bott[["DO_sat"]],
+                                                slopes_bott2[["DO_sat"]])), decreasing = TRUE)[1]),
+                          name = "Trend Magnitude")
 
 bott_list2[[5]] <- bott_list2[[5]] +
   labs(title = "Bottom DO Saturation (%)")
@@ -1276,19 +1368,77 @@ surf_list2[[10]] <- surf_list2[[10]] +
 bott_list2[[6]] <- bott_list2[[6]] +
   labs(title = expression(bold("Bottom Alkalinity (mg L"^-1*")")))
 
-f4.1 <- plot_grid(surf_list2[[1]], surf_list2[[2]],
-                surf_list2[[3]], bott_list2[[1]],
-                surf_list2[[4]], bott_list2[[2]],
-                surf_list2[[5]], surf_list2[[6]], ncol = 2, align = "hv")
+f4.1 <- plot_grid(
+    plot_grid(
+      surf_list2[[1]] + theme(legend.position = "none"),
+      surf_list2[[2]] + theme(legend.position = "none")),
+    plot_grid(
+      get_legend_35(surf_list2[[1]] + theme(legend.key.width = unit(0.45, "in"))),
+      get_legend_35(surf_list2[[2]] + theme(legend.key.width = unit(0.45, "in")))),
+    plot_grid(
+      surf_list2[[3]] + theme(legend.position = "none"),
+      bott_list2[[1]] + theme(legend.position = "none")),
+    get_legend_35(surf_list2[[3]] + theme(legend.key.width = unit(0.45, "in"))),
+    plot_grid(
+      surf_list2[[4]] + theme(legend.position = "none"),
+      bott_list2[[2]] + theme(legend.position = "none")),
+    get_legend_35(surf_list2[[4]] + theme(legend.key.width = unit(0.45, "in"))),
+    plot_grid(
+      surf_list2[[5]] + theme(legend.position = "none"),
+      surf_list2[[6]] + theme(legend.position = "none")),
+    plot_grid(
+      get_legend_35(surf_list2[[5]] + theme(legend.key.width = unit(0.45, "in"))),
+      get_legend_35(surf_list2[[6]] + theme(legend.key.width = unit(0.45, "in")))),
+    nrow = 8,
+    rel_heights = c(6, 1.75, 6, 1.75, 6, 1.75, 6, 1.75))
 
-ggsave("figures/f4.1.png", f4.1, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/f4.1.png", f4.1, width = 9, height = 14.5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/svg/f4.1.svg", f4.1, width = 9, height = 14.5, units = "in", bg = "white")
 
-f4.2 <- plot_grid(surf_list2[[7]], bott_list2[[3]],
-                surf_list2[[8]], bott_list2[[4]],
-                surf_list2[[9]], bott_list2[[5]],
-                surf_list2[[10]], bott_list2[[6]], ncol = 2, align = "hv")
+f4.2 <- plot_grid(
+    plot_grid(
+      surf_list2[[7]] + theme(legend.position = "none"),
+      bott_list2[[3]] + theme(legend.position = "none")),
+    get_legend_35(surf_list2[[7]] + theme(legend.key.width = unit(0.45, "in"))),
+    plot_grid(
+      surf_list2[[8]] + theme(legend.position = "none"),
+      bott_list2[[4]] + theme(legend.position = "none")),
+    get_legend_35(surf_list2[[8]] + theme(legend.key.width = unit(0.45, "in"))),
+    plot_grid(
+      surf_list2[[9]] + theme(legend.position = "none"),
+      bott_list2[[5]] + theme(legend.position = "none")),
+    get_legend_35(surf_list2[[9]] + theme(legend.key.width = unit(0.45, "in"))),
+    plot_grid(
+      surf_list2[[10]] + theme(legend.position = "none"),
+      bott_list2[[6]] + theme(legend.position = "none")),
+    get_legend_35(surf_list2[[10]] + theme(legend.key.width = unit(0.45, "in"))),
+    nrow = 8,
+    rel_heights = c(6, 1.75, 6, 1.75, 6, 1.75, 6, 1.75))
 
-ggsave("figures/f4.2.png", f4.2, width = 6.5, height = 9, units = "in", dpi = 600)
+ggsave("figures/f4.2.png", f4.2, width = 9, height = 14.5, units = "in", dpi = 600, bg = "white")
+ggsave("figures/svg/f4.2.svg", f4.2, width = 9, height = 14.5, units = "in", bg = "white")
+
+f4.legend <- plot_grid(get_legend_35(surf_list2[[1]] +
+                          geom_point(show.legend = TRUE) +
+                          scale_fill_discrete(breaks = c(-2, -1, 0, 1, 2),
+                                            limits = factor(c(-2, -1, 0, 1, 2)),
+                                            labels = c("negative, significant", "negative, non-significant",
+                                                       "zero", "positive, non-significant",
+                                                       "positive, significant"),
+                                            name = "Trend Direction\n& Significance",
+                                            drop=FALSE) +
+                          guides(fill = guide_legend(title.hjust = 0,
+                                                     override.aes = list(shape = 21,
+                                                                         fill = c("royalblue", "white",
+                                                                                  "white", "white",
+                                                                                  "#b62959"),
+                                                                         col = c("black", "royalblue", 
+                                                                                 "black", "#b62959",
+                                                                                 "black")))) +
+                          theme(legend.position = "right"))[5])
+
+ggsave("figures/f4.legend.png", f4.legend, dpi = 600)
+ggsave("figures/svg/f4.legend.svg", f4.legend)
 ```
 
 ## Property-property
