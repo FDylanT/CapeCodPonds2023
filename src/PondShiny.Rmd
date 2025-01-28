@@ -1270,7 +1270,7 @@ colnames(slopes_surf) <- c("pond", "Long", "Lat", "Last_year", colnames(allSurfa
 
 # add trend columns to allSurface for later use
 for(param in colnames(allSurface)[start:end]) {
-  allSurface[[paste0(param, "_trend")]] <- NA
+  allSurface[[paste0(param, "_trend_p")]] <- NA
 }
 
 for(i in 1:length(pondName)) {
@@ -1313,7 +1313,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_surf[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
-    allSurface[[paste0(param, "_trend")]][allSurface$Station.name == pond] <- mk$p.value
+    allSurface[[paste0(param, "_trend_p")]][allSurface$Station.name == pond] <- mk$p.value
   }
 }
 
@@ -1365,7 +1365,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_surf2[[param]][i] <- sens.slope(oneSurf[[param]][oneSurf[[flag_name]] == 2])$estimates
-    allSurface[[paste0(param, "_trend")]][allSurface$Station.name == pond] <- mk$p.value
+    allSurface[[paste0(param, "_trend_p")]][allSurface$Station.name == pond] <- mk$p.value
   }
 }
 
@@ -1382,7 +1382,7 @@ colnames(slopes_bott) <- c("pond", "Long", "Lat", "Last_year", colnames(allBotto
 
 # add trend columns to allBottom for later use
 for(param in colnames(allBottom)[start:end]) {
-  allBottom[[paste0(param, "_trend")]] <- NA
+  allBottom[[paste0(param, "_trend_p")]] <- NA
 }
 
 for(i in 1:length(pondName)) {
@@ -1423,7 +1423,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_bott[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
-    allBottom[[paste0(param, "_trend")]][allBottom$Station.name == pond] <- mk$p.value
+    allBottom[[paste0(param, "_trend_p")]][allBottom$Station.name == pond] <- mk$p.value
   }
 }
 
@@ -1468,7 +1468,7 @@ for(i in 1:length(pondName)) {
       next
     }
     slopes_bott2[[param]][i] <- sens.slope(oneBott[[param]][oneBott[[flag_name]] == 2])$estimates
-    allBottom[[paste0(param, "_trend")]][allBottom$Station.name == pond] <- mk$p.value
+    allBottom[[paste0(param, "_trend_p")]][allBottom$Station.name == pond] <- mk$p.value
   }
 }
 ```
@@ -1568,12 +1568,12 @@ rownames(lensRKTs) <- c("tau", "S", "varS", "p-value", "slope")
 DT::renderDataTable({
   if(input$layer2 == "Surface") {
     trend_data <- allSurface %>%
-      filter(!is.na(get(paste0(input$trend, "_trend")))) %>%  # remove observations from "non-continuous" ponds
+      filter(!is.na(get(paste0(input$trend, "_trend_p")))) %>%  # remove observations from "non-continuous" ponds
       # jitter MLD values (noise prevents slopes of 0)
       mutate(MLD = MLD + runif(length(MLD), -0.05, 0.05))
   } else {
     trend_data <- allBottom %>%
-      filter(!is.na(get(paste0(input$trend, "_trend"))))  # remove observations from "non-continuous" ponds
+      filter(!is.na(get(paste0(input$trend, "_trend_p"))))  # remove observations from "non-continuous" ponds
   }
   flag_name <- paste0(input$trend, "_flag")
   for(i in 1:length(unique(ponds$Lens[!is.na(ponds$Lens)]))) {
@@ -1585,9 +1585,12 @@ DT::renderDataTable({
                                    trend_data$Lens == lens]) < 4) {
       next
     }
-    rk <- rkt(trend_data$Year_frac[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens],
-              trend_data[[input$trend]][trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens],
-              as.numeric(factor(trend_data$Station.name[trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) & trend_data$Lens == lens])),
+    rk <- rkt(trend_data$Year_frac[trend_data[[flag_name]] == 2 &
+                                     !is.na(trend_data$Lens) & trend_data$Lens == lens],
+              trend_data[[input$trend]][trend_data[[flag_name]] == 2 & !is.na(trend_data$Lens) &
+                                          trend_data$Lens == lens],
+              as.numeric(factor(trend_data$Station.name[trend_data[[flag_name]] == 2 & 
+                                                          !is.na(trend_data$Lens) & trend_data$Lens == lens])),
               rep = "a")
     lensRKTs[1:5, i] <- round(unlist(rk[c(12, 2, 4, 1, 3)]), c(3, 0, 0, 3, 3))
   }
